@@ -1,0 +1,116 @@
+# syntax=docker/dockerfile:1
+
+# Build stage: Debian Bookworm cross-compile to aarch64-unknown-linux-gnu
+FROM debian:bookworm AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Base toolchain and cross-compilation deps
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    curl \
+    ca-certificates \
+    git \
+    gcc-aarch64-linux-gnu \
+    libc6-dev-arm64-cross \
+    clang \
+    libclang-dev \
+    libv4l-dev \
+    sqlite3 \
+    libsqlite3-dev \
+    && ldconfig && rm -rf /var/lib/apt/lists/*
+
+# Install Rust via rustup
+ENV RUSTUP_HOME=/root/.rustup \
+    CARGO_HOME=/root/.cargo \
+    PATH=/root/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+RUN rustup target add aarch64-unknown-linux-gnu
+
+# Cross-compile environment
+ENV PKG_CONFIG_ALLOW_CROSS=1 \
+    CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+    CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
+    AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+
+# Prepare workspace
+WORKDIR /work/photobooth
+
+# Cache dependencies first
+COPY Cargo.toml ./Cargo.toml
+COPY Cargo.lock ./Cargo.lock
+# Create empty src to allow cargo to resolve deps
+RUN mkdir -p src && echo "fn main(){}" > src/main.rs
+RUN cargo fetch --target aarch64-unknown-linux-gnu
+
+# Copy source files
+COPY src ./src
+COPY .sqlx ./.sqlx
+COPY migrations ./migrations
+
+# Copy configuration files needed for build (sqlx compile-time checks)
+COPY configuration.yaml ./
+COPY .env ./
+COPY booth.db ./
+
+# Set environment for sqlx
+ENV SQLX_OFFLINE=true
+ENV DATABASE_URL=sqlite://booth.db
+
+# Build release for aarch64-unknown-linux-gnu
+RUN cargo build --release --target aarch64-unknown-linux-gnu --bin arb
+
+# Runtime stage: Minimal ARM64 image with runtime dependencies
+FROM debian:bookworm-slim AS runtime
+
+# Install runtime dependencies for v4l and camera support
+RUN apt-get update && apt-get install -y \
+    libv4l-0 \
+    v4l-utils \
+    libudev1 \
+    libssl3 \
+    ca-certificates \
+    sqlite3 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy the binary from builder stage
+COPY --from=builder /work/photobooth/target/aarch64-unknown-linux-gnu/release/arb ./arb
+
+# Copy configuration files and database
+COPY --from=builder /work/photobooth/configuration.yaml ./
+COPY --from=builder /work/photobooth/.env ./
+COPY --from=builder /work/photobooth/booth.db ./
+COPY --from=builder /work/photobooth/migrations ./migrations
+
+# Create photos directory
+RUN mkdir -p photos
+
+# Set permissions
+RUN chmod +x ./arb
+
+# Expose port
+EXPOSE 8000
+
+# Set environment
+ENV APP_ENVIRONMENT=production
+ENV RUST_LOG=info
+ENV SQLX_OFFLINE=true
+
+# Add video group for camera access
+RUN groupadd -r video || true
+
+ENTRYPOINT ["./arb"]
+
+# Artifact extraction stage for deployment script
+FROM scratch AS artifact
+COPY --from=builder /work/photobooth/target/aarch64-unknown-linux-gnu/release/arb /arb
+COPY --from=builder /work/photobooth/configuration.yaml /configuration.yaml
+COPY --from=builder /work/photobooth/.env /.env
+COPY --from=builder /work/photobooth/booth.db /booth.db
+COPY --from=builder /work/photobooth/migrations /migrations

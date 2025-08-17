@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>V4L2 Camera Preview (MJPEG)</title></head></title>
+  <style></style>
+    :root { color-scheme: dark; }
+    body { background:black; color:white; font-family:sans-serif; text-align:center; margin:0; }
+    #wrap { padding: 20px; }
+    #countdown { position:absolute; top:40%; left:0; right:0; font-size:80px; }
+    button { font-size: 20px; padding: 10px 20px; }
+    img { background:#222; }
+  </style>
+</head>
+<body></body>
+  <div id="wrap">
+    <h1>V</h1>4L2 Camera Preview (MJPEG)</h1>
+    <p></p>Set VIDEO_DEVICE (default /dev/video1), VIDEO_WIDTH (default 1920), VIDEO_HEIGHT (default 1080).</p>
+    <div style="position:relative; display:inline-block;">
+      <img id="preview" src="/preview" width="800" alt="Preview stream"/>
+      <div id="countdown"></div>
+    </div>
+    <br/>
+    <button id="startBtn" onclick="startCountdown()">Start Countdown</button>
+  </div>
+
+  <script></script>
+    let countdownRunning = false;
+
+    function startCountdown() {
+      if (countdownRunning) return;
+      countdownRunning = true;
+
+      const btn = document.getElementById("startBtn");
+      if (btn) btn.disabled = true;
+
+      let t = 3;
+      const countdown = document.getElementById("countdown");
+      countdown.textContent = t;
+
+      const interval = setInterval(() => {
+        t--;
+        if (t > 0) {
+          countdown.textContent = t;
+        } else {
+          clearInterval(interval);
+          countdown.textContent = "";
+
+          fetch('/capture', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+              if (d && d.ok) {
+                // Prefer server-provided redirect; fall back to photo.html
+                if (d.redirect) {
+                  window.location.href = d.redirect;
+                } else if (d.file) {
+                  window.location.href = '/photo.html?file=' + encodeURIComponent(d.file);
+                } else if (d.path) {
+                  // Accept path form; photo.html can parse ?path=/images/<name></name>
+                  window.location.href = '/photo.html?path=' + encodeURIComponent(d.path);
+                } else {
+                  resetWithError('Capture failed: missing redirect or path');
+                }
+              } else {
+                resetWithError('Capture failed');
+              }
+            })
+            .catch(e => {
+              resetWithError('Capture failed: ' + e);
+            });
+        }
+      }, 1000);
+    }
+
+    function resetWithError(msg) {
+      const btn = document.getElementById("startBtn");
+      if (btn) btn.disabled = false;
+      countdownRunning = false;
+      alert(msg);
+    }
+  </script>
+</body>
+</html>

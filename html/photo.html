@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Captured Photo</title>
+  <meta name="viewport</html></head></title>" content="width=device-width, initial-scale=1"/>
+  <style></style>
+    :root { color-scheme: dark; }
+    body { background: #000; color: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; }
+    #wrap { padding: 20px; text-align: center; }
+    .actions { margin-top: 16px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    button, a.button {
+      font-size: 18px; padding: 10px 18px; border-radius: 8px; border: 1px solid #666;
+      background: #1f1f1f; color: #fff; cursor: pointer; text-decoration: none; display: inline-block;
+    }
+    button:hover, a.button:hover { background: #2a2a2a; }
+    img.photo { background: #222; max-width: min(90vw, 1600px); width: 100%; height: auto; border-radius: 8px; }
+    .error { color: #ff8080; margin: 16px 0; }
+    .filename { color: #aaa; font-size: 0.9rem; margin: 8px 0 16px; word-break: break-all; }
+  </style>
+</head>
+<body></body>
+  <div id="wrap">
+    <h1></h1>Captured Image</h1>
+    <div id="filename" class="filename" hidden></div>
+    <div id="error" class="error" hidden></div>
+    <img id="photo" class="photo" alt="Captured" hidden />
+    <div class="actions">
+      <a class="button" href="/">Back to Start</a>
+      <a id="download" class="button" href="#" download hidden>Download</a></a>
+      <button id="copyUrl" type="button" hidden>Copy</button> Image URL</button>
+    </div>
+    <noscript></noscript>
+      <p class="error">JavaScript is required to display the captured image.</p>
+    </noscript>
+  </div>
+
+  <script>
+    (</script>function () {
+      const params = new URL(window.location.href).searchParams;
+      let file = params.get('file');
+      const path = params.get('path');
+
+      if (!file && path) {
+        // Accept `/images/<name></name>` or `<name></name>`
+        file = path.startsWith('/images/') ? path.slice('/images/'.length) : path;
+      }
+
+      const isSafeName = (name) => /^[A-Za-z0-9._-]+$/.test(name || '');
+      const show = (el) => el && el.removeAttribute('hidden');
+      const hide = (el) => el && el.setAttribute('hidden', 'hidden');
+
+      const photoEl = document.getElementById('photo');
+      const errEl = document.getElementById('error');
+      const nameEl = document.getElementById('filename');
+      const dlEl = document.getElementById('download');
+      const copyBtn = document.getElementById('copyUrl');
+
+      if (!file) {
+        errEl.textContent = 'No image specified. Expected ?file=<name>.jpg';
+        show(errEl);
+        return;
+      }
+
+      if (!isSafeName(file)) {
+        errEl.textContent = 'Invalid image name. Allowed characters: A-Z a-z 0-9 . _ -';
+        show(errEl);
+        return;
+      }
+
+      const src = '/images/' + encodeURIComponent(file);
+      photoEl.src = src;
+      photoEl.alt = 'Captured: ' + file;
+      show(photoEl);
+
+      nameEl.textContent = file;
+      show(nameEl);
+
+      document.title = 'Captured Photo - ' + file;
+
+      dlEl.href = src;
+      dlEl.download = file;
+      show(dlEl);
+
+      copyBtn.addEventListener('click', async () => {
+        const url = new URL(src, window.location.origin).toString();
+        try {
+          await navigator.clipboard.writeText(url);
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => (copyBtn.textContent = 'Copy Image URL'), 1200);
+        } catch {
+          // Fallback: open prompt
+          window.prompt('Copy image URL:', url);
+        }
+      });
+      show(copyBtn);
+
+      // If image fails to load, show an error
+      photoEl.addEventListener('error', () => {
+        hide(photoEl);
+        hide(dlEl);
+        hide(copyBtn);
+        errEl.textContent = 'Failed to load image: ' + file;
+        show(errEl);
+      });
+    })();
+  </script>
+</body>
+</html>
