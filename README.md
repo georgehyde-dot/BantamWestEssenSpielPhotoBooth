@@ -103,6 +103,7 @@ The application is organized in a modular structure with separate concerns:
 - `main.rs` - Application entry point and web server
 - `lib.rs` - Library module organization
 - `printers.rs` - All printer-related functionality
+- `camera.rs` - Camera interface and V4L2 implementation
 - HTML files embedded at compile time for the web interface
 
 The application has been cleaned up to remove unnecessary debug logging while maintaining essential functionality:
@@ -126,11 +127,13 @@ The application has been cleaned up to remove unnecessary debug logging while ma
    - `Printer` trait for abstraction
    - Platform-specific implementations
 
-4. **Camera Functionality (in `main.rs`)**
-   - MJPEG streaming support
-   - YUYV to JPEG conversion
-   - Userptr and mmap streaming modes
-   - Frame capture with retry logic
+4. **Camera Module (`camera.rs`)**
+   - `Camera` - Main camera interface
+   - `CameraConfig` - Camera configuration from environment variables
+   - V4L2 device management
+   - MJPEG streaming support (userptr mode)
+   - Frame capture and buffering
+   - Platform-specific stubs for non-Linux systems
 
 5. **Web Endpoints**
    - `/` - Main interface with embedded HTML
@@ -145,8 +148,9 @@ The application has been cleaned up to remove unnecessary debug logging while ma
 - `preview_loop()` - Manages camera streaming
 - `capture_image()` - Captures and saves photos
 - `print_photo()` - Handles print job submission
-- `yuyv_to_jpeg()` - Format conversion for non-MJPEG cameras
 - `new_printer()` - Factory function for printer instances (in `printers.rs`)
+- `Camera::start_preview_stream()` - Starts continuous MJPEG streaming (in `camera.rs`)
+- `Camera::capture_frame()` - Gets the latest captured frame (in `camera.rs`)
 
 ### File Storage
 

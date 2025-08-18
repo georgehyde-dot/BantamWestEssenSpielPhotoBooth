@@ -37,125 +37,14 @@ use v4l::video::Capture;
 #[cfg(target_os = "linux")]
 use bytes::Bytes; // for streaming
 #[cfg(target_os = "linux")]
-use image::{ImageBuffer, Rgb};
-#[cfg(target_os = "linux")]
-use std::io::Cursor;
+use image;
 
 // Module imports
+mod camera;
 mod printers;
 
 #[cfg(target_os = "linux")]
 use printers::{new_printer, PaperSize, PrintJob, PrintQuality, Printer, PrinterError};
-
-// V4L2 camera functionality
-
-#[cfg(target_os = "linux")]
-fn video_settings() -> (String, u32, u32) {
-    let dev = std::env::var("VIDEO_DEVICE").unwrap_or_else(|_| "/dev/video0".to_string());
-    let width = std::env::var("VIDEO_WIDTH")
-        .ok()
-        .and_then(|s| s.parse::<u32>().ok())
-        .unwrap_or(1920);
-    let height = std::env::var("VIDEO_HEIGHT")
-        .ok()
-        .and_then(|s| s.parse::<u32>().ok())
-        .unwrap_or(1080);
-    (dev, width, height)
-}
-
-#[cfg(target_os = "linux")]
-fn configure_device(dev: &mut Device, width: u32, height: u32) -> Result<Format, String> {
-    // Capture trait in scope provides format() and set_format()
-    let mut fmt = dev.format().map_err(|e| format!("format(): {e}"))?;
-    fmt.width = width;
-    fmt.height = height;
-
-    // Try MJPEG first, fall back to YUYV
-    fmt.fourcc = FourCC::new(b"MJPG");
-    let fmt = dev
-        .set_format(&fmt)
-        .map_err(|e| format!("set_format(): {e}"))?;
-
-    if fmt.fourcc == FourCC::new(b"MJPG") {
-        return Ok(fmt);
-    }
-
-    Err(format!(
-        "Device does not support MJPEG, got {}. Only MJPEG is supported.",
-        fmt.fourcc
-    ))
-}
-
-#[cfg(target_os = "linux")]
-fn preview_loop(
-    path: String,
-    width: u32,
-    height: u32,
-    mut tx: mpsc::Sender<Vec<u8>>,
-    last_frame: Arc<Mutex<Option<Vec<u8>>>>,
-) -> Result<(), String> {
-    let mut dev = Device::with_path(path).map_err(|e| format!("open device: {e}"))?;
-    let fmt = configure_device(&mut dev, width, height)?;
-
-    let is_mjpeg = fmt.fourcc == FourCC::new(b"MJPG");
-    let mut frame_count = 0;
-
-    // Try userptr streaming first (better for HDMI capture devices)
-    match try_userptr_streaming(
-        &mut dev,
-        &fmt,
-        is_mjpeg,
-        &mut tx,
-        &mut frame_count,
-        &last_frame,
-    ) {
-        Ok(()) => return Ok(()),
-        Err(_) => Err(format!(
-            "Device does not support userptr streaming, got {}. Only MJPEG is supported.",
-            fmt.fourcc
-        )),
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn try_userptr_streaming(
-    dev: &mut Device,
-    fmt: &Format,
-    is_mjpeg: bool,
-    tx: &mut mpsc::Sender<Vec<u8>>,
-    frame_count: &mut usize,
-    last_frame: &Arc<Mutex<Option<Vec<u8>>>>,
-) -> Result<(), String> {
-    let mut stream = userptr::Stream::with_buffers(dev, Type::VideoCapture, 4)
-        .map_err(|e| format!("Failed to create UserptrStream: {e}"))?;
-
-    loop {
-        match stream.next() {
-            Ok((buffer, _meta)) => {
-                *frame_count += 1;
-
-                let jpeg_data = if is_mjpeg {
-                    buffer.to_vec()
-                } else {
-                    continue;
-                };
-
-                {
-                    let mut lf = last_frame.lock().unwrap();
-                    *lf = Some(jpeg_data.clone());
-                }
-                if tx.blocking_send(jpeg_data).is_err() {
-                    break;
-                }
-            }
-            Err(e) => {
-                return Err(format!("Userptr stream error: {e}"));
-            }
-        }
-    }
-
-    Ok(())
-}
 
 #[cfg(target_os = "linux")]
 #[actix_web::main]
@@ -173,6 +62,9 @@ async fn main() -> std::io::Result<()> {
 
     #[cfg(not(target_os = "linux"))]
     let printer = None;
+
+    #[cfg(not(target_os = "linux"))]
+    let camera = None;
 
     HttpServer::new(move || {
         let mut app = App::new()
@@ -225,12 +117,12 @@ async fn photo_page(
 #[get("/preview")]
 async fn preview_stream(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> impl Responder {
     let (tx, mut rx) = mpsc::channel::<Vec<u8>>(8);
-    let (path, width, height) = video_settings();
+    let (path, width, height) = camera::video_settings();
 
     // Run V4L2 capture in a blocking thread, forward frames over channel
     let last_frame_arc = last_frame.get_ref().clone();
     tokio::task::spawn_blocking(move || {
-        if let Err(e) = preview_loop(path, width, height, tx, last_frame_arc) {
+        if let Err(e) = camera::preview_loop(path, width, height, tx, last_frame_arc) {
             eprintln!("Preview loop terminated: {e}");
         }
     });
@@ -372,35 +264,6 @@ async fn print_photo(
             "error": format!("Print failed: {}", e)
         })),
     }
-}
-
-#[cfg(target_os = "linux")]
-fn try_userptr_capture(dev: &mut Device, fmt: &Format, is_mjpeg: bool) -> Result<Vec<u8>, String> {
-    let mut stream = userptr::Stream::with_buffers(dev, Type::VideoCapture, 4)
-        .map_err(|e| format!("Failed to create userptr capture stream: {e}"))?;
-
-    // Grab a few frames and keep the last
-    let mut image: Option<Vec<u8>> = None;
-    for attempt in 0..5 {
-        match stream.next() {
-            Ok((buffer, _meta)) => {
-                let jpeg_data = if is_mjpeg { buffer.to_vec() } else { continue };
-                image = Some(jpeg_data);
-
-                if attempt < 4 {
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                }
-            }
-            Err(e) => {
-                return Err(format!(
-                    "userptr capture error on attempt {}: {}",
-                    attempt + 1,
-                    e
-                ));
-            }
-        }
-    }
-    image.ok_or_else(|| "No frame captured after 5 attempts".to_string())
 }
 
 #[cfg(not(target_os = "linux"))]
