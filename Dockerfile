@@ -48,6 +48,7 @@ RUN cargo fetch
 
 # Now copy actual sources
 COPY canon_test_cam/src ./src
+COPY canon_test_cam/html ./html
 
 # Build release for aarch64-unknown-linux-gnu
 RUN cargo build --release --target aarch64-unknown-linux-gnu

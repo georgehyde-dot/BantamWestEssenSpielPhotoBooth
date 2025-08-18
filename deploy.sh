@@ -70,35 +70,21 @@ scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${LOCAL_BIN}" "${P
 echo ">> Marking remote binary as executable..."
 ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DEST_PATH}'"
 
-# Copy debug script for troubleshooting print issues
-DEBUG_SCRIPT="${SCRIPT_DIR}/debug_print.sh"
-REMOTE_DEBUG_PATH="/home/${PI_USER}/debug_print.sh"
-if [[ -f "${DEBUG_SCRIPT}" ]]; then
-    echo ">> Copying debug script..."
-    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${DEBUG_SCRIPT}" "${PI_USER}@${PI_HOST}:${REMOTE_DEBUG_PATH}"
-    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DEBUG_PATH}'"
-    echo ">> Debug script deployed to: ${REMOTE_DEBUG_PATH}"
-else
-    echo ">> Debug script not found at ${DEBUG_SCRIPT}, skipping..."
+# Copy test scripts if they exist
+if [ -f "${SCRIPT_DIR}/test_endpoints.sh" ]; then
+    echo ">> Copying test_endpoints.sh..."
+    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${SCRIPT_DIR}/test_endpoints.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_endpoints.sh"
+    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
 fi
+
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
 echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
-if [[ -f "${DEBUG_SCRIPT}" ]]; then
-    echo "Debug script: ${PI_USER}@${PI_HOST}:${REMOTE_DEBUG_PATH}"
-fi
 echo
 echo "Run on the Pi (example):"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"VIDEO_DEVICE=/dev/video0 VIDEO_WIDTH=1280 VIDEO_HEIGHT=720 '${REMOTE_DEST_PATH}'\""
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"VIDEO_DEVICE=/dev/video0 VIDEO_WIDTH=1920 VIDEO_HEIGHT=1080 '${REMOTE_DEST_PATH}'\""
 echo
-echo "Troubleshooting print issues:"
-echo "  # Run debug script to check CUPS permissions:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo ./debug_print.sh all\""
+echo "Test the endpoints:"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/test_endpoints.sh\""
 echo
-echo "  # Check CUPS status and logs:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"lpstat -p && tail -20 /var/log/cups/error_log\""
-echo
-echo "  # Fix common permission issues:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo ./debug_print.sh fix\""
-echo "------------------------------------------------------------------"

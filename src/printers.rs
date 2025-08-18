@@ -1,0 +1,328 @@
+// Printer functionality module
+
+#[cfg(target_os = "linux")]
+use async_trait::async_trait;
+#[cfg(target_os = "linux")]
+use chrono;
+#[cfg(target_os = "linux")]
+use image;
+#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+use printers::{
+    common::base::job::PrinterJobOptions, common::base::printer::Printer as PrintersCratePrinter,
+    get_printers,
+};
+#[cfg(target_os = "linux")]
+use serde::Serialize;
+#[cfg(target_os = "linux")]
+use std::error::Error;
+#[cfg(target_os = "linux")]
+use std::fmt;
+
+// Printer types and enums
+#[cfg(target_os = "linux")]
+#[derive(Debug, Clone, Serialize)]
+pub enum PaperSize {
+    Letter,
+    A4,
+    Photo4x6,
+    Photo5x7,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug, Clone, Serialize)]
+pub enum PrintQuality {
+    Draft,
+    Normal,
+    High,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub struct PrintJob {
+    pub file_path: String,
+    pub copies: u32,
+    pub paper_size: PaperSize,
+    pub quality: PrintQuality,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug, Serialize)]
+pub struct PrinterStatus {
+    pub is_online: bool,
+    pub paper_level: Option<u8>,
+    pub toner_level: Option<u8>,
+    pub error_message: Option<String>,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub enum PrinterError {
+    NotFound(String),
+    NotReady(String),
+    PrintFailed(String),
+    IoError(String),
+}
+
+#[cfg(target_os = "linux")]
+impl fmt::Display for PrinterError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PrinterError::NotFound(msg) => write!(f, "Printer not found: {}", msg),
+            PrinterError::NotReady(msg) => write!(f, "Printer not ready: {}", msg),
+            PrinterError::PrintFailed(msg) => write!(f, "Print failed: {}", msg),
+            PrinterError::IoError(msg) => write!(f, "I/O error: {}", msg),
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Error for PrinterError {}
+
+// Printer trait
+#[cfg(target_os = "linux")]
+#[async_trait]
+pub trait Printer: Send + Sync {
+    async fn print_photo(&self, job: PrintJob) -> Result<String, PrinterError>;
+    async fn is_ready(&self) -> bool;
+    async fn get_status(&self) -> Result<PrinterStatus, PrinterError>;
+    fn type_name(&self) -> &'static str;
+}
+
+// Epson printer implementation
+#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+pub struct EpsonPrinter {
+    printer_name: String,
+    cups_printer: Option<PrintersCratePrinter>,
+}
+
+#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+impl EpsonPrinter {
+    pub async fn new(printer_name: &str) -> Result<Self, PrinterError> {
+        // Get all available printers
+        let printers = get_printers();
+
+        // Find the XP-8700 printer (try exact match first, then partial match)
+        let cups_printer = printers
+            .iter()
+            .find(|p| p.name == printer_name)
+            .or_else(|| {
+                printers
+                    .iter()
+                    .find(|p| p.name.contains("XP-8700") || p.name.contains("XP_8700"))
+            })
+            .cloned();
+
+        match cups_printer {
+            Some(printer) => Ok(EpsonPrinter {
+                printer_name: printer.name.clone(),
+                cups_printer: Some(printer),
+            }),
+            None => Err(PrinterError::NotFound(format!(
+                "XP-8700 printer '{}' not found in CUPS",
+                printer_name
+            ))),
+        }
+    }
+}
+
+#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[async_trait]
+impl Printer for EpsonPrinter {
+    async fn print_photo(&self, job: PrintJob) -> Result<String, PrinterError> {
+        let printer = self
+            .cups_printer
+            .as_ref()
+            .ok_or_else(|| PrinterError::NotReady("Printer not initialized".to_string()))?;
+
+        // Check if file exists
+        let file_path = std::path::Path::new(&job.file_path);
+        if !file_path.exists() {
+            return Err(PrinterError::IoError(format!(
+                "File not found: {}",
+                job.file_path
+            )));
+        }
+
+        // Validate image file
+        if let Ok(file_bytes) = std::fs::read(&job.file_path) {
+            if let Err(e) = image::load_from_memory(&file_bytes) {
+                return Err(PrinterError::IoError(format!(
+                    "Image file validation failed: {}",
+                    e
+                )));
+            }
+        } else {
+            return Err(PrinterError::IoError(format!(
+                "Cannot read file: {}",
+                job.file_path
+            )));
+        }
+
+        // Set proper permissions on original file for CUPS access
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(mut perms) =
+                std::fs::metadata(&job.file_path).and_then(|m| Ok(m.permissions()))
+            {
+                perms.set_mode(0o644); // rw-r--r--
+                let _ = std::fs::set_permissions(&job.file_path, perms);
+            }
+        }
+
+        let print_file_path = job.file_path.clone();
+
+        // Set up printer options
+        let mut raw_properties = Vec::new();
+
+        // Set paper size
+        let paper_size_str = match job.paper_size {
+            PaperSize::Photo4x6 => "4x6.Borderless",
+            PaperSize::Photo5x7 => "5x7.Borderless",
+            _ => "Letter",
+        };
+        raw_properties.push(("PageSize", paper_size_str.to_string()));
+
+        // Set photo tray and media type for photo sizes
+        if matches!(job.paper_size, PaperSize::Photo4x6 | PaperSize::Photo5x7) {
+            raw_properties.push(("InputSlot", "Photo".to_string()));
+            raw_properties.push(("MediaType", "PhotographicSemiGloss".to_string()));
+        }
+
+        raw_properties.push(("copies", job.copies.to_string()));
+
+        let job_name = format!("PhotoBooth-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
+        raw_properties.push(("job-name", job_name.clone()));
+
+        let raw_props: Vec<(&str, &str)> = raw_properties
+            .iter()
+            .map(|(k, v)| (*k, v.as_str()))
+            .collect();
+
+        let options = PrinterJobOptions {
+            name: Some(&job_name),
+            raw_properties: &raw_props,
+        };
+
+        match printer.print_file(&print_file_path, options) {
+            Ok(job_id) => Ok(job_id.to_string()),
+            Err(e) => Err(PrinterError::PrintFailed(format!(
+                "CUPS print error: {}",
+                e
+            ))),
+        }
+    }
+
+    async fn is_ready(&self) -> bool {
+        self.cups_printer.is_some()
+    }
+
+    async fn get_status(&self) -> Result<PrinterStatus, PrinterError> {
+        if self.cups_printer.is_some() {
+            Ok(PrinterStatus {
+                is_online: true,
+                paper_level: None,
+                toner_level: None,
+                error_message: None,
+            })
+        } else {
+            Err(PrinterError::NotReady(
+                "Printer not initialized".to_string(),
+            ))
+        }
+    }
+
+    fn type_name(&self) -> &'static str {
+        "Epson XP-8700"
+    }
+}
+
+// Mock printer implementation for when no real printer is available
+#[cfg(target_os = "linux")]
+pub struct MockPrinter;
+
+#[cfg(target_os = "linux")]
+#[async_trait]
+impl Printer for MockPrinter {
+    async fn print_photo(&self, _job: PrintJob) -> Result<String, PrinterError> {
+        // Simulate some processing time
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+        // Generate a mock job ID
+        let job_id = format!("mock-job-{}", chrono::Utc::now().timestamp());
+        Ok(job_id)
+    }
+
+    async fn is_ready(&self) -> bool {
+        true
+    }
+
+    async fn get_status(&self) -> Result<PrinterStatus, PrinterError> {
+        Ok(PrinterStatus {
+            is_online: true,
+            paper_level: Some(85),
+            toner_level: Some(60),
+            error_message: None,
+        })
+    }
+
+    fn type_name(&self) -> &'static str {
+        "Mock Printer"
+    }
+}
+
+// Factory function to create appropriate printer instance
+#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
+    // Try to find Epson XP-8700 printer with various possible names
+    let possible_names = vec![
+        "EPSON_XP_8700_Series_USB",
+        "XP-8700",
+        "EPSON XP-8700",
+        "EPSON-XP-8700",
+    ];
+
+    for name in &possible_names {
+        match EpsonPrinter::new(name).await {
+            Ok(printer) => return Ok(std::sync::Arc::new(printer)),
+            Err(_) => {}
+        }
+    }
+
+    // Fall back to mock printer
+    Ok(std::sync::Arc::new(MockPrinter))
+}
+
+#[cfg(all(target_os = "linux", not(feature = "printer-cups")))]
+pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
+    // When CUPS feature is not enabled, always use mock printer
+    Ok(std::sync::Arc::new(MockPrinter))
+}
+
+// Non-Linux stub types
+#[cfg(not(target_os = "linux"))]
+#[allow(dead_code)]
+pub struct MockPrinter;
+
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug)]
+#[allow(dead_code)]
+pub enum PrinterError {
+    NotSupported,
+}
+
+#[cfg(not(target_os = "linux"))]
+impl std::fmt::Display for PrinterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Printer functionality not supported on this platform")
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+impl std::error::Error for PrinterError {}
+
+#[cfg(not(target_os = "linux"))]
+#[allow(dead_code)]
+pub async fn new_printer() -> Result<std::sync::Arc<MockPrinter>, PrinterError> {
+    Err(PrinterError::NotSupported)
+}
