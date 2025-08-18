@@ -80,92 +80,10 @@ fn configure_device(dev: &mut Device, width: u32, height: u32) -> Result<Format,
         return Ok(fmt);
     }
 
-    // If MJPEG failed, try YUYV
-    let mut fmt = dev.format().map_err(|e| format!("format(): {e}"))?;
-    fmt.width = width;
-    fmt.height = height;
-    fmt.fourcc = FourCC::new(b"YUYV");
-    let fmt = dev
-        .set_format(&fmt)
-        .map_err(|e| format!("set_format(): {e}"))?;
-
-    if fmt.fourcc == FourCC::new(b"YUYV") {
-        return Ok(fmt);
-    }
-
     Err(format!(
-        "Device does not support MJPEG or YUYV, got {}. Only MJPEG and YUYV are supported.",
+        "Device does not support MJPEG, got {}. Only MJPEG is supported.",
         fmt.fourcc
     ))
-}
-
-#[cfg(target_os = "linux")]
-fn yuyv_to_jpeg(yuyv_data: &[u8], width: u32, height: u32) -> Result<Vec<u8>, String> {
-    // YUYV format: 2 bytes per pixel (4 bytes for 2 pixels: Y1 U Y2 V)
-    let expected_size = (width * height * 2) as usize;
-
-    if yuyv_data.len() < expected_size {
-        return Err(format!(
-            "YUYV data too small: got {}, expected {} for {}x{}",
-            yuyv_data.len(),
-            expected_size,
-            width,
-            height
-        ));
-    }
-
-    // Create RGB data buffer
-    let mut rgb_data = vec![0u8; (width * height * 3) as usize];
-
-    // Convert YUYV to RGB
-    for y in 0..height {
-        for x in 0..(width / 2) {
-            let yuyv_base = ((y * width / 2 + x) * 4) as usize;
-            let rgb_base1 = ((y * width + x * 2) * 3) as usize;
-            let rgb_base2 = ((y * width + x * 2 + 1) * 3) as usize;
-
-            if yuyv_base + 3 >= yuyv_data.len() {
-                continue;
-            }
-
-            let y1 = yuyv_data[yuyv_base] as f32;
-            let u = yuyv_data[yuyv_base + 1] as f32 - 128.0;
-            let y2 = yuyv_data[yuyv_base + 2] as f32;
-            let v = yuyv_data[yuyv_base + 3] as f32 - 128.0;
-
-            // YUV to RGB conversion (ITU-R BT.601)
-            let convert_yuv_to_rgb = |y: f32| -> (u8, u8, u8) {
-                let r = (y + 1.402 * v).clamp(0.0, 255.0) as u8;
-                let g = (y - 0.344136 * u - 0.714136 * v).clamp(0.0, 255.0) as u8;
-                let b = (y + 1.772 * u).clamp(0.0, 255.0) as u8;
-                (r, g, b)
-            };
-
-            let (r1, g1, b1) = convert_yuv_to_rgb(y1);
-            let (r2, g2, b2) = convert_yuv_to_rgb(y2);
-
-            if rgb_base2 + 2 < rgb_data.len() {
-                rgb_data[rgb_base1] = r1;
-                rgb_data[rgb_base1 + 1] = g1;
-                rgb_data[rgb_base1 + 2] = b1;
-
-                rgb_data[rgb_base2] = r2;
-                rgb_data[rgb_base2 + 1] = g2;
-                rgb_data[rgb_base2 + 2] = b2;
-            }
-        }
-    }
-
-    // Create image and encode as JPEG
-    let img = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(width, height, rgb_data)
-        .ok_or("Failed to create image buffer")?;
-
-    let mut jpeg_data = Vec::new();
-    let mut cursor = Cursor::new(&mut jpeg_data);
-    img.write_to(&mut cursor, image::ImageFormat::Jpeg)
-        .map_err(|e| format!("JPEG encoding failed: {}", e))?;
-
-    Ok(jpeg_data)
 }
 
 #[cfg(target_os = "linux")]
@@ -192,20 +110,11 @@ fn preview_loop(
         &last_frame,
     ) {
         Ok(()) => return Ok(()),
-        Err(_) => {
-            // Fall back to mmap streaming
-        }
+        Err(_) => Err(format!(
+            "Device does not support userptr streaming, got {}. Only MJPEG is supported.",
+            fmt.fourcc
+        )),
     }
-
-    // Fallback to mmap streaming
-    try_mmap_streaming(
-        &mut dev,
-        &fmt,
-        is_mjpeg,
-        &mut tx,
-        &mut frame_count,
-        &last_frame,
-    )
 }
 
 #[cfg(target_os = "linux")]
@@ -228,13 +137,7 @@ fn try_userptr_streaming(
                 let jpeg_data = if is_mjpeg {
                     buffer.to_vec()
                 } else {
-                    // Convert YUYV to JPEG
-                    match yuyv_to_jpeg(buffer, fmt.width, fmt.height) {
-                        Ok(jpeg) => jpeg,
-                        Err(_) => {
-                            continue;
-                        }
-                    }
+                    continue;
                 };
 
                 {
@@ -247,52 +150,6 @@ fn try_userptr_streaming(
             }
             Err(e) => {
                 return Err(format!("Userptr stream error: {e}"));
-            }
-        }
-    }
-
-    Ok(())
-}
-
-#[cfg(target_os = "linux")]
-fn try_mmap_streaming(
-    dev: &mut Device,
-    fmt: &Format,
-    is_mjpeg: bool,
-    tx: &mut mpsc::Sender<Vec<u8>>,
-    frame_count: &mut usize,
-    last_frame: &Arc<Mutex<Option<Vec<u8>>>>,
-) -> Result<(), String> {
-    let mut stream = MmapStream::with_buffers(dev, Type::VideoCapture, 4)
-        .map_err(|e| format!("Failed to create MmapStream: {e}"))?;
-
-    loop {
-        match stream.next() {
-            Ok((buffer, _meta)) => {
-                *frame_count += 1;
-
-                let jpeg_data = if is_mjpeg {
-                    buffer.to_vec()
-                } else {
-                    // Convert YUYV to JPEG
-                    match yuyv_to_jpeg(buffer, fmt.width, fmt.height) {
-                        Ok(jpeg) => jpeg,
-                        Err(_) => {
-                            continue;
-                        }
-                    }
-                };
-
-                {
-                    let mut lf = last_frame.lock().unwrap();
-                    *lf = Some(jpeg_data.clone());
-                }
-                if tx.blocking_send(jpeg_data).is_err() {
-                    break;
-                }
-            }
-            Err(_) => {
-                std::thread::sleep(std::time::Duration::from_millis(100));
             }
         }
     }
@@ -434,18 +291,6 @@ async fn capture_image(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> im
                     image::load_from_memory(&bytes).map_err(|e| format!("decode image: {e}"))?;
                 img.save(&save_path).map_err(|e| format!("save PNG: {e}"))?;
 
-                // Set proper permissions for CUPS access
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if let Ok(mut perms) =
-                        std::fs::metadata(&save_path).and_then(|m| Ok(m.permissions()))
-                    {
-                        perms.set_mode(0o644);
-                        let _ = std::fs::set_permissions(&save_path, perms);
-                    }
-                }
-
                 Ok(())
             })
             .await;
@@ -539,16 +384,7 @@ fn try_userptr_capture(dev: &mut Device, fmt: &Format, is_mjpeg: bool) -> Result
     for attempt in 0..5 {
         match stream.next() {
             Ok((buffer, _meta)) => {
-                let jpeg_data = if is_mjpeg {
-                    buffer.to_vec()
-                } else {
-                    match yuyv_to_jpeg(buffer, fmt.width, fmt.height) {
-                        Ok(jpeg) => jpeg,
-                        Err(_) => {
-                            continue;
-                        }
-                    }
-                };
+                let jpeg_data = if is_mjpeg { buffer.to_vec() } else { continue };
                 image = Some(jpeg_data);
 
                 if attempt < 4 {
@@ -561,40 +397,6 @@ fn try_userptr_capture(dev: &mut Device, fmt: &Format, is_mjpeg: bool) -> Result
                     attempt + 1,
                     e
                 ));
-            }
-        }
-    }
-    image.ok_or_else(|| "No frame captured after 5 attempts".to_string())
-}
-
-#[cfg(target_os = "linux")]
-fn try_mmap_capture(dev: &mut Device, fmt: &Format, is_mjpeg: bool) -> Result<Vec<u8>, String> {
-    let mut stream = MmapStream::with_buffers(dev, Type::VideoCapture, 4)
-        .map_err(|e| format!("Failed to create mmap capture stream: {e}"))?;
-
-    // Grab a few frames and keep the last
-    let mut image: Option<Vec<u8>> = None;
-    for attempt in 0..5 {
-        match stream.next() {
-            Ok((buffer, _meta)) => {
-                let jpeg_data = if is_mjpeg {
-                    buffer.to_vec()
-                } else {
-                    match yuyv_to_jpeg(buffer, fmt.width, fmt.height) {
-                        Ok(jpeg) => jpeg,
-                        Err(_) => {
-                            continue;
-                        }
-                    }
-                };
-                image = Some(jpeg_data);
-
-                if attempt < 4 {
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                }
-            }
-            Err(_) => {
-                std::thread::sleep(std::time::Duration::from_millis(100));
             }
         }
     }
