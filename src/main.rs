@@ -42,6 +42,7 @@ use image;
 // Module imports
 mod camera;
 mod printers;
+mod templates;
 
 #[cfg(target_os = "linux")]
 use printers::{new_printer, PaperSize, PrintJob, PrintQuality, Printer, PrinterError};
@@ -78,7 +79,10 @@ async fn main() -> std::io::Result<()> {
             );
 
         if let Some(p) = printer.clone() {
-            app = app.app_data(web::Data::new(p)).service(print_photo);
+            app = app
+                .app_data(web::Data::new(p))
+                .service(print_photo)
+                .service(preview_print);
         }
 
         app
@@ -246,22 +250,105 @@ async fn print_photo(
         }));
     }
 
-    let print_job = PrintJob {
-        file_path,
-        copies: 1,
-        paper_size: PaperSize::Photo4x6,
-        quality: PrintQuality::High,
-    };
+    // Create templated version of the photo
+    let templated_filename = format!(
+        "/usr/local/share/photo_booth/print_{}.png",
+        chrono::Utc::now().timestamp()
+    );
 
-    match printer.print_photo(print_job).await {
-        Ok(job_id) => HttpResponse::Ok().json(serde_json::json!({
-            "ok": true,
-            "job_id": job_id,
-            "message": format!("Print job submitted successfully. Job ID: {}", job_id)
-        })),
+    match templates::create_templated_print_with_text(
+        &file_path,
+        &templated_filename,
+        "Photo Booth",
+        "NAME HERE",
+        "HEADLINE",
+        "STORY HERE",
+    ) {
+        Ok(()) => {
+            // Use the templated file for printing
+            let print_job = PrintJob {
+                file_path: templated_filename.clone(),
+                copies: 1,
+                paper_size: PaperSize::Photo4x6,
+                quality: PrintQuality::High,
+            };
+
+            match printer.print_photo(print_job).await {
+                Ok(job_id) => {
+                    // Clean up templated file after sending to printer
+                    tokio::task::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
+                        let _ = std::fs::remove_file(&templated_filename);
+                    });
+
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "ok": true,
+                        "job_id": job_id,
+                        "message": format!("Print job submitted successfully. Job ID: {}", job_id)
+                    }))
+                }
+                Err(e) => {
+                    // Clean up on error
+                    let _ = std::fs::remove_file(&templated_filename);
+                    HttpResponse::InternalServerError().json(serde_json::json!({
+                        "ok": false,
+                        "error": format!("Print failed: {}", e)
+                    }))
+                }
+            }
+        }
         Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
             "ok": false,
-            "error": format!("Print failed: {}", e)
+            "error": format!("Failed to create templated print: {}", e)
+        })),
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[post("/preview")]
+async fn preview_print(body: web::Json<serde_json::Value>) -> impl Responder {
+    let filename = match body.get("filename").and_then(|v| v.as_str()) {
+        Some(f) => f,
+        None => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "ok": false,
+                "error": "filename is required"
+            }));
+        }
+    };
+
+    let file_path = format!("/usr/local/share/photo_booth/{}", filename);
+
+    // Check if file exists
+    if !std::path::Path::new(&file_path).exists() {
+        return HttpResponse::NotFound().json(serde_json::json!({
+            "ok": false,
+            "error": "Image file not found"
+        }));
+    }
+
+    // Create templated preview
+    let preview_filename = format!("preview_{}.png", chrono::Utc::now().timestamp());
+    let preview_path = format!("/usr/local/share/photo_booth/{}", preview_filename);
+
+    match templates::create_templated_print_with_text(
+        &file_path,
+        &preview_path,
+        "Photo Booth",
+        "NAME HERE",
+        "HEADLINE",
+        "STORY HERE",
+    ) {
+        Ok(()) => {
+            // Return the URL to the preview
+            HttpResponse::Ok().json(serde_json::json!({
+                "ok": true,
+                "preview_url": format!("/images/{}", preview_filename)
+            }))
+        }
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "ok": false,
+            "error": format!("Failed to create preview: {}", e)
         })),
     }
 }

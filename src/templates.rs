@@ -1,0 +1,315 @@
+// Template functionality for photo booth prints
+
+#[cfg(target_os = "linux")]
+use image::{DynamicImage, ImageBuffer, Rgb, RgbImage};
+#[cfg(target_os = "linux")]
+use imageproc::drawing::{draw_filled_circle_mut, draw_text_mut};
+#[cfg(target_os = "linux")]
+use rusttype::{Font, Scale};
+#[cfg(target_os = "linux")]
+use std::error::Error;
+#[cfg(target_os = "linux")]
+use std::fmt;
+
+// Constants for a 4x6" print at 300 DPI
+#[cfg(target_os = "linux")]
+const PRINT_WIDTH: u32 = 1200; // 4 inches * 300 DPI
+#[cfg(target_os = "linux")]
+const PRINT_HEIGHT: u32 = 1800; // 6 inches * 300 DPI
+
+// Define the area for the photo within the template
+#[cfg(target_os = "linux")]
+const PHOTO_WIDTH: u32 = 1000; // Leave room for borders
+#[cfg(target_os = "linux")]
+const PHOTO_HEIGHT: u32 = 667; // Maintain 3:2 aspect ratio
+#[cfg(target_os = "linux")]
+const HEADER_HEIGHT: u32 = 200;
+#[cfg(target_os = "linux")]
+const PHOTO_Y_POSITION: u32 = 400; // Moved up 1/3 closer to top
+#[cfg(target_os = "linux")]
+const STORY_SECTION_TOP: u32 = 1350; // Start story section
+#[cfg(target_os = "linux")]
+const STORY_SECTION_BOTTOM: u32 = 1700; // End story section
+
+#[cfg(target_os = "linux")]
+#[derive(Debug)]
+pub enum TemplateError {
+    ImageLoadError(String),
+    ImageSaveError(String),
+    CompositionError(String),
+}
+
+#[cfg(target_os = "linux")]
+impl fmt::Display for TemplateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TemplateError::ImageLoadError(msg) => write!(f, "Failed to load image: {}", msg),
+            TemplateError::ImageSaveError(msg) => write!(f, "Failed to save image: {}", msg),
+            TemplateError::CompositionError(msg) => write!(f, "Composition error: {}", msg),
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl Error for TemplateError {}
+
+#[cfg(target_os = "linux")]
+pub struct PrintTemplate {
+    header_text: String,
+    name_text: String,
+    headline_text: String,
+    story_text: String,
+    background_color: Rgb<u8>,
+    stipple_color: Rgb<u8>,
+    story_stipple_color: Rgb<u8>,
+    text_color: Rgb<u8>,
+}
+
+#[cfg(target_os = "linux")]
+impl Default for PrintTemplate {
+    fn default() -> Self {
+        PrintTemplate {
+            header_text: "Photo Booth".to_string(),
+            name_text: "NAME HERE".to_string(),
+            headline_text: "HEADLINE".to_string(),
+            story_text: "STORY HERE".to_string(),
+            background_color: Rgb([255, 255, 255]), // White background
+            stipple_color: Rgb([200, 200, 255]),    // Light blue stippling
+            story_stipple_color: Rgb([255, 200, 200]), // Light red stippling for story
+            text_color: Rgb([50, 50, 50]),          // Dark gray text
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl PrintTemplate {
+    pub fn new(header: &str, name: &str, headline: &str, story: &str) -> Self {
+        PrintTemplate {
+            header_text: header.to_string(),
+            name_text: name.to_string(),
+            headline_text: headline.to_string(),
+            story_text: story.to_string(),
+            ..Default::default()
+        }
+    }
+
+    pub fn apply_to_photo(&self, photo_path: &str, output_path: &str) -> Result<(), TemplateError> {
+        if !std::path::Path::new(photo_path).exists() {
+            return Err(TemplateError::ImageLoadError(format!(
+                "Photo file does not exist: {}",
+                photo_path
+            )));
+        }
+
+        let photo =
+            image::open(photo_path).map_err(|e| TemplateError::ImageLoadError(e.to_string()))?;
+
+        let templated = self.compose_template(photo)?;
+
+        templated
+            .save(output_path)
+            .map_err(|e| TemplateError::ImageSaveError(e.to_string()))?;
+
+        Ok(())
+    }
+
+    fn compose_template(&self, photo: DynamicImage) -> Result<RgbImage, TemplateError> {
+        // 1. Create the base canvas with the correct 4x6 dimensions
+        let mut canvas = ImageBuffer::from_pixel(PRINT_WIDTH, PRINT_HEIGHT, self.background_color);
+
+        // 2. Add the background pattern
+        self.add_stipple_pattern(&mut canvas);
+
+        // 3. Add story section stippling
+        self.add_story_section_stipple(&mut canvas);
+
+        // 4. Scale the photo to fit its designated area
+        let scaled_photo = self.scale_photo_to_fit(photo)?;
+
+        // 5. Place the scaled photo onto the canvas
+        self.place_photo(&mut canvas, &scaled_photo);
+
+        // 6. Add text on top of everything
+        self.add_text(&mut canvas)?;
+
+        Ok(canvas)
+    }
+
+    fn add_stipple_pattern(&self, canvas: &mut RgbImage) {
+        let dot_radius = 2i32;
+        let spacing = 30u32;
+
+        for y in (0..PRINT_HEIGHT).step_by(spacing as usize) {
+            for x in (0..PRINT_WIDTH).step_by(spacing as usize) {
+                let offset_x = ((x * 7 + y * 13) % 15) as i32 - 7;
+                let offset_y = ((x * 11 + y * 17) % 15) as i32 - 7;
+                let dot_x = x as i32 + offset_x;
+                let dot_y = y as i32 + offset_y;
+                draw_filled_circle_mut(canvas, (dot_x, dot_y), dot_radius, self.stipple_color);
+            }
+        }
+    }
+
+    fn add_story_section_stipple(&self, canvas: &mut RgbImage) {
+        let dot_radius = 2i32;
+        let spacing = 25u32;
+
+        for y in (STORY_SECTION_TOP..STORY_SECTION_BOTTOM).step_by(spacing as usize) {
+            for x in (0..PRINT_WIDTH).step_by(spacing as usize) {
+                let offset_x = ((x * 7 + y * 13) % 15) as i32 - 7;
+                let offset_y = ((x * 11 + y * 17) % 15) as i32 - 7;
+                let dot_x = x as i32 + offset_x;
+                let dot_y = y as i32 + offset_y;
+                draw_filled_circle_mut(
+                    canvas,
+                    (dot_x, dot_y),
+                    dot_radius,
+                    self.story_stipple_color,
+                );
+            }
+        }
+    }
+
+    fn scale_photo_to_fit(&self, photo: DynamicImage) -> Result<RgbImage, TemplateError> {
+        let photo_rgb = photo.to_rgb8();
+        if photo_rgb.width() == 0 || photo_rgb.height() == 0 {
+            return Err(TemplateError::CompositionError(
+                "Invalid photo dimensions".to_string(),
+            ));
+        }
+        let scaled = image::imageops::resize(
+            &photo_rgb,
+            PHOTO_WIDTH,
+            PHOTO_HEIGHT,
+            image::imageops::FilterType::Lanczos3,
+        );
+        Ok(scaled)
+    }
+
+    fn place_photo(&self, canvas: &mut RgbImage, photo: &RgbImage) {
+        let photo_x = (PRINT_WIDTH - photo.width()) / 2;
+        let photo_y = PHOTO_Y_POSITION;
+        image::imageops::overlay(canvas, photo, photo_x as i64, photo_y as i64);
+    }
+
+    fn add_text(&self, canvas: &mut RgbImage) -> Result<(), TemplateError> {
+        let font_data = match std::fs::read("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf") {
+            Ok(data) => data,
+            Err(_) => {
+                println!("Warning: Font not found. Skipping text.");
+                return Ok(());
+            }
+        };
+        let font = match Font::try_from_bytes(&font_data) {
+            Some(f) => f,
+            None => {
+                println!("Warning: Failed to parse font. Skipping text.");
+                return Ok(());
+            }
+        };
+
+        let header_scale = Scale { x: 80.0, y: 80.0 };
+        let name_scale = Scale { x: 100.0, y: 100.0 };
+        let headline_scale = Scale { x: 70.0, y: 70.0 };
+        let story_scale = Scale { x: 50.0, y: 50.0 };
+
+        // Header
+        let header_width = self.measure_text_width(&font, &self.header_text, header_scale);
+        draw_text_mut(
+            canvas,
+            self.text_color,
+            ((PRINT_WIDTH - header_width) / 2) as i32,
+            80,
+            header_scale,
+            &font,
+            &self.header_text,
+        );
+
+        // Name (directly below photo)
+        let name_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 40;
+        let name_width = self.measure_text_width(&font, &self.name_text, name_scale);
+        draw_text_mut(
+            canvas,
+            self.text_color,
+            ((PRINT_WIDTH - name_width) / 2) as i32,
+            name_y as i32,
+            name_scale,
+            &font,
+            &self.name_text,
+        );
+
+        // Headline (below name)
+        let headline_y = name_y + 110;
+        let headline_width = self.measure_text_width(&font, &self.headline_text, headline_scale);
+        draw_text_mut(
+            canvas,
+            self.text_color,
+            ((PRINT_WIDTH - headline_width) / 2) as i32,
+            headline_y as i32,
+            headline_scale,
+            &font,
+            &self.headline_text,
+        );
+
+        // Story (in story section)
+        let story_y = STORY_SECTION_TOP + 30;
+        let story_width = self.measure_text_width(&font, &self.story_text, story_scale);
+        draw_text_mut(
+            canvas,
+            self.text_color,
+            ((PRINT_WIDTH - story_width) / 2) as i32,
+            story_y as i32,
+            story_scale,
+            &font,
+            &self.story_text,
+        );
+
+        Ok(())
+    }
+
+    fn measure_text_width(&self, font: &Font, text: &str, scale: Scale) -> u32 {
+        font.layout(text, scale, rusttype::point(0.0, 0.0))
+            .last()
+            .and_then(|g| g.pixel_bounding_box())
+            .map_or(0, |bb| bb.max.x as u32)
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn create_templated_print_with_text(
+    photo_path: &str,
+    output_path: &str,
+    header: &str,
+    name: &str,
+    headline: &str,
+    story: &str,
+) -> Result<(), TemplateError> {
+    let template = PrintTemplate::new(header, name, headline, story);
+    template.apply_to_photo(photo_path, output_path)
+}
+
+// --- Non-Linux Stubs ---
+#[cfg(not(target_os = "linux"))]
+#[derive(Debug)]
+pub enum TemplateError {
+    NotSupported,
+}
+#[cfg(not(target_os = "linux"))]
+impl std::fmt::Display for TemplateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Not supported")
+    }
+}
+#[cfg(not(target_os = "linux"))]
+impl std::error::Error for TemplateError {}
+#[cfg(not(target_os = "linux"))]
+pub fn create_templated_print_with_text(
+    _p: &str,
+    _o: &str,
+    _h: &str,
+    _n: &str,
+    _hl: &str,
+    _s: &str,
+) -> Result<(), TemplateError> {
+    Err(TemplateError::NotSupported)
+}

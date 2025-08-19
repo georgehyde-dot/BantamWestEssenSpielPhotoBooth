@@ -101,24 +101,45 @@ impl EpsonPrinter {
         // Get all available printers
         let printers = get_printers();
 
-        // Find the XP-8700 printer (try exact match first, then partial match)
+        println!("DEBUG: Looking for printer: {}", printer_name);
+        println!("DEBUG: Found {} printers:", printers.len());
+        for p in &printers {
+            println!("  - {} (system_name: {:?})", p.name, p.system_name);
+        }
+
+        // Prioritize TurboPrint printer
         let cups_printer = printers
             .iter()
-            .find(|p| p.name == printer_name)
+            .find(|p| {
+                let found =
+                    p.name.contains("TurboPrint") || p.system_name == "XP8700series-TurboPrint";
+                if found {
+                    println!(
+                        "DEBUG: Found TurboPrint printer: {} (system: {})",
+                        p.name, p.system_name
+                    );
+                }
+                found
+            })
             .or_else(|| {
-                printers
-                    .iter()
-                    .find(|p| p.name.contains("XP-8700") || p.name.contains("XP_8700"))
+                println!(
+                    "DEBUG: TurboPrint not found, looking for exact match: {}",
+                    printer_name
+                );
+                printers.iter().find(|p| p.name == printer_name)
             })
             .cloned();
 
         match cups_printer {
-            Some(printer) => Ok(EpsonPrinter {
-                printer_name: printer.name.clone(),
-                cups_printer: Some(printer),
-            }),
+            Some(printer) => {
+                println!("DEBUG: Using printer: {}", printer.name);
+                Ok(EpsonPrinter {
+                    printer_name: printer.name.clone(),
+                    cups_printer: Some(printer),
+                })
+            }
             None => Err(PrinterError::NotFound(format!(
-                "XP-8700 printer '{}' not found in CUPS",
+                "TurboPrint printer '{}' not found in CUPS",
                 printer_name
             ))),
         }
@@ -177,16 +198,16 @@ impl Printer for EpsonPrinter {
 
         // Set paper size
         let paper_size_str = match job.paper_size {
-            PaperSize::Photo4x6 => "4x6.Borderless",
-            PaperSize::Photo5x7 => "5x7.Borderless",
+            PaperSize::Photo4x6 => "Borderless4x6in",
+            PaperSize::Photo5x7 => "Borderless5x7in",
             _ => "Letter",
         };
         raw_properties.push(("PageSize", paper_size_str.to_string()));
 
-        // Set photo tray and media type for photo sizes
+        // Set media type and borderless expand for photo sizes
         if matches!(job.paper_size, PaperSize::Photo4x6 | PaperSize::Photo5x7) {
-            raw_properties.push(("InputSlot", "Photo".to_string()));
-            raw_properties.push(("MediaType", "PhotographicSemiGloss".to_string()));
+            raw_properties.push(("MediaType", "EpsonPremiumGlossy_6".to_string()));
+            raw_properties.push(("zedoBorderlessExpand", "4".to_string()));
         }
 
         raw_properties.push(("copies", job.copies.to_string()));
@@ -233,7 +254,7 @@ impl Printer for EpsonPrinter {
     }
 
     fn type_name(&self) -> &'static str {
-        "Epson XP-8700"
+        "Epson XP-8700 (TurboPrint)"
     }
 }
 
@@ -274,21 +295,31 @@ impl Printer for MockPrinter {
 // Factory function to create appropriate printer instance
 #[cfg(all(target_os = "linux", feature = "printer-cups"))]
 pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
-    // Try to find Epson XP-8700 printer with various possible names
-    let possible_names = vec![
-        "EPSON_XP_8700_Series_USB",
-        "XP-8700",
-        "EPSON XP-8700",
-        "EPSON-XP-8700",
-    ];
+    // Always try to find and use TurboPrint printer first
+    println!("DEBUG: Attempting to find TurboPrint printer...");
+    match EpsonPrinter::new("XP8700series-TurboPrint").await {
+        Ok(printer) => {
+            println!("Using TurboPrint printer: {}", printer.printer_name);
+            return Ok(std::sync::Arc::new(printer));
+        }
+        Err(e) => {
+            println!("DEBUG: TurboPrint not found: {}", e);
+            // Fall back to other printer names
+            let fallback_names = vec!["EPSON_XP_8700_Series_USB", "XP-8700"];
 
-    for name in &possible_names {
-        match EpsonPrinter::new(name).await {
-            Ok(printer) => return Ok(std::sync::Arc::new(printer)),
-            Err(_) => {}
+            for name in &fallback_names {
+                match EpsonPrinter::new(name).await {
+                    Ok(printer) => {
+                        println!("Found fallback printer: {}", printer.printer_name);
+                        return Ok(std::sync::Arc::new(printer));
+                    }
+                    Err(_) => {}
+                }
+            }
         }
     }
 
+    println!("Warning: TurboPrint printer not found, falling back to mock printer");
     // Fall back to mock printer
     Ok(std::sync::Arc::new(MockPrinter))
 }

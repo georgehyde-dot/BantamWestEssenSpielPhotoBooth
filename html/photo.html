@@ -82,6 +82,9 @@
                     Copy Image URL
                 </button>
                 <button id="printBtn" type="button" hidden>Print Photo</button>
+                <button id="previewBtn" type="button" hidden>
+                    Preview Print
+                </button>
             </div>
             <noscript>
                 <p class="error">
@@ -196,12 +199,51 @@
                 });
                 show(printBtn);
 
+                // Preview button functionality
+                const previewBtn = document.getElementById("previewBtn");
+                previewBtn.addEventListener("click", async () => {
+                    previewBtn.disabled = true;
+                    previewBtn.textContent = "Generating...";
+
+                    try {
+                        const response = await fetch("/preview", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ filename: file }),
+                        });
+
+                        const result = await response.json();
+
+                        if (result.ok && result.preview_url) {
+                            // Open preview in new tab
+                            window.open(result.preview_url, "_blank");
+                            previewBtn.textContent = "Preview Print";
+                            previewBtn.disabled = false;
+                        } else {
+                            alert(
+                                "Preview failed: " +
+                                    (result.error || "Unknown error"),
+                            );
+                            previewBtn.textContent = "Preview Print";
+                            previewBtn.disabled = false;
+                        }
+                    } catch (error) {
+                        alert("Preview failed: " + error.message);
+                        previewBtn.textContent = "Preview Print";
+                        previewBtn.disabled = false;
+                    }
+                });
+                show(previewBtn);
+
                 // If image fails to load, show an error
                 photoEl.addEventListener("error", () => {
                     hide(photoEl);
                     hide(dlEl);
                     hide(copyBtn);
                     hide(printBtn);
+                    hide(previewBtn);
                     errEl.textContent = "Failed to load image: " + file;
                     show(errEl);
                 });

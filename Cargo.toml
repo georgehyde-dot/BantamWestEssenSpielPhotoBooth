@@ -32,3 +32,5 @@ printer-cups = ["printers"]
 [target.'cfg(target_os = "linux")'.dependencies]
 v4l = "0.14"
 image = { version = "0.24", features = ["jpeg"] }
+imageproc = "0.23"
+rusttype = "0.9"
