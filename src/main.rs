@@ -74,8 +74,10 @@ async fn main() -> std::io::Result<()> {
             .service(preview_stream)
             .service(capture_image)
             .service(photo_page)
+            .service(fs::Files::new("/images", "/usr/local/share/photo_booth").show_files_listing())
             .service(
-                fs::Files::new("/images", "/usr/local/share/photo_booth").show_files_listing(),
+                fs::Files::new("/static", "/usr/local/share/photo_booth/static")
+                    .show_files_listing(),
             );
 
         if let Some(p) = printer.clone() {

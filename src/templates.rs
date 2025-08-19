@@ -114,14 +114,31 @@ impl PrintTemplate {
     }
 
     fn compose_template(&self, photo: DynamicImage) -> Result<RgbImage, TemplateError> {
-        // 1. Create the base canvas with the correct 4x6 dimensions
-        let mut canvas = ImageBuffer::from_pixel(PRINT_WIDTH, PRINT_HEIGHT, self.background_color);
+        // 1. Load the background image
+        let background_path = "/usr/local/share/photo_booth/static/background.png";
+        let mut canvas = if std::path::Path::new(background_path).exists() {
+            match image::open(background_path) {
+                Ok(bg) => {
+                    // Resize background to match print dimensions
+                    image::imageops::resize(
+                        &bg.to_rgb8(),
+                        PRINT_WIDTH,
+                        PRINT_HEIGHT,
+                        image::imageops::FilterType::Lanczos3,
+                    )
+                }
+                Err(_) => {
+                    // Fallback to solid color if background can't be loaded
+                    ImageBuffer::from_pixel(PRINT_WIDTH, PRINT_HEIGHT, self.background_color)
+                }
+            }
+        } else {
+            // Fallback to solid color if background doesn't exist
+            ImageBuffer::from_pixel(PRINT_WIDTH, PRINT_HEIGHT, self.background_color)
+        };
 
-        // 2. Add the background pattern
-        self.add_stipple_pattern(&mut canvas);
-
-        // 3. Add story section stippling
-        self.add_story_section_stipple(&mut canvas);
+        // 2. Add story section overlay (semi-transparent)
+        self.add_story_section_overlay(&mut canvas);
 
         // 4. Scale the photo to fit its designated area
         let scaled_photo = self.scale_photo_to_fit(photo)?;
@@ -135,37 +152,15 @@ impl PrintTemplate {
         Ok(canvas)
     }
 
-    fn add_stipple_pattern(&self, canvas: &mut RgbImage) {
-        let dot_radius = 2i32;
-        let spacing = 30u32;
-
-        for y in (0..PRINT_HEIGHT).step_by(spacing as usize) {
-            for x in (0..PRINT_WIDTH).step_by(spacing as usize) {
-                let offset_x = ((x * 7 + y * 13) % 15) as i32 - 7;
-                let offset_y = ((x * 11 + y * 17) % 15) as i32 - 7;
-                let dot_x = x as i32 + offset_x;
-                let dot_y = y as i32 + offset_y;
-                draw_filled_circle_mut(canvas, (dot_x, dot_y), dot_radius, self.stipple_color);
-            }
-        }
-    }
-
-    fn add_story_section_stipple(&self, canvas: &mut RgbImage) {
-        let dot_radius = 2i32;
-        let spacing = 25u32;
-
-        for y in (STORY_SECTION_TOP..STORY_SECTION_BOTTOM).step_by(spacing as usize) {
-            for x in (0..PRINT_WIDTH).step_by(spacing as usize) {
-                let offset_x = ((x * 7 + y * 13) % 15) as i32 - 7;
-                let offset_y = ((x * 11 + y * 17) % 15) as i32 - 7;
-                let dot_x = x as i32 + offset_x;
-                let dot_y = y as i32 + offset_y;
-                draw_filled_circle_mut(
-                    canvas,
-                    (dot_x, dot_y),
-                    dot_radius,
-                    self.story_stipple_color,
-                );
+    fn add_story_section_overlay(&self, canvas: &mut RgbImage) {
+        // Add a semi-transparent overlay for the story section
+        for y in STORY_SECTION_TOP..STORY_SECTION_BOTTOM {
+            for x in 0..PRINT_WIDTH {
+                let pixel = canvas.get_pixel_mut(x, y);
+                // Blend with a light color overlay (20% opacity)
+                pixel[0] = ((pixel[0] as u16 * 4 + 255 * 1) / 5) as u8;
+                pixel[1] = ((pixel[1] as u16 * 4 + 240 * 1) / 5) as u8;
+                pixel[2] = ((pixel[2] as u16 * 4 + 240 * 1) / 5) as u8;
             }
         }
     }
