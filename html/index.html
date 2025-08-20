@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>V4L2 Camera Preview (MJPEG)</title>
+        <title>Photo Booth - Camera</title>
         <style>
             :root {
                 color-scheme: dark;
@@ -36,11 +36,9 @@
     </head>
     <body>
         <div id="wrap">
-            <h1>V4L2 Camera Preview (MJPEG)</h1>
-            <p>
-                Set VIDEO_DEVICE (default /dev/video1), VIDEO_WIDTH (default
-                1920), VIDEO_HEIGHT (default 1080).
-            </p>
+            <h1>Photo Booth Camera</h1>
+            <h2 id="groupName" style="color: #ccc; margin: 10px 0"></h2>
+            <p id="instructions">Get ready for your photo!</p>
             <div style="position: relative; display: inline-block">
                 <img
                     id="preview"
@@ -58,6 +56,32 @@
 
         <script>
             let countdownRunning = false;
+            const sessionId = sessionStorage.getItem("session_id");
+
+            // Load and display group name
+            async function loadGroupName() {
+                if (!sessionId) return;
+
+                try {
+                    const response = await fetch(`/session/${sessionId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (
+                            data.ok &&
+                            data.session &&
+                            data.session.group_name
+                        ) {
+                            document.getElementById("groupName").textContent =
+                                data.session.group_name;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to load group name:", error);
+                }
+            }
+
+            // Load group name on page load
+            loadGroupName();
 
             function startCountdown() {
                 if (countdownRunning) return;
@@ -78,7 +102,12 @@
                         clearInterval(interval);
                         countdown.textContent = "";
 
-                        fetch("/capture", { method: "POST" })
+                        const sessionId = sessionStorage.getItem("session_id");
+                        fetch("/capture", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ session_id: sessionId }),
+                        })
                             .then((r) => r.json())
                             .then((d) => {
                                 if (d && d.ok) {

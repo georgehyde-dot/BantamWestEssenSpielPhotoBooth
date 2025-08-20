@@ -74,7 +74,7 @@
             <div id="error" class="error" hidden></div>
             <img id="photo" class="photo" alt="Captured" hidden />
             <div class="actions">
-                <a class="button" href="/">Back to Start</a>
+                <a class="button" href="/camera">Back to Camera</a>
                 <a id="download" class="button" href="#" download hidden
                     >Download</a
                 >
@@ -98,6 +98,7 @@
                 const params = new URL(window.location.href).searchParams;
                 let file = params.get("file");
                 const path = params.get("path");
+                const sessionId = sessionStorage.getItem("session_id");
 
                 if (!file && path) {
                     // Accept `/images/<name></name>` or `<name></name>`
@@ -172,7 +173,10 @@
                             headers: {
                                 "Content-Type": "application/json",
                             },
-                            body: JSON.stringify({ filename: file }),
+                            body: JSON.stringify({
+                                filename: file,
+                                session_id: sessionId,
+                            }),
                         });
 
                         const result = await response.json();
@@ -211,7 +215,10 @@
                             headers: {
                                 "Content-Type": "application/json",
                             },
-                            body: JSON.stringify({ filename: file }),
+                            body: JSON.stringify({
+                                filename: file,
+                                session_id: sessionId,
+                            }),
                         });
 
                         const result = await response.json();

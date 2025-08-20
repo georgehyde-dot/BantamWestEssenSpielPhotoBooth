@@ -168,6 +168,7 @@ fn try_userptr_streaming(
     Ok(())
 }
 
+#[cfg(target_os = "linux")]
 pub fn video_settings() -> (String, u32, u32) {
     let dev = std::env::var("VIDEO_DEVICE").unwrap_or_else(|_| "/dev/video0".to_string());
     let width = std::env::var("VIDEO_WIDTH")
