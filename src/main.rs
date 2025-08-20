@@ -10,8 +10,11 @@ use async_stream;
 #[cfg(target_os = "linux")]
 use chrono;
 #[cfg(target_os = "linux")]
+use config::{Config, ConfigError};
+#[cfg(target_os = "linux")]
 use serde_json;
 #[cfg(target_os = "linux")]
+use sqlx::SqlitePool;
 #[cfg(target_os = "linux")]
 use std::sync::{Arc, Mutex};
 #[cfg(target_os = "linux")]
@@ -41,42 +44,137 @@ use image;
 
 // Module imports
 mod camera;
+mod config;
+mod errors;
 mod printers;
+mod routes;
+mod session;
 mod templates;
 
 #[cfg(target_os = "linux")]
 use printers::{new_printer, PaperSize, PrintJob, PrintQuality, Printer, PrinterError};
+#[cfg(target_os = "linux")]
+use routes::{create_session, get_session, update_session};
+#[cfg(target_os = "linux")]
+use session::Session;
+#[cfg(target_os = "linux")]
+use tracing::{error, info, warn};
+
+#[cfg(target_os = "linux")]
+fn spawn_camera(
+    config: config::CameraConfig,
+    last_frame: Arc<Mutex<Option<Vec<u8>>>>,
+) -> tokio::task::JoinHandle<()> {
+    info!("Spawning camera task for device: {}", config.device);
+    tokio::spawn(async move {
+        let camera = camera::Camera::new(config.clone());
+        let (tx, mut rx) = mpsc::channel(10);
+
+        // Start camera stream
+        let camera_handle = tokio::spawn(async move {
+            info!("Starting camera preview stream");
+            if let Err(e) = camera.start_preview_stream(tx, last_frame.clone()).await {
+                error!("Camera stream error: {}", e);
+            }
+        });
+
+        // Drain the channel to prevent backpressure
+        let mut frame_count = 0;
+        while let Some(_frame) = rx.recv().await {
+            frame_count += 1;
+            if frame_count % 1000 == 0 {
+                info!("Received {} frames from camera", frame_count);
+            }
+            // Frames are already stored in last_frame by the camera
+        }
+
+        warn!("Camera frame receiver loop ended");
+        let _ = camera_handle.await;
+    })
+}
 
 #[cfg(target_os = "linux")]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
+    // Load configuration
+    let config = match Config::from_env() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            error!("Failed to load configuration: {}", e);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Configuration error: {}", e),
+            ));
+        }
+    };
+
+    info!("Starting photo booth server on {}", config.socket_addr());
+
+    // Ensure database directory exists
+    if let Some(parent) = config.database.path.parent() {
+        std::fs::create_dir_all(parent).expect("Failed to create database directory");
+    }
+
+    // Connect to database
+    let connection_pool = SqlitePool::connect(&config.database.connection_string())
+        .await
+        .expect("Failed to connect to database");
+
+    // Run database migrations
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to run migrations");
+
+    info!("Database connected and migrations completed");
+
     let last_frame = Arc::new(Mutex::new(None::<Vec<u8>>));
 
     #[cfg(target_os = "linux")]
     let printer = match new_printer().await {
         Ok(p) => Some(p),
         Err(e) => {
-            eprintln!("Failed to initialize printer: {}", e);
+            warn!("Failed to initialize printer: {}", e);
             None
         }
     };
 
-    #[cfg(not(target_os = "linux"))]
-    let printer = None;
+    #[cfg(target_os = "linux")]
+    let camera = {
+        info!("Initializing camera with config: {:?}", config.camera);
+        Some(spawn_camera(config.camera.clone(), last_frame.clone()))
+    };
 
     #[cfg(not(target_os = "linux"))]
     let camera = None;
 
+    let server_config = config.clone();
+
     HttpServer::new(move || {
+        let app_config = server_config.clone();
+        let db_pool = connection_pool.clone();
         let mut app = App::new()
             .app_data(web::Data::new(last_frame.clone()))
+            .app_data(web::Data::new(app_config.clone()))
+            .app_data(web::Data::new(db_pool))
             .service(index)
             .service(preview_stream)
             .service(capture_image)
             .service(photo_page)
-            .service(fs::Files::new("/images", "/usr/local/share/photo_booth").show_files_listing())
+            .service(create_session)
+            .service(get_session)
+            .service(update_session)
+            .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
             .service(
-                fs::Files::new("/static", "/usr/local/share/photo_booth/static")
+                fs::Files::new("/static", app_config.storage.static_path.clone())
                     .show_files_listing(),
             );
 
@@ -89,8 +187,7 @@ async fn main() -> std::io::Result<()> {
 
         app
     })
-    // Bind to all interfaces so you can reach it from other devices on the LAN
-    .bind(("0.0.0.0", 8080))?
+    .bind(config.socket_addr())?
     .run()
     .await
 }
@@ -122,16 +219,7 @@ async fn photo_page(
 #[cfg(target_os = "linux")]
 #[get("/preview")]
 async fn preview_stream(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> impl Responder {
-    let (tx, mut rx) = mpsc::channel::<Vec<u8>>(8);
-    let (path, width, height) = camera::video_settings();
-
-    // Run V4L2 capture in a blocking thread, forward frames over channel
     let last_frame_arc = last_frame.get_ref().clone();
-    tokio::task::spawn_blocking(move || {
-        if let Err(e) = camera::preview_loop(path, width, height, tx, last_frame_arc) {
-            eprintln!("Preview loop terminated: {e}");
-        }
-    });
 
     let stream = async_stream::stream! {
         // multipart/x-mixed-replace; boundary=frame
@@ -140,44 +228,67 @@ async fn preview_stream(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> i
         let header = b"Content-Type: image/jpeg\r\n\r\n";
         let tail = b"\r\n";
 
-        while let Some(frame) = rx.recv().await {
-            let mut part = Vec::with_capacity(boundary_prefix.len() + header.len() + frame.len() + tail.len());
-            part.extend_from_slice(&boundary_prefix);
-            part.extend_from_slice(header);
-            part.extend_from_slice(&frame);
-            part.extend_from_slice(tail);
+        // Stream frames at ~30fps
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(33));
 
-            // Convert to bytes and yield a Result<Bytes, actix_web::Error>
-            yield Ok::<Bytes, actix_web::Error>(Bytes::from(part));
+        loop {
+            interval.tick().await;
+
+            // Get the latest frame from the shared buffer
+            let frame_opt = {
+                last_frame_arc.lock().unwrap().clone()
+            };
+
+            if let Some(frame) = frame_opt {
+                let mut part = Vec::with_capacity(boundary_prefix.len() + header.len() + frame.len() + tail.len());
+                part.extend_from_slice(&boundary_prefix);
+                part.extend_from_slice(header);
+                part.extend_from_slice(&frame);
+                part.extend_from_slice(tail);
+
+                // Convert to bytes and yield a Result<Bytes, actix_web::Error>
+                yield Ok::<Bytes, actix_web::Error>(Bytes::from(part));
+            } else {
+                // Log once if no frames are available
+                static LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+                if !LOGGED.load(std::sync::atomic::Ordering::Relaxed) {
+                    warn!("No frames available in preview stream");
+                    LOGGED.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            }
         }
     };
 
     HttpResponse::Ok()
         .insert_header(("Content-Type", "multipart/x-mixed-replace; boundary=frame"))
-        // NOTE: no .no_chunking() call — streaming will chunk as appropriate
         .streaming(stream)
 }
 
 #[cfg(target_os = "linux")]
 #[post("/capture")]
-async fn capture_image(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> impl Responder {
-    std::fs::create_dir_all("/usr/local/share/photo_booth").ok();
+async fn capture_image(
+    last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>,
+    config: web::Data<Config>,
+    db_pool: web::Data<SqlitePool>,
+    body: Option<web::Json<serde_json::Value>>,
+) -> impl Responder {
+    std::fs::create_dir_all(&config.storage.base_path).ok();
 
     // Set proper permissions on directory
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         if let Ok(mut perms) =
-            std::fs::metadata("/usr/local/share/photo_booth").and_then(|m| Ok(m.permissions()))
+            std::fs::metadata(&config.storage.base_path).and_then(|m| Ok(m.permissions()))
         {
             perms.set_mode(0o755);
-            let _ = std::fs::set_permissions("/usr/local/share/photo_booth", perms);
+            let _ = std::fs::set_permissions(&config.storage.base_path, perms);
         }
     }
-    let filename = format!(
-        "/usr/local/share/photo_booth/cap_{}.png",
-        chrono::Utc::now().timestamp()
-    );
+    let filename = config
+        .storage
+        .base_path
+        .join(format!("cap_{}.png", chrono::Utc::now().timestamp()));
 
     let img_opt = { last_frame.lock().unwrap().clone() };
     match img_opt {
@@ -195,20 +306,49 @@ async fn capture_image(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> im
 
             match res {
                 Ok(Ok(())) => {
-                    HttpResponse::Ok().json(serde_json::json!({
+                    let file_name = filename.file_name().unwrap().to_string_lossy();
+                    let file_path = format!("/images/{}", file_name);
+
+                    // Update session if session_id was provided
+                    let mut response_json = serde_json::json!({
                         "ok": true,
-                        "path": format!("/images/{}", std::path::Path::new(&filename).file_name().unwrap().to_string_lossy()),
-                        "file": std::path::Path::new(&filename).file_name().unwrap().to_string_lossy(),
-                        "redirect": format!("/photo?file={}", std::path::Path::new(&filename).file_name().unwrap().to_string_lossy()),
-                    }))
+                        "path": file_path.clone(),
+                        "file": file_name,
+                        "redirect": format!("/photo?file={}", file_name),
+                    });
+
+                    if let Some(body) = body {
+                        if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
+                            // Load and update session
+                            match Session::load(session_id, &db_pool).await {
+                                Ok(Some(mut session)) => {
+                                    if let Err(e) =
+                                        session.set_photo_path(file_path, &db_pool).await
+                                    {
+                                        warn!("Failed to update session photo path: {}", e);
+                                    } else {
+                                        response_json["session_id"] = serde_json::json!(session_id);
+                                    }
+                                }
+                                Ok(None) => {
+                                    warn!(
+                                        "Session {} not found when trying to associate photo",
+                                        session_id
+                                    );
+                                }
+                                Err(e) => {
+                                    warn!("Failed to load session {}: {}", session_id, e);
+                                }
+                            }
+                        }
+                    }
+
+                    HttpResponse::Ok().json(response_json)
                 }
-                Ok(Err(e)) => {
-                    HttpResponse::InternalServerError().json(serde_json::json!({ "ok": false, "error": e }))
-                }
-                Err(_e) => {
-                    HttpResponse::InternalServerError()
-                        .json(serde_json::json!({ "ok": false, "error": "join error" }))
-                }
+                Ok(Err(e)) => HttpResponse::InternalServerError()
+                    .json(serde_json::json!({ "ok": false, "error": e })),
+                Err(_e) => HttpResponse::InternalServerError()
+                    .json(serde_json::json!({ "ok": false, "error": "join error" })),
             }
         }
         None => HttpResponse::InternalServerError().json(serde_json::json!({
@@ -223,6 +363,7 @@ async fn capture_image(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> im
 async fn print_photo(
     printer: web::Data<Arc<dyn Printer + Send + Sync>>,
     body: web::Json<serde_json::Value>,
+    config: web::Data<Config>,
 ) -> impl Responder {
     let filename = match body.get("filename").and_then(|v| v.as_str()) {
         Some(f) => f,
@@ -242,10 +383,10 @@ async fn print_photo(
         }));
     }
 
-    let file_path = format!("/usr/local/share/photo_booth/{}", filename);
+    let file_path = config.storage.base_path.join(filename);
 
     // Check if file exists
-    if !std::path::Path::new(&file_path).exists() {
+    if !file_path.exists() {
         return HttpResponse::NotFound().json(serde_json::json!({
             "ok": false,
             "error": "Image file not found"
@@ -253,23 +394,24 @@ async fn print_photo(
     }
 
     // Create templated version of the photo
-    let templated_filename = format!(
-        "/usr/local/share/photo_booth/print_{}.png",
-        chrono::Utc::now().timestamp()
-    );
+    let templated_filename = config
+        .storage
+        .base_path
+        .join(format!("print_{}.png", chrono::Utc::now().timestamp()));
 
-    match templates::create_templated_print_with_text(
-        &file_path,
-        &templated_filename,
-        "Photo Booth",
-        "NAME HERE",
-        "HEADLINE",
-        "STORY HERE",
+    match templates::create_templated_print_with_background(
+        file_path.to_str().unwrap(),
+        templated_filename.to_str().unwrap(),
+        &config.template.header_text,
+        &config.template.name_placeholder,
+        &config.template.headline_placeholder,
+        &config.template.story_placeholder,
+        config.background_path().to_str().unwrap(),
     ) {
         Ok(()) => {
             // Use the templated file for printing
             let print_job = PrintJob {
-                file_path: templated_filename.clone(),
+                file_path: templated_filename.to_str().unwrap().to_string(),
                 copies: 1,
                 paper_size: PaperSize::Photo4x6,
                 quality: PrintQuality::High,
@@ -308,7 +450,10 @@ async fn print_photo(
 
 #[cfg(target_os = "linux")]
 #[post("/preview")]
-async fn preview_print(body: web::Json<serde_json::Value>) -> impl Responder {
+async fn preview_print(
+    body: web::Json<serde_json::Value>,
+    config: web::Data<Config>,
+) -> impl Responder {
     let filename = match body.get("filename").and_then(|v| v.as_str()) {
         Some(f) => f,
         None => {
@@ -319,10 +464,10 @@ async fn preview_print(body: web::Json<serde_json::Value>) -> impl Responder {
         }
     };
 
-    let file_path = format!("/usr/local/share/photo_booth/{}", filename);
+    let file_path = config.storage.base_path.join(filename);
 
     // Check if file exists
-    if !std::path::Path::new(&file_path).exists() {
+    if !file_path.exists() {
         return HttpResponse::NotFound().json(serde_json::json!({
             "ok": false,
             "error": "Image file not found"
@@ -331,15 +476,16 @@ async fn preview_print(body: web::Json<serde_json::Value>) -> impl Responder {
 
     // Create templated preview
     let preview_filename = format!("preview_{}.png", chrono::Utc::now().timestamp());
-    let preview_path = format!("/usr/local/share/photo_booth/{}", preview_filename);
+    let preview_path = config.storage.base_path.join(&preview_filename);
 
-    match templates::create_templated_print_with_text(
-        &file_path,
-        &preview_path,
-        "Photo Booth",
-        "NAME HERE",
-        "HEADLINE",
-        "STORY HERE",
+    match templates::create_templated_print_with_background(
+        file_path.to_str().unwrap(),
+        preview_path.to_str().unwrap(),
+        &config.template.header_text,
+        &config.template.name_placeholder,
+        &config.template.headline_placeholder,
+        &config.template.story_placeholder,
+        config.background_path().to_str().unwrap(),
     ) {
         Ok(()) => {
             // Return the URL to the preview
@@ -357,9 +503,17 @@ async fn preview_print(body: web::Json<serde_json::Value>) -> impl Responder {
 
 #[cfg(not(target_os = "linux"))]
 fn main() -> std::io::Result<()> {
-    eprintln!(
-        "This binary is intended to run on Linux (Raspberry Pi). The V4L2-based preview and capture are Linux-only."
+    // Initialize tracing
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
+    tracing::error!("This binary is intended to run on Linux (Raspberry Pi). The V4L2-based preview and capture are Linux-only.");
+    tracing::error!(
+        "Build for the target device (e.g., aarch64-unknown-linux-gnu) and run it there."
     );
-    eprintln!("Build for the target device (e.g., aarch64-unknown-linux-gnu) and run it there.");
     Ok(())
 }

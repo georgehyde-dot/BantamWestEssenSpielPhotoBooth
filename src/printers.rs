@@ -101,43 +101,18 @@ impl EpsonPrinter {
         // Get all available printers
         let printers = get_printers();
 
-        println!("DEBUG: Looking for printer: {}", printer_name);
-        println!("DEBUG: Found {} printers:", printers.len());
-        for p in &printers {
-            println!("  - {} (system_name: {:?})", p.name, p.system_name);
-        }
-
         // Prioritize TurboPrint printer
         let cups_printer = printers
             .iter()
-            .find(|p| {
-                let found =
-                    p.name.contains("TurboPrint") || p.system_name == "XP8700series-TurboPrint";
-                if found {
-                    println!(
-                        "DEBUG: Found TurboPrint printer: {} (system: {})",
-                        p.name, p.system_name
-                    );
-                }
-                found
-            })
-            .or_else(|| {
-                println!(
-                    "DEBUG: TurboPrint not found, looking for exact match: {}",
-                    printer_name
-                );
-                printers.iter().find(|p| p.name == printer_name)
-            })
+            .find(|p| p.name.contains("TurboPrint") || p.system_name == "XP8700series-TurboPrint")
+            .or_else(|| printers.iter().find(|p| p.name == printer_name))
             .cloned();
 
         match cups_printer {
-            Some(printer) => {
-                println!("DEBUG: Using printer: {}", printer.name);
-                Ok(EpsonPrinter {
-                    printer_name: printer.name.clone(),
-                    cups_printer: Some(printer),
-                })
-            }
+            Some(printer) => Ok(EpsonPrinter {
+                printer_name: printer.name.clone(),
+                cups_printer: Some(printer),
+            }),
             None => Err(PrinterError::NotFound(format!(
                 "TurboPrint printer '{}' not found in CUPS",
                 printer_name
@@ -258,7 +233,7 @@ impl Printer for EpsonPrinter {
     }
 }
 
-// Mock printer implementation for when no real printer is available
+// Mock printer implementation for testing or when no real printer is available
 #[cfg(target_os = "linux")]
 pub struct MockPrinter;
 
@@ -295,31 +270,32 @@ impl Printer for MockPrinter {
 // Factory function to create appropriate printer instance
 #[cfg(all(target_os = "linux", feature = "printer-cups"))]
 pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
-    // Always try to find and use TurboPrint printer first
-    println!("DEBUG: Attempting to find TurboPrint printer...");
-    match EpsonPrinter::new("XP8700series-TurboPrint").await {
-        Ok(printer) => {
-            println!("Using TurboPrint printer: {}", printer.printer_name);
-            return Ok(std::sync::Arc::new(printer));
-        }
-        Err(e) => {
-            println!("DEBUG: TurboPrint not found: {}", e);
-            // Fall back to other printer names
-            let fallback_names = vec!["EPSON_XP_8700_Series_USB", "XP-8700"];
+    new_printer_with_config(
+        "XP8700series-TurboPrint",
+        &["EPSON_XP_8700_Series_USB", "XP-8700"],
+    )
+    .await
+}
 
-            for name in &fallback_names {
+#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+pub async fn new_printer_with_config(
+    primary_name: &str,
+    fallback_names: &[&str],
+) -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
+    // Try primary printer first
+    match EpsonPrinter::new(primary_name).await {
+        Ok(printer) => return Ok(std::sync::Arc::new(printer)),
+        Err(_) => {
+            // Try fallback printers
+            for name in fallback_names {
                 match EpsonPrinter::new(name).await {
-                    Ok(printer) => {
-                        println!("Found fallback printer: {}", printer.printer_name);
-                        return Ok(std::sync::Arc::new(printer));
-                    }
-                    Err(_) => {}
+                    Ok(printer) => return Ok(std::sync::Arc::new(printer)),
+                    Err(_) => continue,
                 }
             }
         }
     }
 
-    println!("Warning: TurboPrint printer not found, falling back to mock printer");
     // Fall back to mock printer
     Ok(std::sync::Arc::new(MockPrinter))
 }

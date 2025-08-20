@@ -21,33 +21,23 @@ use v4l::video::Capture;
 #[cfg(target_os = "linux")]
 use v4l::{Format, FourCC};
 
-// Public camera interface
+// Use the camera config from the main configuration module
 #[cfg(target_os = "linux")]
-#[derive(Clone)]
-pub struct CameraConfig {
-    pub device: String,
-    pub width: u32,
-    pub height: u32,
-}
+use crate::config::CameraConfig;
 
 #[cfg(target_os = "linux")]
 impl CameraConfig {
     pub fn from_env() -> Self {
-        let device = std::env::var("VIDEO_DEVICE").unwrap_or_else(|_| "/dev/video1".to_string());
-        let width = std::env::var("VIDEO_WIDTH")
-            .ok()
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(1920);
-        let height = std::env::var("VIDEO_HEIGHT")
-            .ok()
-            .and_then(|s| s.parse::<u32>().ok())
-            .unwrap_or(1080);
-
-        CameraConfig {
-            device,
-            width,
-            height,
-        }
+        // This method is kept for backward compatibility
+        // but delegates to the main config
+        crate::config::Config::from_env()
+            .map(|c| c.camera)
+            .unwrap_or_else(|_| CameraConfig {
+                device: "/dev/video0".to_string(),
+                width: 1920,
+                height: 1080,
+                format: "MJPG".to_string(),
+            })
     }
 }
 

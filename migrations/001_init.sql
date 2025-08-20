@@ -1,0 +1,2 @@
+-- Initial migration to verify database setup
+-- This migration intentionally left minimal for initial setup verification

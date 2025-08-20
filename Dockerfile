@@ -42,6 +42,7 @@ WORKDIR /work/canon_test_cam
 # Cache dependencies first
 COPY canon_test_cam/Cargo.toml ./Cargo.toml
 COPY canon_test_cam/Cargo.lock ./Cargo.lock
+COPY canon_test_cam/build.rs ./build.rs
 # Create empty src to allow cargo to resolve deps if needed (safe no-op if not used)
 RUN mkdir -p src && [ -f src/main.rs ] || echo "fn main(){}" > src/main.rs
 RUN cargo fetch
@@ -49,6 +50,7 @@ RUN cargo fetch
 # Now copy actual sources
 COPY canon_test_cam/src ./src
 COPY canon_test_cam/html ./html
+COPY canon_test_cam/migrations ./migrations
 
 # Build release for aarch64-unknown-linux-gnu
 RUN cargo build --release --target aarch64-unknown-linux-gnu

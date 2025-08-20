@@ -1,200 +1,254 @@
-# Canon Photo Booth Application
+# Photo Booth Camera Application
 
-A web-based photo booth application designed for Raspberry Pi with Canon EOS camera support and automatic printing capabilities.
+A Rust-based photo booth application designed for Raspberry Pi with Canon camera support, featuring live preview, capture, templating, and direct printing capabilities.
 
 ## Features
 
-- Live camera preview via MJPEG streaming
-- Web-based interface accessible from any device on the network
-- 3-second countdown timer before capture
-- Automatic photo printing to Epson printers via CUPS
-- Image capture at 1920x1080 resolution
-- PNG format output for better print quality
+- **Live Camera Preview**: Real-time MJPEG stream from V4L2-compatible cameras
+- **Photo Capture**: High-quality image capture with automatic file management
+- **Template System**: Customizable print templates with text overlays and background images
+- **Direct Printing**: CUPS integration with TurboPrint driver support for Epson printers
+- **Web Interface**: Responsive web UI for camera control and photo management
+- **Configuration**: Environment-based configuration for easy deployment
 
 ## Requirements
 
-- Raspberry Pi running Linux
-- Canon EOS camera (tested with T7) connected via USB
-- Epson printer (tested with XP-8700) configured in CUPS
-- Rust toolchain for compilation
+### Hardware
+- Raspberry Pi (tested on Pi 4)
+- V4L2-compatible camera (Canon DSLRs via gphoto2, webcams)
+- Epson XP-8700 printer (or compatible)
 
-## Hardware Setup
-
-1. Connect Canon EOS camera to Raspberry Pi via USB
-2. Set camera to appropriate capture mode
-3. Connect and configure Epson printer via USB or network
-4. Ensure printer is configured in CUPS with name `EPSON_XP_8700_Series_USB`
-
-## Software Dependencies
-
-The application uses the following Rust crates:
-- `actix-web` - Web framework
-- `v4l` - Video4Linux interface for camera access
-- `image` - Image processing and format conversion
-- `printers` - CUPS integration for printing
+### Software
+- Linux (Raspberry Pi OS recommended)
+- Rust 1.70+
+- CUPS printing system
+- TurboPrint driver (for borderless printing)
+- V4L2 drivers for your camera
 
 ## Configuration
 
-### Environment Variables
+The application uses environment variables for configuration:
 
-- `VIDEO_DEVICE` - Camera device path (default: `/dev/video1`)
-- `VIDEO_WIDTH` - Capture width (default: `1920`)
-- `VIDEO_HEIGHT` - Capture height (default: `1080`)
+### Server Configuration
+- `HOST`: Server bind address (default: `0.0.0.0`)
+- `PORT`: Server port (default: `8080`)
 
-### File Storage
+### Camera Configuration
+- `VIDEO_DEVICE`: V4L2 device path (default: `/dev/video0`)
+- `VIDEO_WIDTH`: Capture width in pixels (default: `1920`)
+- `VIDEO_HEIGHT`: Capture height in pixels (default: `1080`)
+- `VIDEO_FORMAT`: Video format (default: `MJPG`)
 
-Captured images are stored in `/usr/local/share/photo_booth/` with appropriate permissions for CUPS access.
+### Storage Configuration
+- `STORAGE_PATH`: Base path for photo storage (default: `/usr/local/share/photo_booth`)
 
-## Building and Running
+### Printer Configuration
+- `PRINTER_NAME`: Primary printer name (default: `XP8700series-TurboPrint`)
+- `PRINTER_FALLBACK`: Comma-separated fallback printer names (default: `EPSON_XP_8700_Series_USB,XP-8700`)
+- `USE_MOCK_PRINTER`: Use mock printer for testing (default: `false`)
 
-1. Clone the repository
-2. Build the application:
-   ```bash
-   cargo build --release
-   ```
-3. Run the application:
-   ```bash
-   sudo cargo run --release
-   ```
+### Template Configuration
+- `TEMPLATE_HEADER`: Header text (default: `Photo Booth`)
+- `TEMPLATE_NAME`: Name placeholder text (default: `NAME HERE`)
+- `TEMPLATE_HEADLINE`: Headline placeholder text (default: `HEADLINE`)
+- `TEMPLATE_STORY`: Story placeholder text (default: `STORY HERE`)
+- `TEMPLATE_BACKGROUND`: Background image filename (default: `background.png`)
 
-The web interface will be available at `http://<raspberry-pi-ip>:8080`
+### Logging
+- `RUST_LOG`: Log level (default: `info`, options: `error`, `warn`, `info`, `debug`, `trace`)
+
+## Installation
+
+### 1. Build for Raspberry Pi
+
+Using the provided Docker build system:
+
+```bash
+./deploy.sh
+```
+
+This will:
+- Build the ARM64 binary in Docker
+- Deploy to your Raspberry Pi via SSH
+- Set up the binary with correct permissions
+
+### 2. Set up the storage directory
+
+On the Raspberry Pi:
+
+```bash
+sudo mkdir -p /usr/local/share/photo_booth/static
+sudo chmod 755 /usr/local/share/photo_booth
+```
+
+### 3. Add background image
+
+Place your background image at:
+```bash
+/usr/local/share/photo_booth/static/background.png
+```
+
+### 4. Configure the printer
+
+Ensure your printer is set up in CUPS:
+```bash
+lpstat -p  # List available printers
+```
 
 ## Usage
 
-1. Navigate to the web interface
-2. The live camera preview will be displayed
-3. Click "Start Countdown" to begin the 3-second timer
-4. After capture, you'll be redirected to the photo page
-5. From the photo page you can:
-   - Download the image
-   - Copy the image URL
-   - Print the photo (4x6 borderless format)
-   - Return to start for another capture
+### Running the Application
+
+```bash
+VIDEO_DEVICE=/dev/video0 VIDEO_WIDTH=1920 VIDEO_HEIGHT=1080 ./cam_test
+```
+
+### Web Interface
+
+Navigate to `http://raspberry-pi-ip:8080` to access the photo booth interface.
+
+## API Endpoints
+
+### GET `/`
+Main photo booth interface
+
+### GET `/stream`
+Live MJPEG camera preview stream
+
+### POST `/capture`
+Capture a photo from the camera
+
+**Response:**
+```json
+{
+  "ok": true,
+  "path": "/images/cap_1234567890.png",
+  "file": "cap_1234567890.png",
+  "redirect": "/photo?file=cap_1234567890.png"
+}
+```
+
+### GET `/photo`
+Display captured photo page
+
+**Query Parameters:**
+- `file`: Filename of the captured photo
+
+### POST `/print`
+Print a photo with template
+
+**Request:**
+```json
+{
+  "filename": "cap_1234567890.png"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "job_id": "XP8700series-TurboPrint-123",
+  "message": "Print job submitted successfully. Job ID: XP8700series-TurboPrint-123"
+}
+```
+
+### POST `/preview`
+Generate a preview of the templated print
+
+**Request:**
+```json
+{
+  "filename": "cap_1234567890.png"
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "preview_url": "/images/preview_1234567890.png"
+}
+```
+
+### GET `/images/*`
+Serve captured photos and previews
+
+### GET `/static/*`
+Serve static assets (background images, etc.)
+
+## Template System
+
+The template system creates 4x6" prints at 300 DPI (1200x1800 pixels) with:
+
+1. **Background**: Custom image or solid color
+2. **Header Section**: Title text at top
+3. **Photo**: Positioned 1/3 from top
+4. **Text Sections**:
+   - Name (large text below photo)
+   - Headline (medium text)
+   - Story section with semi-transparent overlay
+
+### Customizing Templates
+
+Templates can be customized by:
+1. Changing environment variables for text
+2. Replacing the background image
+3. Modifying the `templates.rs` module for layout changes
 
 ## Architecture
 
-### Main Components
+The application follows clean architecture principles:
 
-- **Camera Module**: Uses V4L2 to interface with the Canon camera, capturing MJPEG frames
-- **Web Server**: Actix-web server provides HTTP endpoints for preview, capture, and printing
-- **Image Processing**: Converts JPEG captures to PNG format for better print quality
-- **Printer Interface**: CUPS integration for direct printing to Epson printers
+- **Configuration Module**: Centralized configuration management
+- **Camera Module**: Abstracted camera interface
+- **Printer Module**: Printer abstraction with CUPS implementation
+- **Template Module**: Composable template system
+- **Error Handling**: Type-safe error handling with `thiserror`
+- **Logging**: Structured logging with `tracing`
 
-### API Endpoints
+## Development
 
-- `GET /` - Main interface with live preview
-- `GET /preview` - MJPEG stream endpoint
-- `POST /capture` - Captures current frame and saves as PNG
-- `GET /photo?file=<filename>` - Displays captured photo
-- `POST /print` - Sends photo to printer
-- `GET /images/<filename>` - Static file serving for captured images
+### Running Tests
 
-### Print Settings
+```bash
+cargo test
+```
 
-Photos are printed with the following settings:
-- Paper Size: 4x6 Borderless
-- Input Slot: Photo
-- Media Type: Photographic Semi-Gloss
-- Quality: High
+### Building Locally
 
-## Code Overview
+```bash
+cargo build --release
+```
 
-The application is organized in a modular structure with separate concerns:
-- `main.rs` - Application entry point and web server
-- `lib.rs` - Library module organization
-- `printers.rs` - All printer-related functionality
-- `camera.rs` - Camera interface and V4L2 implementation
-- HTML files embedded at compile time for the web interface
+### Cross-Compilation
 
-The application has been cleaned up to remove unnecessary debug logging while maintaining essential functionality:
+The project includes a Dockerfile for cross-compilation to ARM64:
 
-### Key Components
-
-1. **Main Application (`main.rs`)**
-   - Web server setup using Actix-web
-   - Camera interface using V4L2
-   - Image capture and format conversion
-   - HTTP endpoint handlers
-
-2. **Library Module (`lib.rs`)**
-   - Module organization and re-exports
-   - Public API for library usage
-
-3. **Printer Module (`printers.rs`)**
-   - `EpsonPrinter` - CUPS integration for Epson printers
-   - `MockPrinter` - Fallback when no printer is available
-   - Print job configuration with proper paper settings
-   - `Printer` trait for abstraction
-   - Platform-specific implementations
-
-4. **Camera Module (`camera.rs`)**
-   - `Camera` - Main camera interface
-   - `CameraConfig` - Camera configuration from environment variables
-   - V4L2 device management
-   - MJPEG streaming support (userptr mode)
-   - Frame capture and buffering
-   - Platform-specific stubs for non-Linux systems
-
-5. **Web Endpoints**
-   - `/` - Main interface with embedded HTML
-   - `/preview` - Live MJPEG stream
-   - `/capture` - Photo capture endpoint
-   - `/photo` - Photo display page
-   - `/print` - Print submission endpoint
-   - `/images/*` - Static file serving
-
-### Key Functions
-
-- `preview_loop()` - Manages camera streaming
-- `capture_image()` - Captures and saves photos
-- `print_photo()` - Handles print job submission
-- `new_printer()` - Factory function for printer instances (in `printers.rs`)
-- `Camera::start_preview_stream()` - Starts continuous MJPEG streaming (in `camera.rs`)
-- `Camera::capture_frame()` - Gets the latest captured frame (in `camera.rs`)
-
-### File Storage
-
-Photos are stored in `/usr/local/share/photo_booth/` with:
-- PNG format for better print quality
-- 644 permissions for CUPS access
-- Timestamp-based naming
-
-### Error Handling
-
-The application includes proper error handling for:
-- Camera connection issues
-- Printer availability
-- File permissions
-- Image format validation
+```bash
+docker build -f canon_test_cam/Dockerfile -t cam-test-pi-builder .
+```
 
 ## Troubleshooting
 
 ### Camera Not Found
-- Check camera connection and power
-- Verify device path with `ls /dev/video*`
-- Ensure camera is in appropriate mode
+- Check `VIDEO_DEVICE` environment variable
+- Verify camera is connected: `ls -la /dev/video*`
+- Check V4L2 compatibility: `v4l2-ctl --list-devices`
 
-### Printing Issues
-- Verify printer name matches in CUPS: `lpstat -p`
-- Check CUPS permissions for the application user
-- Ensure photo paper is loaded in the photo tray
-- Review CUPS logs: `/var/log/cups/error_log`
+### Printer Issues
+- Verify printer in CUPS: `lpstat -p`
+- Check printer status: `lpstat -p PRINTER_NAME`
+- Test print: `lp -d PRINTER_NAME test.png`
 
-### Permission Issues
-- The application creates necessary directories with appropriate permissions
-- Files are saved with 644 permissions for CUPS access
-- Directory permissions are set to 755
-
-## Security Considerations
-
-- File uploads are not supported (capture only)
-- Filenames are validated to prevent directory traversal
-- Web interface binds to all interfaces (0.0.0.0) - consider firewall rules for production use
+### Permission Errors
+- Ensure user has access to video devices: `sudo usermod -a -G video $USER`
+- Check storage directory permissions
 
 ## License
 
-[Add your license information here]
+[Your License Here]
 
 ## Contributing
 
-[Add contribution guidelines if applicable]
+Contributions are welcome! Please follow Rust best practices and include tests for new features.

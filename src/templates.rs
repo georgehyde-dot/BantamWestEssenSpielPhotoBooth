@@ -3,7 +3,7 @@
 #[cfg(target_os = "linux")]
 use image::{DynamicImage, ImageBuffer, Rgb, RgbImage};
 #[cfg(target_os = "linux")]
-use imageproc::drawing::{draw_filled_circle_mut, draw_text_mut};
+use imageproc::drawing::draw_text_mut;
 #[cfg(target_os = "linux")]
 use rusttype::{Font, Scale};
 #[cfg(target_os = "linux")]
@@ -60,9 +60,8 @@ pub struct PrintTemplate {
     headline_text: String,
     story_text: String,
     background_color: Rgb<u8>,
-    stipple_color: Rgb<u8>,
-    story_stipple_color: Rgb<u8>,
     text_color: Rgb<u8>,
+    background_path: Option<String>,
 }
 
 #[cfg(target_os = "linux")]
@@ -74,9 +73,8 @@ impl Default for PrintTemplate {
             headline_text: "HEADLINE".to_string(),
             story_text: "STORY HERE".to_string(),
             background_color: Rgb([255, 255, 255]), // White background
-            stipple_color: Rgb([200, 200, 255]),    // Light blue stippling
-            story_stipple_color: Rgb([255, 200, 200]), // Light red stippling for story
             text_color: Rgb([50, 50, 50]),          // Dark gray text
+            background_path: None,
         }
     }
 }
@@ -91,6 +89,11 @@ impl PrintTemplate {
             story_text: story.to_string(),
             ..Default::default()
         }
+    }
+
+    pub fn with_background(mut self, path: &str) -> Self {
+        self.background_path = Some(path.to_string());
+        self
     }
 
     pub fn apply_to_photo(&self, photo_path: &str, output_path: &str) -> Result<(), TemplateError> {
@@ -115,9 +118,8 @@ impl PrintTemplate {
 
     fn compose_template(&self, photo: DynamicImage) -> Result<RgbImage, TemplateError> {
         // 1. Load the background image
-        let background_path = "/usr/local/share/photo_booth/static/background.png";
-        let mut canvas = if std::path::Path::new(background_path).exists() {
-            match image::open(background_path) {
+        let mut canvas = if let Some(bg_path) = &self.background_path {
+            match image::open(bg_path) {
                 Ok(bg) => {
                     // Resize background to match print dimensions
                     image::imageops::resize(
@@ -280,6 +282,21 @@ pub fn create_templated_print_with_text(
     story: &str,
 ) -> Result<(), TemplateError> {
     let template = PrintTemplate::new(header, name, headline, story);
+    template.apply_to_photo(photo_path, output_path)
+}
+
+#[cfg(target_os = "linux")]
+pub fn create_templated_print_with_background(
+    photo_path: &str,
+    output_path: &str,
+    header: &str,
+    name: &str,
+    headline: &str,
+    story: &str,
+    background_path: &str,
+) -> Result<(), TemplateError> {
+    let template =
+        PrintTemplate::new(header, name, headline, story).with_background(background_path);
     template.apply_to_photo(photo_path, output_path)
 }
 
