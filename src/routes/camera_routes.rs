@@ -8,6 +8,7 @@ use tokio::sync::mpsc;
 use tracing::warn;
 
 use crate::config::Config;
+use crate::image_processing::ImageProcessor;
 use crate::session::Session;
 
 #[get("/preview")]
@@ -86,11 +87,49 @@ pub async fn capture_image(
     match img_opt {
         Some(bytes) => {
             let save_path = filename.clone();
+            let processing_mode = body
+                .as_ref()
+                .and_then(|b| b.get("processing_mode"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("autofocus_removal")
+                .to_string();
+
+            // Extract session_id before the move
+            let session_id = body
+                .as_ref()
+                .and_then(|b| b.get("session_id"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+
             let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
                 // Convert JPEG bytes to PNG format
                 let img =
                     image::load_from_memory(&bytes).map_err(|e| format!("decode image: {e}"))?;
-                img.save(&save_path).map_err(|e| format!("save PNG: {e}"))?;
+
+                // Apply selected processing mode
+                let processed_img = match processing_mode.as_str() {
+                    "none" => img.clone(),
+                    "simple_white" => {
+                        // Simple white pixel removal with configurable threshold
+                        ImageProcessor::simple_white_removal(&img, 240)
+                    }
+                    "detect_rectangles" => {
+                        // Detect and mark thin rectangles
+                        ImageProcessor::detect_thin_rectangles(&img)
+                    }
+                    "brightness_difference" => {
+                        // Brightness difference based detection
+                        ImageProcessor::brightness_difference_removal(&img)
+                    }
+                    "autofocus_removal" | _ => {
+                        // Default: Remove autofocus boxes from the captured image
+                        ImageProcessor::remove_autofocus_boxes(&img)
+                    }
+                };
+
+                processed_img
+                    .save(&save_path)
+                    .map_err(|e| format!("save PNG: {e}"))?;
 
                 Ok(())
             })
@@ -109,28 +148,24 @@ pub async fn capture_image(
                         "redirect": format!("/photo?file={}", file_name),
                     });
 
-                    if let Some(body) = body {
-                        if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
-                            // Load and update session
-                            match Session::load(session_id, &db_pool).await {
-                                Ok(Some(mut session)) => {
-                                    if let Err(e) =
-                                        session.set_photo_path(file_path, &db_pool).await
-                                    {
-                                        warn!("Failed to update session photo path: {}", e);
-                                    } else {
-                                        response_json["session_id"] = serde_json::json!(session_id);
-                                    }
+                    if let Some(session_id) = session_id {
+                        // Load and update session
+                        match Session::load(&session_id, &db_pool).await {
+                            Ok(Some(mut session)) => {
+                                if let Err(e) = session.set_photo_path(file_path, &db_pool).await {
+                                    warn!("Failed to update session photo path: {}", e);
+                                } else {
+                                    response_json["session_id"] = serde_json::json!(&session_id);
                                 }
-                                Ok(None) => {
-                                    warn!(
-                                        "Session {} not found when trying to associate photo",
-                                        session_id
-                                    );
-                                }
-                                Err(e) => {
-                                    warn!("Failed to load session {}: {}", session_id, e);
-                                }
+                            }
+                            Ok(None) => {
+                                warn!(
+                                    "Session {} not found when trying to associate photo",
+                                    &session_id
+                                );
+                            }
+                            Err(e) => {
+                                warn!("Failed to load session {}: {}", &session_id, e);
                             }
                         }
                     }

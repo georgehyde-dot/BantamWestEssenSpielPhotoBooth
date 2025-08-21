@@ -46,6 +46,7 @@ use image;
 mod camera;
 mod config;
 mod errors;
+mod image_processing;
 mod printers;
 mod routes;
 mod session;
@@ -55,8 +56,8 @@ mod templates;
 use printers::{new_printer, PaperSize, PrintJob, PrintQuality, Printer, PrinterError};
 #[cfg(target_os = "linux")]
 use routes::{
-    camera_page, capture_image, create_session, get_session, name_entry_page, photo_page,
-    preview_print, preview_stream, print_photo, start_page, update_session,
+    camera_page, capture_image, create_session, debug_test_page, get_session, name_entry_page,
+    photo_page, preview_print, preview_stream, print_photo, start_page, update_session,
 };
 #[cfg(target_os = "linux")]
 use session::Session;
@@ -177,6 +178,7 @@ async fn main() -> std::io::Result<()> {
             .service(create_session)
             .service(get_session)
             .service(update_session)
+            .service(debug_test_page)
             .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
             .service(
                 fs::Files::new("/static", app_config.storage.static_path.clone())
