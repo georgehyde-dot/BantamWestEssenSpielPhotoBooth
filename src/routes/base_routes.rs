@@ -5,7 +5,6 @@ const START_HTML: &str = include_str!("../../html/start.html");
 const ENTER_NAMES_HTML: &str = include_str!("../../html/enter_names.html");
 const INDEX_HTML: &str = include_str!("../../html/index.html");
 const PHOTO_HTML: &str = include_str!("../../html/photo.html");
-const DEBUG_TEST_HTML: &str = include_str!("../../html/debug_test.html");
 
 #[get("/")]
 pub async fn start_page() -> impl Responder {
@@ -35,11 +34,4 @@ pub async fn photo_page(
     HttpResponse::Ok()
         .content_type("text/html")
         .body(PHOTO_HTML)
-}
-
-#[get("/debug-test")]
-pub async fn debug_test_page() -> impl Responder {
-    HttpResponse::Ok()
-        .content_type("text/html")
-        .body(DEBUG_TEST_HTML)
 }

@@ -87,13 +87,6 @@ pub async fn capture_image(
     match img_opt {
         Some(bytes) => {
             let save_path = filename.clone();
-            let processing_mode = body
-                .as_ref()
-                .and_then(|b| b.get("processing_mode"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("autofocus_removal")
-                .to_string();
-
             // Extract session_id before the move
             let session_id = body
                 .as_ref()
@@ -106,26 +99,8 @@ pub async fn capture_image(
                 let img =
                     image::load_from_memory(&bytes).map_err(|e| format!("decode image: {e}"))?;
 
-                // Apply selected processing mode
-                let processed_img = match processing_mode.as_str() {
-                    "none" => img.clone(),
-                    "simple_white" => {
-                        // Simple white pixel removal with configurable threshold
-                        ImageProcessor::simple_white_removal(&img, 240)
-                    }
-                    "detect_rectangles" => {
-                        // Detect and mark thin rectangles
-                        ImageProcessor::detect_thin_rectangles(&img)
-                    }
-                    "brightness_difference" => {
-                        // Brightness difference based detection
-                        ImageProcessor::brightness_difference_removal(&img)
-                    }
-                    "autofocus_removal" | _ => {
-                        // Default: Remove autofocus boxes from the captured image
-                        ImageProcessor::remove_autofocus_boxes(&img)
-                    }
-                };
+                // Remove autofocus boxes from the captured image
+                let processed_img = ImageProcessor::remove_autofocus_boxes(&img);
 
                 processed_img
                     .save(&save_path)
