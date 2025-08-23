@@ -575,8 +575,8 @@
                         });
 
                         if (response.ok) {
-                            // Navigate to weapon selection
-                            window.location.href = `/weapon?session_id=${sessionId}`;
+                            // Navigate to copies selection
+                            window.location.href = `/copies?session_id=${sessionId}`;
                         } else {
                             throw new Error("Failed to save names");
                         }

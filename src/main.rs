@@ -56,9 +56,9 @@ mod templates;
 use printers::{new_printer, PaperSize, PrintJob, PrintQuality, Printer, PrinterError};
 #[cfg(target_os = "linux")]
 use routes::{
-    camera_page, capture_image, companion_page, create_session, generate_story, get_session,
-    land_page, name_entry_page, photo_page, preview_print, preview_stream, print_photo,
-    save_session_final, start_page, update_session, weapon_page,
+    camera_page, capture_image, companion_page, copies_page, create_session, generate_story,
+    get_session, land_page, name_entry_page, photo_page, preview_print, preview_stream,
+    print_photo, save_session_final, start_page, update_session, weapon_page,
 };
 #[cfg(target_os = "linux")]
 use session::Session;
@@ -172,6 +172,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(db_pool))
             .service(start_page)
             .service(name_entry_page)
+            .service(copies_page)
             .service(camera_page)
             .service(preview_stream)
             .service(capture_image)
