@@ -36,9 +36,9 @@ impl ImageProcessor {
         let mut detected_pixels = HashSet::new();
 
         // Limit search area to bottom left corner where autofocus box appears
-        // Check bottom 30% and left 30% of the image
+        // Check bottom 40% and left 30% of the image (expanded to catch top line)
         let max_x = (width as f32 * 0.3) as u32;
-        let min_y = (height as f32 * 0.7) as u32;
+        let min_y = (height as f32 * 0.6) as u32;
 
         let search_area = (max_x * (height - min_y)) as f32;
         let total_area = (width * height) as f32;
@@ -127,10 +127,11 @@ impl ImageProcessor {
 
             if is_horizontal {
                 // Expand up and down for horizontal lines (including dark edges)
-                for dy in -4i32..=4 {
+                // Increased range to capture full box top line
+                for dy in -8i32..=8 {
                     let ny = y as i32 + dy;
-                    // Allow expansion slightly outside search area for better edge handling
-                    if ny >= (min_y as i32 - 5) && ny < height as i32 {
+                    // Allow more aggressive expansion above search area to capture top lines
+                    if ny >= 0 && ny < height as i32 {
                         detected_pixels.insert((x, ny as u32));
                     }
                 }
@@ -143,6 +144,56 @@ impl ImageProcessor {
                     // Allow expansion slightly outside search area for better edge handling
                     if nx >= 0 && nx < (max_x as i32 + 5).min(width as i32) {
                         detected_pixels.insert((nx as u32, y));
+                    }
+                }
+            }
+        }
+
+        // Pass 5: Edge completion - ensure top edges of detected regions are fully captured
+        let current_pixels: Vec<(u32, u32)> = detected_pixels.iter().cloned().collect();
+        for &(x, y) in &current_pixels {
+            // For each detected pixel, check if there are bright pixels above it
+            for dy in 1..=20 {
+                let ny = y as i32 - dy;
+                if ny >= 0 {
+                    let ny = ny as u32;
+                    let pixel = img.get_pixel(x, ny);
+                    // If we find a bright pixel above, include it and all pixels in between
+                    if pixel[0] > 200 || pixel[1] > 200 || pixel[2] > 200 {
+                        for fill_y in ny..=y {
+                            detected_pixels.insert((x, fill_y));
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Pass 6: Connected component filling - find and fill corners
+        let detected_vec: Vec<(u32, u32)> = detected_pixels.iter().cloned().collect();
+        for &(x, y) in &detected_vec {
+            // Check for corner patterns (L-shaped regions)
+            // Check if we have horizontal and vertical components meeting
+            let has_horizontal = detected_pixels.contains(&(x.saturating_sub(1), y))
+                || detected_pixels.contains(&(x + 1, y));
+            let has_vertical = detected_pixels.contains(&(x, y.saturating_sub(1)))
+                || detected_pixels.contains(&(x, y + 1));
+
+            if has_horizontal && has_vertical {
+                // This might be a corner - fill in a larger area
+                for dy in -6i32..=6 {
+                    for dx in -6i32..=6 {
+                        let nx = x as i32 + dx;
+                        let ny = y as i32 + dy;
+                        if nx >= 0 && ny >= 0 && nx < width as i32 && ny < height as i32 {
+                            let nx = nx as u32;
+                            let ny = ny as u32;
+                            let pixel = img.get_pixel(nx, ny);
+                            // Include any reasonably bright pixel near corners
+                            if pixel[0] > 180 || pixel[1] > 180 || pixel[2] > 180 {
+                                detected_pixels.insert((nx, ny));
+                            }
+                        }
                     }
                 }
             }
@@ -191,9 +242,10 @@ impl ImageProcessor {
         let box_set: HashSet<(u32, u32)> = box_pixels.iter().cloned().collect();
 
         // Create an expanded mask that includes a border around the box
+        // Increased vertical expansion to better handle top edges
         let mut mask = HashSet::new();
         for &(x, y) in box_pixels {
-            for dy in -7i32..=7 {
+            for dy in -10i32..=10 {
                 for dx in -7i32..=7 {
                     let nx = x as i32 + dx;
                     let ny = y as i32 + dy;
