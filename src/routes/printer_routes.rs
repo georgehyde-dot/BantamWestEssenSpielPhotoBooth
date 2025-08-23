@@ -48,6 +48,7 @@ pub async fn print_photo(
     let mut name_text = config.template.name_placeholder.clone();
     let mut headline_text = config.template.headline_placeholder.clone();
     let mut story_text = config.template.story_placeholder.clone();
+    let mut session_to_update = None;
 
     if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
         match Session::load(session_id, &db_pool).await {
@@ -64,6 +65,8 @@ pub async fn print_photo(
                 if let Some(story) = &session.story_text {
                     story_text = story.clone();
                 }
+                // Store session for later update
+                session_to_update = Some(session);
             }
             Ok(None) => {
                 warn!("Session {} not found when printing", session_id);
@@ -90,6 +93,17 @@ pub async fn print_photo(
         config.background_path().to_str().unwrap(),
     ) {
         Ok(()) => {
+            // Update session with templated print path if we have a session
+            if let Some(mut session) = session_to_update {
+                let templated_path = format!("print_{}.png", chrono::Utc::now().timestamp());
+                session.photo_path = Some(templated_path);
+
+                // Save the updated session
+                if let Err(e) = session.update(&db_pool).await {
+                    warn!("Failed to update session with templated print path: {}", e);
+                }
+            }
+
             // Use the templated file for printing
             let print_job = PrintJob {
                 file_path: templated_filename.to_str().unwrap().to_string(),

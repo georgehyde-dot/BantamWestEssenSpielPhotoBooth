@@ -106,3 +106,81 @@ pub async fn update_session(
         })),
     }
 }
+
+#[post("/session/{id}/generate-story")]
+pub async fn generate_story(
+    path: web::Path<String>,
+    db_pool: web::Data<SqlitePool>,
+) -> impl Responder {
+    let session_id = path.into_inner();
+
+    match Session::load(&session_id, &db_pool).await {
+        Ok(Some(mut session)) => {
+            // Generate story based on selections
+            session.generate_story();
+
+            // Update session with generated story
+            match session.update(&db_pool).await {
+                Ok(()) => HttpResponse::Ok().json(serde_json::json!({
+                    "ok": true,
+                    "story": session.story_text,
+                    "headline": session.headline
+                })),
+                Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+                    "ok": false,
+                    "error": format!("Failed to update session with story: {}", e)
+                })),
+            }
+        }
+        Ok(None) => HttpResponse::NotFound().json(serde_json::json!({
+            "ok": false,
+            "error": "Session not found"
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "ok": false,
+            "error": format!("Failed to load session: {}", e)
+        })),
+    }
+}
+
+#[post("/session/{id}/save")]
+pub async fn save_session_final(
+    path: web::Path<String>,
+    db_pool: web::Data<SqlitePool>,
+) -> impl Responder {
+    let session_id = path.into_inner();
+
+    match Session::load(&session_id, &db_pool).await {
+        Ok(Some(session)) => {
+            // Check if session is complete
+            if !session.is_complete() {
+                return HttpResponse::BadRequest().json(serde_json::json!({
+                    "ok": false,
+                    "error": "Session is not complete. Missing required fields."
+                }));
+            }
+
+            // Session is already saved in database through update calls,
+            // but we can do a final save to ensure everything is persisted
+            match session.update(&db_pool).await {
+                Ok(()) => HttpResponse::Ok().json(serde_json::json!({
+                    "ok": true,
+                    "message": "Session saved successfully",
+                    "session": session
+                })),
+                Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+                    "ok": false,
+                    "error": format!("Failed to save session: {}", e)
+                })),
+            }
+        }
+        Ok(None) => HttpResponse::NotFound().json(serde_json::json!({
+            "ok": false,
+            "error": "Session not found"
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "ok": false,
+            "error": format!("Failed to load session: {}", e)
+        })),
+    }
+}

@@ -68,7 +68,7 @@ pub struct PrintTemplate {
 impl Default for PrintTemplate {
     fn default() -> Self {
         PrintTemplate {
-            header_text: "Photo Booth".to_string(),
+            header_text: "Essen Spiel '25".to_string(),
             name_text: "NAME HERE".to_string(),
             headline_text: "HEADLINE".to_string(),
             story_text: "STORY HERE".to_string(),
@@ -208,7 +208,7 @@ impl PrintTemplate {
         let header_scale = Scale { x: 80.0, y: 80.0 };
         let name_scale = Scale { x: 100.0, y: 100.0 };
         let headline_scale = Scale { x: 70.0, y: 70.0 };
-        let story_scale = Scale { x: 50.0, y: 50.0 };
+        let story_scale = Scale { x: 65.0, y: 65.0 };
 
         // Header
         let header_width = self.measure_text_width(&font, &self.header_text, header_scale);
@@ -248,18 +248,28 @@ impl PrintTemplate {
             &self.headline_text,
         );
 
-        // Story (in story section)
-        let story_y = STORY_SECTION_TOP + 30;
-        let story_width = self.measure_text_width(&font, &self.story_text, story_scale);
-        draw_text_mut(
-            canvas,
-            self.text_color,
-            ((PRINT_WIDTH - story_width) / 2) as i32,
-            story_y as i32,
-            story_scale,
-            &font,
-            &self.story_text,
-        );
+        // Story (in story section) - wrap text to fit
+        let story_lines = self.wrap_text(&font, &self.story_text, story_scale, PRINT_WIDTH - 100);
+        let line_height = 60; // Space between lines
+        let story_start_y = STORY_SECTION_TOP + 30;
+
+        for (i, line) in story_lines.iter().enumerate() {
+            let line_width = self.measure_text_width(&font, line, story_scale);
+            let line_y = story_start_y + (i as u32 * line_height);
+
+            // Make sure we don't draw below the story section
+            if line_y < STORY_SECTION_BOTTOM - 50 {
+                draw_text_mut(
+                    canvas,
+                    Rgb([20, 20, 20]), // Darker color for story text
+                    ((PRINT_WIDTH - line_width) / 2) as i32,
+                    line_y as i32,
+                    story_scale,
+                    &font,
+                    line,
+                );
+            }
+        }
 
         Ok(())
     }
@@ -269,6 +279,38 @@ impl PrintTemplate {
             .last()
             .and_then(|g| g.pixel_bounding_box())
             .map_or(0, |bb| bb.max.x as u32)
+    }
+
+    fn wrap_text(&self, font: &Font, text: &str, scale: Scale, max_width: u32) -> Vec<String> {
+        let words: Vec<&str> = text.split_whitespace().collect();
+        let mut lines = Vec::new();
+        let mut current_line = String::new();
+
+        for word in words {
+            let test_line = if current_line.is_empty() {
+                word.to_string()
+            } else {
+                format!("{} {}", current_line, word)
+            };
+
+            let width = self.measure_text_width(font, &test_line, scale);
+
+            if width > max_width && !current_line.is_empty() {
+                // Current line is full, start a new one
+                lines.push(current_line);
+                current_line = word.to_string();
+            } else {
+                // Add word to current line
+                current_line = test_line;
+            }
+        }
+
+        // Don't forget the last line
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
+
+        lines
     }
 }
 

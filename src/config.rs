@@ -105,7 +105,7 @@ impl Config {
 
         let template = TemplateConfig {
             header_text: std::env::var("TEMPLATE_HEADER")
-                .unwrap_or_else(|_| "Photo Booth".to_string()),
+                .unwrap_or_else(|_| "Essen Spiel '25".to_string()),
             name_placeholder: std::env::var("TEMPLATE_NAME")
                 .unwrap_or_else(|_| "NAME HERE".to_string()),
             headline_placeholder: std::env::var("TEMPLATE_HEADLINE")

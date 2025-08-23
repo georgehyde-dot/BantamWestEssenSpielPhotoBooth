@@ -3,10 +3,18 @@
     <head>
         <meta charset="utf-8" />
         <title>Captured Photo</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
+        />
         <style>
             :root {
                 color-scheme: dark;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
             body {
                 background: #000;
@@ -20,13 +28,92 @@
                     Arial,
                     sans-serif;
                 margin: 0;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
             }
             #wrap {
                 padding: 20px;
                 text-align: center;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            #wrap.keyboard-open {
+                padding-top: 10px;
+            }
+            h1 {
+                font-size: 2.5em;
+                margin-bottom: 10px;
+                transition: font-size 0.3s ease;
+            }
+            #wrap.keyboard-open h1 {
+                font-size: 1.8em;
+            }
+            .photo-container {
+                margin: 20px 0;
+                max-width: min(90vw, 800px);
+                width: 100%;
+                transition: all 0.3s ease;
+            }
+            #wrap.keyboard-open .photo-container {
+                max-width: min(80vw, 600px);
+                margin: 10px 0;
+            }
+            img.photo {
+                background: #222;
+                width: 100%;
+                height: auto;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1);
+            }
+            .email-section {
+                margin: 30px 0;
+                width: 100%;
+                max-width: 500px;
+            }
+            #wrap.keyboard-open .email-section {
+                margin: 15px 0;
+            }
+            .email-label {
+                color: #aaa;
+                font-size: 1.1em;
+                margin-bottom: 10px;
+                display: block;
+            }
+            .email-input {
+                width: 100%;
+                padding: 15px 20px;
+                font-size: 18px;
+                border: 2px solid #444;
+                border-radius: 10px;
+                background: #1a1a1a;
+                color: #fff;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .email-input:focus,
+            .email-input.active {
+                outline: none;
+                border-color: #0066cc;
+                background: #222;
+                transform: scale(1.02);
+            }
+            .email-input::placeholder {
+                color: #666;
+                font-style: italic;
+            }
+            .email-input.valid {
+                border-color: #00cc66;
+            }
+            .email-input.invalid {
+                border-color: #cc3333;
             }
             .actions {
-                margin-top: 16px;
+                margin-top: 20px;
                 display: flex;
                 gap: 12px;
                 justify-content: center;
@@ -35,7 +122,7 @@
             button,
             a.button {
                 font-size: 18px;
-                padding: 10px 18px;
+                padding: 12px 24px;
                 border-radius: 8px;
                 border: 1px solid #666;
                 background: #1f1f1f;
@@ -43,17 +130,24 @@
                 cursor: pointer;
                 text-decoration: none;
                 display: inline-block;
+                transition: all 0.3s ease;
             }
-            button:hover,
+            button:hover:not(:disabled),
             a.button:hover {
                 background: #2a2a2a;
+                transform: translateY(-1px);
             }
-            img.photo {
-                background: #222;
-                max-width: min(90vw, 1600px);
-                width: 100%;
-                height: auto;
-                border-radius: 8px;
+            button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            button.primary {
+                background: #0066cc;
+                border-color: #0066cc;
+                font-weight: bold;
+            }
+            button.primary:hover:not(:disabled) {
+                background: #0052a3;
             }
             .error {
                 color: #ff8080;
@@ -62,35 +156,201 @@
             .filename {
                 color: #aaa;
                 font-size: 0.9rem;
-                margin: 8px 0 16px;
+                margin: 8px 0;
                 word-break: break-all;
+            }
+
+            /* Custom Keyboard Styles */
+            .custom-keyboard {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(30, 30, 30, 0.98);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid #444;
+                padding: 15px 10px 20px;
+                z-index: 1000;
+                display: none;
+                box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
+                animation: slideUp 0.3s ease-out;
+            }
+            @keyframes slideUp {
+                from {
+                    transform: translateY(100%);
+                }
+                to {
+                    transform: translateY(0);
+                }
+            }
+            .keyboard-row {
+                display: flex;
+                justify-content: center;
+                margin: 6px 0;
+                gap: 6px;
+            }
+            .key {
+                background: #2a2a2a;
+                border: 1px solid #444;
+                border-radius: 8px;
+                padding: 0;
+                font-size: 18px;
+                font-weight: 500;
+                min-width: 40px;
+                height: 48px;
+                cursor: pointer;
+                user-select: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.1s ease;
+                color: #fff;
+            }
+            .key:active {
+                background: #444;
+                transform: scale(0.95);
+            }
+            .key.special {
+                background: #1a1a1a;
+                color: #aaa;
+                font-weight: 600;
+            }
+            .key.special:active {
+                background: #333;
+            }
+            .key.wide {
+                flex: 2;
+                min-width: 100px;
+            }
+            .key.space {
+                flex: 3;
+                min-width: 180px;
+            }
+            .key.done {
+                background: #0066cc;
+                color: white;
+                min-width: 80px;
+            }
+            .key.done:active {
+                background: #0052a3;
+            }
+            .hidden {
+                display: none !important;
+            }
+
+            @media (max-width: 480px) {
+                h1 {
+                    font-size: 2em;
+                }
+                #wrap.keyboard-open h1 {
+                    font-size: 1.5em;
+                }
+                .key {
+                    min-width: 32px;
+                    height: 42px;
+                    font-size: 16px;
+                }
+                .custom-keyboard {
+                    padding: 10px 5px 15px;
+                }
             }
         </style>
     </head>
     <body>
         <div id="wrap">
-            <h1>Captured Image</h1>
-            <div id="filename" class="filename" hidden></div>
-            <div id="error" class="error" hidden></div>
-            <img id="photo" class="photo" alt="Captured" hidden />
-            <div class="actions">
-                <a class="button" href="/camera">Back to Camera</a>
-                <a id="download" class="button" href="#" download hidden
-                    >Download</a
+            <h1>Your Adventure Photo</h1>
+            <div id="filename" class="filename hidden"></div>
+            <div id="error" class="error hidden"></div>
+
+            <div class="photo-container">
+                <img id="photo" class="photo" alt="Captured" hidden />
+            </div>
+
+            <div class="email-section">
+                <label class="email-label" for="emailInput"
+                    >Enter your email to receive your photo:</label
                 >
-                <button id="copyUrl" type="button" hidden>
-                    Copy Image URL
-                </button>
-                <button id="printBtn" type="button" hidden>Print Photo</button>
-                <button id="previewBtn" type="button" hidden>
-                    Preview Print
+                <input
+                    type="text"
+                    id="emailInput"
+                    class="email-input"
+                    placeholder="Tap to enter email"
+                    readonly
+                    autocomplete="off"
+                />
+            </div>
+
+            <div class="actions">
+                <a class="button" href="/camera">Retake Photo</a>
+                <button
+                    id="printBtn"
+                    class="button primary"
+                    type="button"
+                    disabled
+                >
+                    Preview Adventure
                 </button>
             </div>
+
             <noscript>
                 <p class="error">
                     JavaScript is required to display the captured image.
                 </p>
             </noscript>
+        </div>
+
+        <!-- Custom Keyboard -->
+        <div id="customKeyboard" class="custom-keyboard">
+            <div class="keyboard-row">
+                <button type="button" class="key" data-key="q">q</button>
+                <button type="button" class="key" data-key="w">w</button>
+                <button type="button" class="key" data-key="e">e</button>
+                <button type="button" class="key" data-key="r">r</button>
+                <button type="button" class="key" data-key="t">t</button>
+                <button type="button" class="key" data-key="y">y</button>
+                <button type="button" class="key" data-key="u">u</button>
+                <button type="button" class="key" data-key="i">i</button>
+                <button type="button" class="key" data-key="o">o</button>
+                <button type="button" class="key" data-key="p">p</button>
+            </div>
+            <div class="keyboard-row">
+                <button type="button" class="key" data-key="a">a</button>
+                <button type="button" class="key" data-key="s">s</button>
+                <button type="button" class="key" data-key="d">d</button>
+                <button type="button" class="key" data-key="f">f</button>
+                <button type="button" class="key" data-key="g">g</button>
+                <button type="button" class="key" data-key="h">h</button>
+                <button type="button" class="key" data-key="j">j</button>
+                <button type="button" class="key" data-key="k">k</button>
+                <button type="button" class="key" data-key="l">l</button>
+            </div>
+            <div class="keyboard-row">
+                <button type="button" class="key" data-key="z">z</button>
+                <button type="button" class="key" data-key="x">x</button>
+                <button type="button" class="key" data-key="c">c</button>
+                <button type="button" class="key" data-key="v">v</button>
+                <button type="button" class="key" data-key="b">b</button>
+                <button type="button" class="key" data-key="n">n</button>
+                <button type="button" class="key" data-key="m">m</button>
+                <button type="button" class="key special" data-key="backspace">
+                    ⌫
+                </button>
+            </div>
+            <div class="keyboard-row">
+                <button type="button" class="key" data-key="@">@</button>
+                <button type="button" class="key" data-key=".">.</button>
+                <button type="button" class="key" data-key="_">_</button>
+                <button type="button" class="key" data-key="-">-</button>
+                <button type="button" class="key space" data-key=" ">
+                    space
+                </button>
+                <button type="button" class="key special" data-key="clear">
+                    Clear
+                </button>
+                <button type="button" class="key special done" data-key="done">
+                    Done
+                </button>
+            </div>
         </div>
 
         <script>
@@ -99,6 +359,11 @@
                 let file = params.get("file");
                 const path = params.get("path");
                 const sessionId = sessionStorage.getItem("session_id");
+
+                if (!sessionId) {
+                    window.location.href = "/";
+                    return;
+                }
 
                 if (!file && path) {
                     // Accept `/images/<name></name>` or `<name></name>`
@@ -109,108 +374,149 @@
 
                 const isSafeName = (name) =>
                     /^[A-Za-z0-9._-]+$/.test(name || "");
-                const show = (el) => el && el.removeAttribute("hidden");
-                const hide = (el) => el && el.setAttribute("hidden", "hidden");
 
                 const photoEl = document.getElementById("photo");
                 const errEl = document.getElementById("error");
                 const nameEl = document.getElementById("filename");
-                const dlEl = document.getElementById("download");
-                const copyBtn = document.getElementById("copyUrl");
+                const emailInput = document.getElementById("emailInput");
                 const printBtn = document.getElementById("printBtn");
+                const keyboard = document.getElementById("customKeyboard");
+                const wrap = document.getElementById("wrap");
+
+                // Email validation regex
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
                 if (!file) {
                     errEl.textContent =
                         "No image specified. Expected ?file=<name>.jpg";
-                    show(errEl);
+                    errEl.classList.remove("hidden");
                     return;
                 }
 
                 if (!isSafeName(file)) {
                     errEl.textContent =
                         "Invalid image name. Allowed characters: A-Z a-z 0-9 . _ -";
-                    show(errEl);
+                    errEl.classList.remove("hidden");
                     return;
                 }
 
                 const src = "/images/" + encodeURIComponent(file);
                 photoEl.src = src;
                 photoEl.alt = "Captured: " + file;
-                show(photoEl);
+                photoEl.removeAttribute("hidden");
 
                 nameEl.textContent = file;
-                show(nameEl);
+                nameEl.classList.remove("hidden");
 
                 document.title = "Captured Photo - " + file;
 
-                dlEl.href = src;
-                dlEl.download = file;
-                show(dlEl);
+                // Email input handling
+                emailInput.addEventListener("click", function () {
+                    this.classList.add("active");
+                    keyboard.style.display = "block";
+                    wrap.classList.add("keyboard-open");
 
-                copyBtn.addEventListener("click", async () => {
-                    const url = new URL(src, window.location.origin).toString();
-                    try {
-                        await navigator.clipboard.writeText(url);
-                        copyBtn.textContent = "Copied!";
-                        setTimeout(
-                            () => (copyBtn.textContent = "Copy Image URL"),
-                            1200,
-                        );
-                    } catch {
-                        // Fallback: open prompt
-                        window.prompt("Copy image URL:", url);
-                    }
-                });
-                show(copyBtn);
-
-                printBtn.addEventListener("click", async () => {
-                    printBtn.disabled = true;
-                    printBtn.textContent = "Printing...";
-
-                    try {
-                        const response = await fetch("/print", {
-                            method: "POST",
-                            headers: {
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                filename: file,
-                                session_id: sessionId,
-                            }),
+                    // Scroll input into view
+                    setTimeout(() => {
+                        this.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
                         });
+                    }, 100);
+                });
 
-                        const result = await response.json();
+                // Keyboard handling
+                document.querySelectorAll(".key").forEach((key) => {
+                    key.addEventListener("click", function () {
+                        const keyValue = this.dataset.key;
 
-                        if (result.ok) {
-                            printBtn.textContent = "Print Sent!";
-                            setTimeout(() => {
-                                printBtn.textContent = "Print Photo";
-                                printBtn.disabled = false;
-                            }, 2000);
-                        } else {
-                            alert(
-                                "Print failed: " +
-                                    (result.error || "Unknown error"),
-                            );
-                            printBtn.textContent = "Print Photo";
-                            printBtn.disabled = false;
+                        switch (keyValue) {
+                            case "backspace":
+                                emailInput.value = emailInput.value.slice(
+                                    0,
+                                    -1,
+                                );
+                                break;
+                            case "clear":
+                                emailInput.value = "";
+                                break;
+                            case "done":
+                                closeKeyboard();
+                                break;
+                            default:
+                                emailInput.value += keyValue;
+                                break;
                         }
-                    } catch (error) {
-                        alert("Print failed: " + error.message);
-                        printBtn.textContent = "Print Photo";
-                        printBtn.disabled = false;
-                    }
-                });
-                show(printBtn);
 
-                // Preview button functionality
-                const previewBtn = document.getElementById("previewBtn");
-                previewBtn.addEventListener("click", async () => {
-                    previewBtn.disabled = true;
-                    previewBtn.textContent = "Generating...";
+                        validateEmail();
+                    });
+                });
+
+                function closeKeyboard() {
+                    keyboard.style.display = "none";
+                    wrap.classList.remove("keyboard-open");
+                    emailInput.classList.remove("active");
+                }
+
+                function validateEmail() {
+                    const email = emailInput.value.trim();
+                    const isValid = emailRegex.test(email);
+
+                    emailInput.classList.remove("valid", "invalid");
+                    if (email.length > 0) {
+                        emailInput.classList.add(isValid ? "valid" : "invalid");
+                    }
+
+                    printBtn.disabled = !isValid;
+                }
+
+                // Preview button handling
+                printBtn.addEventListener("click", async () => {
+                    const email = emailInput.value.trim();
+                    if (!emailRegex.test(email)) {
+                        alert("Please enter a valid email address");
+                        return;
+                    }
+
+                    printBtn.disabled = true;
+                    printBtn.textContent = "Creating Preview...";
 
                     try {
-                        const response = await fetch("/preview", {
+                        // First update session with email
+                        const sessionResponse = await fetch(
+                            `/session/${sessionId}`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    email: email,
+                                    photo_path: src,
+                                }),
+                            },
+                        );
+
+                        if (!sessionResponse.ok) {
+                            throw new Error("Failed to update session");
+                        }
+
+                        // Generate story based on selections
+                        const storyResponse = await fetch(
+                            `/session/${sessionId}/generate-story`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            },
+                        );
+
+                        // Proceed with preview even if story generation fails
+
+                        // Now generate preview
+                        printBtn.textContent = "Generating...";
+                        const previewResponse = await fetch("/preview", {
                             method: "POST",
                             headers: {
                                 "Content-Type": "application/json",
@@ -221,39 +527,100 @@
                             }),
                         });
 
-                        const result = await response.json();
+                        const result = await previewResponse.json();
 
                         if (result.ok && result.preview_url) {
-                            // Open preview in new tab
-                            window.open(result.preview_url, "_blank");
-                            previewBtn.textContent = "Preview Print";
-                            previewBtn.disabled = false;
+                            // Hide original photo and show preview
+                            photoEl.style.display = "none";
+                            emailInput.style.display = "none";
+                            document.querySelector(
+                                ".email-section",
+                            ).style.display = "none";
+
+                            // Create preview image element
+                            const previewImg = document.createElement("img");
+                            previewImg.src = result.preview_url;
+                            previewImg.className = "photo";
+                            previewImg.style.maxWidth = "100%";
+                            previewImg.alt = "Your adventure preview";
+
+                            // Replace photo with preview
+                            const photoContainer =
+                                document.querySelector(".photo-container");
+                            photoContainer.innerHTML = "";
+                            photoContainer.appendChild(previewImg);
+
+                            // Update title
+                            const h1 = document.querySelector("h1");
+                            h1.textContent = "Your Adventure is Ready!";
+
+                            // Hide print button and show return button
+                            printBtn.style.display = "none";
+
+                            // Update the back button
+                            const backBtn = document.querySelector("a.button");
+                            backBtn.textContent = "Start New Adventure";
+                            backBtn.href = "/";
+                            backBtn.addEventListener("click", function (e) {
+                                e.preventDefault();
+                                sessionStorage.removeItem("session_id");
+                                window.location.href = "/";
+                            });
+
+                            // Save session to database
+                            const saveResponse = await fetch(
+                                `/session/${sessionId}/save`,
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type": "application/json",
+                                    },
+                                },
+                            );
+
+                            if (!saveResponse.ok) {
+                                console.error(
+                                    "Failed to save session to database",
+                                );
+                                printBtn.textContent = "Preview Adventure";
+                                printBtn.disabled = false;
+                            }
                         } else {
                             alert(
                                 "Preview failed: " +
                                     (result.error || "Unknown error"),
                             );
-                            previewBtn.textContent = "Preview Print";
-                            previewBtn.disabled = false;
+                            printBtn.textContent = "Preview Adventure";
+                            printBtn.disabled = false;
                         }
                     } catch (error) {
-                        alert("Preview failed: " + error.message);
-                        previewBtn.textContent = "Preview Print";
-                        previewBtn.disabled = false;
+                        alert("Operation failed: " + error.message);
+                        printBtn.textContent = "Preview Adventure";
+                        printBtn.disabled = false;
                     }
                 });
-                show(previewBtn);
+
+                // Close keyboard when clicking outside
+                document.addEventListener("click", function (e) {
+                    if (
+                        !e.target.closest(".custom-keyboard") &&
+                        !e.target.closest(".email-input") &&
+                        emailInput.classList.contains("active")
+                    ) {
+                        closeKeyboard();
+                    }
+                });
 
                 // If image fails to load, show an error
                 photoEl.addEventListener("error", () => {
-                    hide(photoEl);
-                    hide(dlEl);
-                    hide(copyBtn);
-                    hide(printBtn);
-                    hide(previewBtn);
+                    photoEl.setAttribute("hidden", "hidden");
+                    printBtn.style.display = "none";
                     errEl.textContent = "Failed to load image: " + file;
-                    show(errEl);
+                    errEl.classList.remove("hidden");
                 });
+
+                // Initialize
+                validateEmail();
             })();
         </script>
     </body>
