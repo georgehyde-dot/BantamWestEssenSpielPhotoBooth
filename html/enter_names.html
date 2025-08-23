@@ -1,556 +1,608 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>Enter Your Names</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            overflow-x: hidden;
-            position: relative;
-        }
-
-        .container {
-            padding: 30px 20px;
-            max-width: 800px;
-            margin: 0 auto;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .header {
-            flex-shrink: 0;
-            text-align: center;
-            margin-bottom: 40px;
-            animation: fadeInDown 0.6s ease-out;
-        }
-
-        .header h1 {
-            color: white;
-            font-size: 42px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 18px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-        }
-
-        .name-inputs {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 30px;
-            margin-bottom: 30px;
-            animation: fadeIn 0.8s ease-out 0.2s both;
-        }
-
-        .input-group {
-            position: relative;
-            transition: all 0.3s ease;
-        }
-
-        .input-label {
-            position: absolute;
-            top: -25px;
-            left: 20px;
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 14px;
-            font-weight: 500;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-            opacity: 0;
-            transition: all 0.3s ease;
-        }
-
-        .input-group.has-value .input-label,
-        .name-input:focus ~ .input-label {
-            opacity: 1;
-            transform: translateY(-5px);
-        }
-
-        /* When keyboard is open, adjust the container */
-        .container.keyboard-open {
-            padding-top: 20px;
-        }
-
-        .container.keyboard-open .header h1 {
-            font-size: 32px;
-        }
-
-        .container.keyboard-open .header p {
-            display: none;
-        }
-
-        .name-input {
-            width: 100%;
-            padding: 25px;
-            font-size: 24px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 15px;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.95);
-            color: #333;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-            position: relative;
-        }
-
-        .name-input::placeholder {
-            color: #999;
-            font-style: italic;
-        }
-
-        .name-input.active {
-            border-color: white;
-            background: white;
-            transform: scale(1.02);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Hide non-active inputs when keyboard is open */
-        .container.keyboard-open .input-group:not(:has(.active)) {
-            opacity: 0.5;
-            transform: scale(0.95);
-        }
-
-        .submit-section {
-            flex-shrink: 0;
-            margin-top: 20px;
-            animation: fadeInUp 0.8s ease-out 0.4s both;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 20px;
-            font-size: 22px;
-            font-weight: bold;
-            background: white;
-            color: #667eea;
-            border: none;
-            border-radius: 15px;
-            cursor: pointer;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-            transition: all 0.3s ease;
-        }
-
-        .submit-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
-        }
-
-        .submit-btn:active:not(:disabled) {
-            transform: translateY(0);
-        }
-
-        .submit-btn:disabled {
-            background: rgba(255, 255, 255, 0.5);
-            color: rgba(0, 0, 0, 0.3);
-            cursor: not-allowed;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        /* Custom Keyboard Styles */
-        .custom-keyboard {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(245, 245, 245, 0.98);
-            backdrop-filter: blur(10px);
-            border-top: 1px solid rgba(0, 0, 0, 0.1);
-            padding: 15px 10px 20px;
-            z-index: 1000;
-            display: none;
-            box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
-            animation: slideUp 0.3s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                transform: translateY(100%);
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
+        />
+        <title>Enter Your Names</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
-            to {
-                transform: translateY(0);
+
+            body {
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Oxygen, Ubuntu, Cantarell, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                overflow-x: hidden;
+                position: relative;
             }
-        }
 
-        .keyboard-row {
-            display: flex;
-            justify-content: center;
-            margin: 6px 0;
-            gap: 6px;
-        }
-
-        .key {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 0;
-            font-size: 20px;
-            font-weight: 500;
-            min-width: 50px;
-            height: 55px;
-            cursor: pointer;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.1s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            color: #333;
-        }
-
-        .key:active {
-            background: #e0e0e0;
-            transform: scale(0.95);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .key.special {
-            background: #f0f0f0;
-            color: #666;
-            font-weight: 600;
-        }
-
-        .key.special:active {
-            background: #d0d0d0;
-        }
-
-        .key.shift-active {
-            background: #667eea;
-            color: white;
-            border-color: #667eea;
-        }
-
-        .key.wide {
-            flex: 2;
-            min-width: 120px;
-        }
-
-        .key.space {
-            flex: 3;
-            min-width: 200px;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
+            .container {
+                padding: 30px 20px;
+                max-width: 800px;
+                margin: 0 auto;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
 
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
+            .header {
+                flex-shrink: 0;
+                text-align: center;
+                margin-bottom: 40px;
+                animation: fadeInDown 0.6s ease-out;
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
 
-        @media (max-width: 480px) {
             .header h1 {
+                color: white;
+                font-size: 42px;
+                font-weight: bold;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+                margin-bottom: 10px;
+            }
+
+            .header p {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 18px;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            }
+
+            .name-inputs {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                gap: 30px;
+                margin-bottom: 30px;
+                animation: fadeIn 0.8s ease-out 0.2s both;
+            }
+
+            .input-group {
+                position: relative;
+                transition: all 0.3s ease;
+            }
+
+            .input-label {
+                position: absolute;
+                top: -25px;
+                left: 20px;
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 14px;
+                font-weight: 500;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+                opacity: 0;
+                transition: all 0.3s ease;
+            }
+
+            .input-group.has-value .input-label,
+            .name-input:focus ~ .input-label {
+                opacity: 1;
+                transform: translateY(-5px);
+            }
+
+            /* When keyboard is open, adjust the container */
+            .container.keyboard-open {
+                padding-top: 20px;
+            }
+
+            .container.keyboard-open .header h1 {
                 font-size: 32px;
             }
 
+            .container.keyboard-open .header p {
+                display: none;
+            }
+
             .name-input {
-                font-size: 20px;
+                width: 100%;
+                padding: 25px;
+                font-size: 24px;
+                border: 3px solid rgba(255, 255, 255, 0.3);
+                border-radius: 15px;
+                text-align: center;
+                background: rgba(255, 255, 255, 0.95);
+                color: #333;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+                position: relative;
+            }
+
+            .name-input::placeholder {
+                color: #999;
+                font-style: italic;
+            }
+
+            .name-input.active {
+                border-color: white;
+                background: white;
+                transform: scale(1.02);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            }
+
+            /* Hide non-active inputs when keyboard is open */
+            .container.keyboard-open .input-group:not(:has(.active)) {
+                opacity: 0.5;
+                transform: scale(0.95);
+            }
+
+            .submit-section {
+                flex-shrink: 0;
+                margin-top: 20px;
+                animation: fadeInUp 0.8s ease-out 0.4s both;
+            }
+
+            .submit-btn {
+                width: 100%;
                 padding: 20px;
+                font-size: 22px;
+                font-weight: bold;
+                background: white;
+                color: #667eea;
+                border: none;
+                border-radius: 15px;
+                cursor: pointer;
+                box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+                transition: all 0.3s ease;
+            }
+
+            .submit-btn:hover:not(:disabled) {
+                transform: translateY(-2px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            }
+
+            .submit-btn:active:not(:disabled) {
+                transform: translateY(0);
+            }
+
+            .submit-btn:disabled {
+                background: rgba(255, 255, 255, 0.5);
+                color: rgba(0, 0, 0, 0.3);
+                cursor: not-allowed;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            }
+
+            /* Custom Keyboard Styles */
+            .custom-keyboard {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: rgba(245, 245, 245, 0.98);
+                backdrop-filter: blur(10px);
+                border-top: 1px solid rgba(0, 0, 0, 0.1);
+                padding: 15px 10px 20px;
+                z-index: 1000;
+                display: none;
+                box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
+                animation: slideUp 0.3s ease-out;
+            }
+
+            @keyframes slideUp {
+                from {
+                    transform: translateY(100%);
+                }
+                to {
+                    transform: translateY(0);
+                }
+            }
+
+            .keyboard-row {
+                display: flex;
+                justify-content: center;
+                margin: 6px 0;
+                gap: 6px;
             }
 
             .key {
-                min-width: 40px;
-                height: 48px;
-                font-size: 18px;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 10px;
+                padding: 0;
+                font-size: 20px;
+                font-weight: 500;
+                min-width: 50px;
+                height: 55px;
+                cursor: pointer;
+                user-select: none;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.1s ease;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                color: #333;
             }
 
-            .custom-keyboard {
-                padding: 10px 5px 15px;
+            .key:active {
+                background: #e0e0e0;
+                transform: scale(0.95);
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             }
-        }
-    </style>
-</head>
-<body>
-    <div class="container" id="mainContainer">
-        <div class="header">
-            <h1>Enter Your Names</h1>
-            <p>Who's creating this adventure?</p>
-        </div>
 
-        <div class="name-inputs">
-            <div class="input-group" id="firstNameGroup">
-                <input
-                    type="text"
-                    id="firstName"
-                    class="name-input"
-                    placeholder="Tap to enter first name"
-                    readonly
-                    maxlength="30"
-                >
-                <label class="input-label">First Name</label>
-            </div>
-            <div class="input-group" id="secondNameGroup">
-                <input
-                    type="text"
-                    id="secondName"
-                    class="name-input"
-                    placeholder="Tap to enter second name (optional)"
-                    readonly
-                    maxlength="30"
-                >
-                <label class="input-label">Second Name (Optional)</label>
-            </div>
-        </div>
+            .key.special {
+                background: #f0f0f0;
+                color: #666;
+                font-weight: 600;
+            }
 
-        <div class="submit-section">
-            <button id="submitBtn" class="submit-btn" disabled>Continue to Photo Booth</button>
-        </div>
-    </div>
+            .key.special:active {
+                background: #d0d0d0;
+            }
 
-    <!-- Custom Keyboard -->
-    <div id="customKeyboard" class="custom-keyboard">
-        <div class="keyboard-row">
-            <button type="button" class="key" data-key="Q">Q</button>
-            <button type="button" class="key" data-key="W">W</button>
-            <button type="button" class="key" data-key="E">E</button>
-            <button type="button" class="key" data-key="R">R</button>
-            <button type="button" class="key" data-key="T">T</button>
-            <button type="button" class="key" data-key="Y">Y</button>
-            <button type="button" class="key" data-key="U">U</button>
-            <button type="button" class="key" data-key="I">I</button>
-            <button type="button" class="key" data-key="O">O</button>
-            <button type="button" class="key" data-key="P">P</button>
-        </div>
-        <div class="keyboard-row">
-            <button type="button" class="key" data-key="A">A</button>
-            <button type="button" class="key" data-key="S">S</button>
-            <button type="button" class="key" data-key="D">D</button>
-            <button type="button" class="key" data-key="F">F</button>
-            <button type="button" class="key" data-key="G">G</button>
-            <button type="button" class="key" data-key="H">H</button>
-            <button type="button" class="key" data-key="J">J</button>
-            <button type="button" class="key" data-key="K">K</button>
-            <button type="button" class="key" data-key="L">L</button>
-        </div>
-        <div class="keyboard-row">
-            <button type="button" class="key special" data-key="shift">⇧</button>
-            <button type="button" class="key" data-key="Z">Z</button>
-            <button type="button" class="key" data-key="X">X</button>
-            <button type="button" class="key" data-key="C">C</button>
-            <button type="button" class="key" data-key="V">V</button>
-            <button type="button" class="key" data-key="B">B</button>
-            <button type="button" class="key" data-key="N">N</button>
-            <button type="button" class="key" data-key="M">M</button>
-            <button type="button" class="key special" data-key="backspace">⌫</button>
-        </div>
-        <div class="keyboard-row">
-            <button type="button" class="key special" data-key="&">&</button>
-            <button type="button" class="key special space" data-key=" ">Space</button>
-            <button type="button" class="key special" data-key="clear">Clear</button>
-            <button type="button" class="key special" data-key="done">Done</button>
-        </div>
-    </div>
+            .key.shift-active {
+                background: #667eea;
+                color: white;
+                border-color: #667eea;
+            }
 
-    <script>
-        let activeInput = null;
-        let isShiftPressed = false;
-        const sessionId = sessionStorage.getItem('session_id');
+            .key.wide {
+                flex: 2;
+                min-width: 120px;
+            }
 
-        // Redirect to start if no session
-        if (!sessionId) {
-            window.location.href = '/';
-        }
+            .key.space {
+                flex: 3;
+                min-width: 200px;
+            }
 
-        // Handle input clicks
-        document.querySelectorAll('.name-input').forEach(input => {
-            input.addEventListener('click', function() {
-                // Remove active class from all inputs
-                document.querySelectorAll('.name-input').forEach(inp => {
-                    inp.classList.remove('active');
-                });
-
-                // Add active class to clicked input
-                this.classList.add('active');
-                activeInput = this;
-
-                // Show keyboard and adjust container
-                document.getElementById('customKeyboard').style.display = 'block';
-                document.getElementById('mainContainer').classList.add('keyboard-open');
-
-                // Scroll input into view
-                setTimeout(() => {
-                    this.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 100);
-            });
-        });
-
-        // Update input group state
-        function updateInputGroupState() {
-            ['firstName', 'secondName'].forEach(id => {
-                const input = document.getElementById(id);
-                const group = document.getElementById(id + 'Group');
-                if (input.value.trim()) {
-                    group.classList.add('has-value');
-                } else {
-                    group.classList.remove('has-value');
+            /* Animations */
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
                 }
+                to {
+                    opacity: 1;
+                }
+            }
+
+            @keyframes fadeInDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @media (max-width: 480px) {
+                .header h1 {
+                    font-size: 32px;
+                }
+
+                .name-input {
+                    font-size: 20px;
+                    padding: 20px;
+                }
+
+                .key {
+                    min-width: 40px;
+                    height: 48px;
+                    font-size: 18px;
+                }
+
+                .custom-keyboard {
+                    padding: 10px 5px 15px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" id="mainContainer">
+            <div class="header">
+                <h1>Enter Your Names</h1>
+                <p>Who's creating this adventure?</p>
+            </div>
+
+            <div class="name-inputs">
+                <div class="input-group" id="firstNameGroup">
+                    <input
+                        type="text"
+                        id="firstName"
+                        class="name-input"
+                        placeholder="Tap to enter first name"
+                        readonly
+                        maxlength="30"
+                    />
+                    <label class="input-label">First Name</label>
+                </div>
+                <div class="input-group" id="secondNameGroup">
+                    <input
+                        type="text"
+                        id="secondName"
+                        class="name-input"
+                        placeholder="Tap to enter second name (optional)"
+                        readonly
+                        maxlength="30"
+                    />
+                    <label class="input-label">Second Name (Optional)</label>
+                </div>
+            </div>
+
+            <div class="submit-section">
+                <button id="submitBtn" class="submit-btn" disabled>
+                    Continue to Photo Booth
+                </button>
+            </div>
+        </div>
+
+        <!-- Custom Keyboard -->
+        <div id="customKeyboard" class="custom-keyboard">
+            <div class="keyboard-row">
+                <button type="button" class="key" data-key="Q">Q</button>
+                <button type="button" class="key" data-key="W">W</button>
+                <button type="button" class="key" data-key="E">E</button>
+                <button type="button" class="key" data-key="R">R</button>
+                <button type="button" class="key" data-key="T">T</button>
+                <button type="button" class="key" data-key="Y">Y</button>
+                <button type="button" class="key" data-key="U">U</button>
+                <button type="button" class="key" data-key="I">I</button>
+                <button type="button" class="key" data-key="O">O</button>
+                <button type="button" class="key" data-key="P">P</button>
+            </div>
+            <div class="keyboard-row">
+                <button type="button" class="key" data-key="A">A</button>
+                <button type="button" class="key" data-key="S">S</button>
+                <button type="button" class="key" data-key="D">D</button>
+                <button type="button" class="key" data-key="F">F</button>
+                <button type="button" class="key" data-key="G">G</button>
+                <button type="button" class="key" data-key="H">H</button>
+                <button type="button" class="key" data-key="J">J</button>
+                <button type="button" class="key" data-key="K">K</button>
+                <button type="button" class="key" data-key="L">L</button>
+            </div>
+            <div class="keyboard-row">
+                <button type="button" class="key special" data-key="shift">
+                    ⇧
+                </button>
+                <button type="button" class="key" data-key="Z">Z</button>
+                <button type="button" class="key" data-key="X">X</button>
+                <button type="button" class="key" data-key="C">C</button>
+                <button type="button" class="key" data-key="V">V</button>
+                <button type="button" class="key" data-key="B">B</button>
+                <button type="button" class="key" data-key="N">N</button>
+                <button type="button" class="key" data-key="M">M</button>
+                <button type="button" class="key special" data-key="backspace">
+                    ⌫
+                </button>
+            </div>
+            <div class="keyboard-row">
+                <button type="button" class="key special" data-key="&">
+                    &
+                </button>
+                <button type="button" class="key special space" data-key=" ">
+                    Space
+                </button>
+                <button type="button" class="key special" data-key="clear">
+                    Clear
+                </button>
+                <button type="button" class="key special" data-key="done">
+                    Done
+                </button>
+            </div>
+        </div>
+
+        <script>
+            let activeInput = null;
+            let isShiftPressed = false;
+            const sessionId = sessionStorage.getItem("session_id");
+
+            // Redirect to start if no session
+            if (!sessionId) {
+                window.location.href = "/";
+            }
+
+            // Handle input clicks
+            document.querySelectorAll(".name-input").forEach((input) => {
+                input.addEventListener("click", function () {
+                    // Remove active class from all inputs
+                    document.querySelectorAll(".name-input").forEach((inp) => {
+                        inp.classList.remove("active");
+                    });
+
+                    // Add active class to clicked input
+                    this.classList.add("active");
+                    activeInput = this;
+
+                    // Show keyboard and adjust container
+                    document.getElementById("customKeyboard").style.display =
+                        "block";
+                    document
+                        .getElementById("mainContainer")
+                        .classList.add("keyboard-open");
+
+                    // Scroll input into view
+                    setTimeout(() => {
+                        this.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                        });
+                    }, 100);
+                });
             });
-        }
 
-        // Handle keyboard keys
-        document.querySelectorAll('.key').forEach(key => {
-            key.addEventListener('click', function() {
-                if (!activeInput) return;
+            // Update input group state
+            function updateInputGroupState() {
+                ["firstName", "secondName"].forEach((id) => {
+                    const input = document.getElementById(id);
+                    const group = document.getElementById(id + "Group");
+                    if (input.value.trim()) {
+                        group.classList.add("has-value");
+                    } else {
+                        group.classList.remove("has-value");
+                    }
+                });
+            }
 
-                const keyValue = this.dataset.key;
+            // Handle keyboard keys
+            document.querySelectorAll(".key").forEach((key) => {
+                key.addEventListener("click", function () {
+                    if (!activeInput) return;
 
-                switch(keyValue) {
-                    case 'backspace':
-                        activeInput.value = activeInput.value.slice(0, -1);
-                        break;
+                    const keyValue = this.dataset.key;
 
-                    case 'clear':
-                        activeInput.value = '';
-                        break;
+                    switch (keyValue) {
+                        case "backspace":
+                            activeInput.value = activeInput.value.slice(0, -1);
+                            break;
 
-                    case 'shift':
-                        isShiftPressed = !isShiftPressed;
-                        this.classList.toggle('shift-active');
-                        updateKeyboardCase();
-                        return;
+                        case "clear":
+                            activeInput.value = "";
+                            break;
 
-                    case 'done':
-                        closeKeyboard();
-                        break;
-
-                    default:
-                        let char = keyValue;
-                        if (keyValue.match(/[A-Z]/) && !isShiftPressed) {
-                            char = char.toLowerCase();
-                        }
-
-                        // Handle first character capitalization
-                        if (activeInput.value.length === 0 ||
-                            activeInput.value[activeInput.value.length - 1] === ' ') {
-                            char = char.toUpperCase();
-                        }
-
-                        activeInput.value += char;
-
-                        // Auto-disable shift after typing a letter
-                        if (isShiftPressed && keyValue.match(/[A-Z]/)) {
-                            isShiftPressed = false;
-                            document.querySelector('[data-key="shift"]').classList.remove('shift-active');
+                        case "shift":
+                            isShiftPressed = !isShiftPressed;
+                            this.classList.toggle("shift-active");
                             updateKeyboardCase();
-                        }
-                        break;
-                }
+                            return;
 
-                updateSubmitButton();
-                updateInputGroupState();
+                        case "done":
+                            closeKeyboard();
+                            break;
+
+                        default:
+                            let char = keyValue;
+                            if (keyValue.match(/[A-Z]/) && !isShiftPressed) {
+                                char = char.toLowerCase();
+                            }
+
+                            // Handle first character capitalization
+                            if (
+                                activeInput.value.length === 0 ||
+                                activeInput.value[
+                                    activeInput.value.length - 1
+                                ] === " "
+                            ) {
+                                char = char.toUpperCase();
+                            }
+
+                            activeInput.value += char;
+
+                            // Auto-disable shift after typing a letter
+                            if (isShiftPressed && keyValue.match(/[A-Z]/)) {
+                                isShiftPressed = false;
+                                document
+                                    .querySelector('[data-key="shift"]')
+                                    .classList.remove("shift-active");
+                                updateKeyboardCase();
+                            }
+                            break;
+                    }
+
+                    updateSubmitButton();
+                    updateInputGroupState();
+                });
             });
-        });
 
-        function closeKeyboard() {
-            document.getElementById('customKeyboard').style.display = 'none';
-            document.getElementById('mainContainer').classList.remove('keyboard-open');
-            if (activeInput) {
-                activeInput.classList.remove('active');
-                activeInput = null;
+            function closeKeyboard() {
+                document.getElementById("customKeyboard").style.display =
+                    "none";
+                document
+                    .getElementById("mainContainer")
+                    .classList.remove("keyboard-open");
+                if (activeInput) {
+                    activeInput.classList.remove("active");
+                    activeInput = null;
+                }
             }
-        }
 
-        function updateKeyboardCase() {
-            document.querySelectorAll('.key').forEach(key => {
-                const keyValue = key.dataset.key;
-                if (keyValue && keyValue.match(/[A-Z]/)) {
-                    key.textContent = isShiftPressed ? keyValue : keyValue.toLowerCase();
-                }
-            });
-        }
+            function updateKeyboardCase() {
+                document.querySelectorAll(".key").forEach((key) => {
+                    const keyValue = key.dataset.key;
+                    if (keyValue && keyValue.match(/[A-Z]/)) {
+                        key.textContent = isShiftPressed
+                            ? keyValue
+                            : keyValue.toLowerCase();
+                    }
+                });
+            }
 
-        function updateSubmitButton() {
-            const firstName = document.getElementById('firstName').value.trim();
-            const submitBtn = document.getElementById('submitBtn');
+            function updateSubmitButton() {
+                const firstName = document
+                    .getElementById("firstName")
+                    .value.trim();
+                const submitBtn = document.getElementById("submitBtn");
 
-            submitBtn.disabled = firstName.length === 0;
-        }
+                submitBtn.disabled = firstName.length === 0;
+            }
 
-        // Handle submit
-        document.getElementById('submitBtn').addEventListener('click', async function() {
-            const firstName = document.getElementById('firstName').value.trim();
-            const secondName = document.getElementById('secondName').value.trim();
+            // Handle submit
+            document
+                .getElementById("submitBtn")
+                .addEventListener("click", async function () {
+                    const firstName = document
+                        .getElementById("firstName")
+                        .value.trim();
+                    const secondName = document
+                        .getElementById("secondName")
+                        .value.trim();
 
-            if (!firstName) return;
+                    if (!firstName) return;
 
-            this.disabled = true;
-            this.textContent = 'Saving...';
+                    this.disabled = true;
+                    this.textContent = "Saving...";
 
-            const groupName = secondName ? `${firstName} & ${secondName}` : firstName;
+                    const groupName = secondName
+                        ? `${firstName} & ${secondName}`
+                        : firstName;
 
-            try {
-                // Update session with group name
-                const response = await fetch(`/session/${sessionId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ group_name: groupName })
+                    try {
+                        // Update session with group name
+                        const response = await fetch(`/session/${sessionId}`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ group_name: groupName }),
+                        });
+
+                        if (response.ok) {
+                            // Navigate to weapon selection
+                            window.location.href = `/weapon?session_id=${sessionId}`;
+                        } else {
+                            throw new Error("Failed to save names");
+                        }
+                    } catch (error) {
+                        console.error("Error:", error);
+                        this.disabled = false;
+                        this.textContent = "Continue to Photo Booth";
+                        alert("Error saving names. Please try again.");
+                    }
                 });
 
-                if (response.ok) {
-                    // Navigate to camera preview
-                    window.location.href = '/camera';
-                } else {
-                    throw new Error('Failed to save names');
+            // Close keyboard when clicking outside
+            document.addEventListener("click", function (e) {
+                if (
+                    !e.target.closest(".custom-keyboard") &&
+                    !e.target.closest(".name-input") &&
+                    activeInput
+                ) {
+                    closeKeyboard();
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                this.disabled = false;
-                this.textContent = 'Continue to Photo Booth';
-                alert('Error saving names. Please try again.');
-            }
-        });
+            });
 
-        // Close keyboard when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.custom-keyboard') &&
-                !e.target.closest('.name-input') &&
-                activeInput) {
-                closeKeyboard();
-            }
-        });
-
-        // Initialize
-        updateSubmitButton();
-        updateKeyboardCase();
-        updateInputGroupState();
-    </script>
-</body>
+            // Initialize
+            updateSubmitButton();
+            updateKeyboardCase();
+            updateInputGroupState();
+        </script>
+    </body>
 </html>

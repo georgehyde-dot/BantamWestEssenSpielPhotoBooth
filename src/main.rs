@@ -56,8 +56,9 @@ mod templates;
 use printers::{new_printer, PaperSize, PrintJob, PrintQuality, Printer, PrinterError};
 #[cfg(target_os = "linux")]
 use routes::{
-    camera_page, capture_image, create_session, get_session, name_entry_page, photo_page,
-    preview_print, preview_stream, print_photo, start_page, update_session,
+    camera_page, capture_image, companion_page, create_session, get_session, land_page,
+    name_entry_page, photo_page, preview_print, preview_stream, print_photo, start_page,
+    update_session, weapon_page,
 };
 #[cfg(target_os = "linux")]
 use session::Session;
@@ -178,6 +179,9 @@ async fn main() -> std::io::Result<()> {
             .service(create_session)
             .service(get_session)
             .service(update_session)
+            .service(weapon_page)
+            .service(land_page)
+            .service(companion_page)
             .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
             .service(
                 fs::Files::new("/static", app_config.storage.static_path.clone())
