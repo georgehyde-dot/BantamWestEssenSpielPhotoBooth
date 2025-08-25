@@ -1,0 +1,133 @@
+REFACTORING TASK: Image Processing Module Cleanup
+================================================
+
+OBJECTIVE:
+Clean up the image_processing.rs module by removing duplicate code, extracting magic numbers to constants, optimizing algorithms, and improving overall code structure.
+
+CURRENT PROBLEMS:
+1. Duplicate struct definition (ImageProcessor defined at lines 10 and 499)
+2. Magic numbers scattered throughout (160, 120, 50, 90, 255, etc.)
+3. Multiple passes over the same data that could be consolidated
+4. Redundant calculations in nested loops
+5. No configuration for thresholds and parameters
+6. Complex functions that are hard to test and maintain
+
+FILES TO EXAMINE:
+- src/image_processing.rs (entire file, especially lines 10-495)
+- Focus on these methods:
+  - detect_autofocus_box (lines 34-203) - overly complex with nested loops
+  - multi_pass_inpaint (lines 241-284) - multiple iterations could be optimized
+  - aggressive_cleanup (lines 405-444) - redundant pixel processing
+
+SPECIFIC ISSUES TO ADDRESS:
+
+1. DUPLICATE STRUCT DEFINITION:
+   - Line 10: First definition of `pub struct ImageProcessor`
+   - Line 499: Second identical definition
+   - Remove the duplicate and consolidate platform-specific code
+
+2. MAGIC NUMBERS TO EXTRACT:
+   ```rust
+   // Current magic numbers in code:
+   - Line 44: width > 160 && height > 120
+   - Line 50: edge_threshold = 50
+   - Line 73: max_gap = 20
+   - Line 91: dr.abs() > 90 || dg.abs() > 90 || db.abs() > 90
+   - Line 116: gap_tolerance = 15
+   - Line 181: color_threshold = 30
+   - Line 428: kernel_size = 5
+   ```
+
+3. ALGORITHM INEFFICIENCIES:
+   - Nested loops that scan the entire image multiple times
+   - Redundant edge detection in multiple methods
+   - Color distance calculated multiple times for same pixels
+   - Unnecessary cloning of image data
+
+RECOMMENDED REFACTORING APPROACH:
+
+1. CONSTANTS STRUCTURE:
+   ```rust
+   mod constants {
+       pub const MIN_BOX_WIDTH: u32 = 160;
+       pub const MIN_BOX_HEIGHT: u32 = 120;
+       pub const EDGE_THRESHOLD: u8 = 50;
+       pub const MAX_EDGE_GAP: u32 = 20;
+       pub const COLOR_DIFF_THRESHOLD: u8 = 90;
+       pub const GAP_TOLERANCE: u32 = 15;
+       pub const COLOR_THRESHOLD: u32 = 30;
+       pub const CLEANUP_KERNEL_SIZE: u32 = 5;
+       pub const BILATERAL_RADIUS: i32 = 3;
+       pub const INPAINT_PASSES: usize = 3;
+   }
+   ```
+
+2. STRUCT CONSOLIDATION:
+   - Keep only one ImageProcessor struct definition
+   - Use a single implementation block
+   - Move platform-specific code to the platform module
+
+3. ALGORITHM OPTIMIZATION:
+   - Combine edge detection passes into a single scan
+   - Cache color distance calculations
+   - Use iterators instead of manual indexing where possible
+   - Reduce image cloning by using mutable references
+
+4. FUNCTION DECOMPOSITION:
+   - Break down detect_autofocus_box into smaller functions:
+     - find_edge_pixels()
+     - detect_rectangles()
+     - validate_box_dimensions()
+   - Extract common patterns into helper functions
+
+IMPLEMENTATION GUIDELINES:
+
+1. Start by removing the duplicate struct definition
+2. Create a constants module at the top of the file
+3. Replace all magic numbers with named constants
+4. Refactor the main detection algorithm to reduce complexity
+5. Optimize the inpainting algorithm to reduce passes
+6. Add proper error handling instead of silently continuing
+7. Add unit tests for the newly extracted functions
+
+BEST PRACTICES TO FOLLOW:
+- Use descriptive constant names that explain the purpose
+- Keep functions under 50 lines where possible
+- Use early returns to reduce nesting
+- Document why specific threshold values were chosen
+- Make the algorithm configurable through a config struct
+- Use Rust's type system to prevent invalid states
+
+EXAMPLE REFACTORING:
+```rust
+// Before:
+if width > 160 && height > 120 {
+    // process
+}
+
+// After:
+if width > constants::MIN_BOX_WIDTH && height > constants::MIN_BOX_HEIGHT {
+    // process
+}
+```
+
+PERFORMANCE IMPROVEMENTS TO IMPLEMENT:
+1. Use SIMD operations for color distance calculations where possible
+2. Implement early exit conditions in loops
+3. Use parallel processing for independent image regions
+4. Cache frequently accessed pixel values
+5. Avoid unnecessary memory allocations
+
+VALIDATION CRITERIA:
+- No duplicate code or struct definitions
+- All numeric literals replaced with named constants
+- Functions are testable and under 50 lines
+- Algorithm complexity reduced by at least 30%
+- Memory allocations reduced
+- Code passes clippy with no warnings
+
+TESTING REQUIREMENTS:
+- Add unit tests for each extracted function
+- Create benchmark tests to measure performance improvements
+- Ensure the refactored code produces identical results
+- Test with various autofocus box patterns and sizes

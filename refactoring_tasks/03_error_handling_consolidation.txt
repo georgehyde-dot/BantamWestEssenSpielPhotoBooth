@@ -1,0 +1,177 @@
+REFACTORING TASK: Error Handling Consolidation
+==============================================
+
+OBJECTIVE:
+Consolidate all error handling throughout the codebase into a unified, consistent approach using the existing AppError enum in errors.rs, eliminating duplicate error types and improving error propagation.
+
+CURRENT PROBLEMS:
+1. Multiple duplicate error type definitions across modules
+2. TemplateError is defined in both templates.rs and errors.rs
+3. PrinterError is defined in both printers.rs and errors.rs
+4. Inconsistent error response formats in route handlers
+5. Some modules use String errors instead of proper error types
+6. Mixed use of Result types (some use AppResult, others define their own)
+7. Incomplete error conversion implementations
+
+FILES TO EXAMINE:
+- src/errors.rs (the central error module - should be the single source of truth)
+- src/templates.rs (lines with TemplateError - duplicate definition)
+- src/printers.rs (lines with PrinterError - duplicate definition)
+- src/camera.rs (uses string errors in some places)
+- src/routes/*.rs (inconsistent error handling and response formats)
+- src/session.rs (uses AppResult but could better leverage error types)
+- src/config.rs (has its own ConfigError that's also in errors.rs)
+
+SPECIFIC DUPLICATE DEFINITIONS TO REMOVE:
+
+1. TEMPLATE ERROR DUPLICATION:
+   - errors.rs: Lines defining TemplateError enum
+   - templates.rs: Separate TemplateError definition
+   - Keep only the one in errors.rs
+
+2. PRINTER ERROR DUPLICATION:
+   - errors.rs: Lines defining PrinterError enum
+   - printers.rs: Separate PrinterError definition
+   - Keep only the one in errors.rs
+
+3. CONFIG ERROR DUPLICATION:
+   - errors.rs: ConfigError definition
+   - config.rs: Separate ConfigError definition
+   - Keep only the one in errors.rs
+
+RECOMMENDED SOLUTION STRUCTURE:
+
+1. CENTRALIZED ERROR MODULE (errors.rs):
+   ```rust
+   // All error types should be defined here
+   #[derive(Debug, Error)]
+   pub enum AppError {
+       #[error("Camera error: {0}")]
+       Camera(#[from] CameraError),
+
+       #[error("Printer error: {0}")]
+       Printer(#[from] PrinterError),
+
+       // ... other variants
+   }
+
+   // Domain-specific error enums also defined here
+   #[derive(Debug, Error)]
+   pub enum CameraError { ... }
+
+   #[derive(Debug, Error)]
+   pub enum PrinterError { ... }
+   ```
+
+2. MODULE ERROR USAGE:
+   - Remove all local error definitions from individual modules
+   - Import error types from errors module
+   - Use AppResult<T> consistently everywhere
+
+3. ERROR CONVERSION:
+   - Implement From traits for automatic conversion
+   - Use the #[from] attribute in thiserror
+   - Avoid manual error string construction
+
+IMPLEMENTATION GUIDELINES:
+
+1. STEP-BY-STEP APPROACH:
+   a. Audit all error types in the codebase
+   b. Move all error definitions to errors.rs if not already there
+   c. Remove duplicate definitions from other modules
+   d. Update imports in all affected files
+   e. Replace string errors with proper error types
+   f. Ensure all functions return AppResult<T>
+
+2. ROUTE HANDLER STANDARDIZATION:
+   ```rust
+   // Standardized error response format
+   async fn some_route() -> impl Responder {
+       match some_operation() {
+           Ok(result) => HttpResponse::Ok().json(json!({
+               "ok": true,
+               "data": result
+           })),
+           Err(e) => {
+               let app_error: AppError = e.into();
+               HttpResponse::build(
+                   StatusCode::from_u16(app_error.status_code()).unwrap()
+               ).json(app_error.error_response())
+           }
+       }
+   }
+   ```
+
+3. ERROR PROPAGATION PATTERNS:
+   ```rust
+   // Use ? operator with proper From implementations
+   async fn process_image(path: &str) -> AppResult<ProcessedImage> {
+       let img = image::open(path)
+           .map_err(|e| CameraError::ImageLoadError(e.to_string()))?;
+
+       // Automatic conversion via From trait
+       let processed = process(&img)?;
+
+       Ok(processed)
+   }
+   ```
+
+SPECIFIC REFACTORING TASKS:
+
+1. IN errors.rs:
+   - Ensure all error types are complete and well-documented
+   - Add any missing From implementations
+   - Verify status_code() method covers all cases
+
+2. IN templates.rs:
+   - Remove the local TemplateError definition
+   - Import TemplateError from errors module
+   - Update all Result types to use AppResult
+
+3. IN printers.rs:
+   - Remove the local PrinterError definition
+   - Import PrinterError from errors module
+   - Replace string errors with proper error variants
+
+4. IN config.rs:
+   - Remove the local ConfigError definition
+   - Import ConfigError from errors module
+   - Ensure all validation errors use proper types
+
+5. IN routes/*.rs:
+   - Standardize all error responses to use AppError
+   - Use the error_response() method consistently
+   - Remove manual JSON error construction
+
+BEST PRACTICES TO FOLLOW:
+- One source of truth for each error type
+- Descriptive error messages with context
+- Proper HTTP status codes for each error type
+- Consistent JSON response format
+- Use thiserror's features effectively
+- Chain errors to preserve context
+- Log errors appropriately based on severity
+
+ANTI-PATTERNS TO AVOID:
+- Defining the same error type in multiple places
+- Using strings for errors (except for dynamic messages)
+- Inconsistent error response formats
+- Swallowing errors with unwrap() or expect()
+- Manual error conversion when From traits could be used
+- Mixing different Result types in the same module
+
+VALIDATION CRITERIA:
+- No duplicate error type definitions
+- All modules use AppResult<T> for Results
+- All route handlers use consistent error responses
+- grep for "enum.*Error" should only find results in errors.rs
+- No string errors except in error message formatting
+- All errors properly propagate context
+- Compilation succeeds without warnings
+
+TESTING REQUIREMENTS:
+- Add tests for error conversion
+- Test HTTP status codes for different error types
+- Verify error messages are descriptive
+- Test error propagation through the call stack
+- Ensure no functionality is broken by the refactoring

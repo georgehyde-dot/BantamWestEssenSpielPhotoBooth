@@ -1,0 +1,325 @@
+REFACTORING TASK: Story Generation Extraction
+============================================
+
+OBJECTIVE:
+Extract the story generation logic from the Session struct into a dedicated service, move all hardcoded content to configuration files, create a flexible template system, and establish a clean separation between data models and business logic.
+
+CURRENT PROBLEMS:
+1. Story generation logic is tightly coupled to the Session data model
+2. Hardcoded arrays of weapons, lands, and companions in the model layer
+3. Story templates are embedded in a massive match statement
+4. No way to add new story content without modifying code
+5. Difficult to test story generation in isolation
+6. No support for localization or multiple story variants
+7. Session struct has too many responsibilities (violates SRP)
+8. No way to preview or test story combinations without creating sessions
+
+FILES TO EXAMINE:
+- src/session.rs (generate_story method around lines 180-270)
+- Look for these hardcoded arrays:
+  - weapons = ["sword", "hammer", "pistol", "fire spell"]
+  - lands = ["misty hills", "abandoned house", "dusty road", "babbling stream"]
+  - companions = ["clever cat", "loyal dog", "wise duck", "noble horse"]
+- The massive match statement with story templates
+- All the hardcoded headlines in the match statement
+
+SPECIFIC CODE TO EXTRACT:
+
+1. HARDCODED CONTENT:
+   ```rust
+   // Currently in session.rs:
+   let weapons = ["sword", "hammer", "pistol", "fire spell"];
+   let lands = ["misty hills", "abandoned house", "dusty road", "babbling stream"];
+   let companions = ["clever cat", "loyal dog", "wise duck", "noble horse"];
+
+   // Also headlines like:
+   "The Feline Swordmaster", "The Canine Knight", etc.
+   ```
+
+2. STORY TEMPLATE LOGIC:
+   ```rust
+   // Current massive match statement:
+   let story = match (weapon_idx, land_idx, companion_idx) {
+       (0, 0, _) => format!("With {} drawn and their {} by their side..."),
+       (0, 1, _) => format!("Armed with a {} and accompanied by their {}..."),
+       // ... dozens more cases
+   };
+   ```
+
+RECOMMENDED SOLUTION STRUCTURE:
+
+1. STORY SERVICE INTERFACE:
+   ```rust
+   // src/services/story_service.rs
+   pub struct StoryService {
+       content_provider: Box<dyn StoryContentProvider>,
+       template_engine: Box<dyn TemplateEngine>,
+       story_validator: StoryValidator,
+   }
+
+   #[async_trait]
+   pub trait StoryContentProvider {
+       async fn get_weapons(&self) -> Result<Vec<Weapon>, StoryError>;
+       async fn get_lands(&self) -> Result<Vec<Land>, StoryError>;
+       async fn get_companions(&self) -> Result<Vec<Companion>, StoryError>;
+       async fn get_templates(&self) -> Result<Vec<StoryTemplate>, StoryError>;
+   }
+
+   impl StoryService {
+       pub async fn generate_story(
+           &self,
+           selections: StorySelections,
+       ) -> Result<GeneratedStory, StoryError> {
+           // Validate selections
+           self.story_validator.validate(&selections)?;
+
+           // Load content
+           let content = self.load_content(&selections).await?;
+
+           // Generate story
+           let story = self.template_engine.render(&content, &selections)?;
+
+           Ok(story)
+       }
+   }
+   ```
+
+2. CONTENT MODELS:
+   ```rust
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct Weapon {
+       pub id: i32,
+       pub name: String,
+       pub display_name: String,
+       pub attributes: WeaponAttributes,
+   }
+
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct Land {
+       pub id: i32,
+       pub name: String,
+       pub display_name: String,
+       pub atmosphere: String,
+       pub features: Vec<String>,
+   }
+
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct Companion {
+       pub id: i32,
+       pub name: String,
+       pub display_name: String,
+       pub personality: String,
+       pub abilities: Vec<String>,
+   }
+   ```
+
+3. TEMPLATE ENGINE:
+   ```rust
+   pub struct HandlebarsTemplateEngine {
+       handlebars: Handlebars<'static>,
+       template_cache: Arc<RwLock<HashMap<String, Template>>>,
+   }
+
+   pub struct StoryTemplate {
+       pub id: String,
+       pub conditions: TemplateConditions,
+       pub template: String,
+       pub headline_template: String,
+       pub priority: i32,
+   }
+
+   #[derive(Debug, Clone, Serialize, Deserialize)]
+   pub struct TemplateConditions {
+       pub weapon_ids: Option<Vec<i32>>,
+       pub land_ids: Option<Vec<i32>>,
+       pub companion_ids: Option<Vec<i32>>,
+       pub combinations: Option<Vec<CombinationRule>>,
+   }
+   ```
+
+4. CONFIGURATION FORMAT:
+   ```yaml
+   # config/story_content.yaml
+   weapons:
+     - id: 0
+       name: sword
+       display_name: "Gleaming Sword"
+       attributes:
+         type: melee
+         power: high
+         elegance: true
+
+   lands:
+     - id: 0
+       name: misty_hills
+       display_name: "Misty Hills"
+       atmosphere: mysterious
+       features: ["fog", "ancient_ruins", "hidden_paths"]
+
+   companions:
+     - id: 0
+       name: clever_cat
+       display_name: "Clever Cat"
+       personality: cunning
+       abilities: ["stealth", "agility", "night_vision"]
+
+   templates:
+     - id: sword_misty_cat
+       conditions:
+         weapon_ids: [0]
+         land_ids: [0]
+         companion_ids: [0]
+       template: |
+         With {{weapon.display_name}} drawn and their {{companion.display_name}}
+         by their side, they climbed the {{land.display_name}} seeking ancient treasure.
+         The {{land.atmosphere}} atmosphere made their {{companion.personality}} companion
+         even more alert.
+       headline_template: "The {{companion.personality|title}} Swordmaster"
+       priority: 10
+   ```
+
+5. CONTENT PROVIDERS:
+   ```rust
+   // File-based provider
+   pub struct FileStoryContentProvider {
+       base_path: PathBuf,
+       cache: ContentCache,
+   }
+
+   // Database provider
+   pub struct DatabaseStoryContentProvider {
+       pool: SqlitePool,
+   }
+
+   // Composite provider (combines multiple sources)
+   pub struct CompositeStoryContentProvider {
+       providers: Vec<Box<dyn StoryContentProvider>>,
+   }
+   ```
+
+IMPLEMENTATION GUIDELINES:
+
+1. CREATE SERVICE STRUCTURE:
+   - Create src/services/story_service.rs
+   - Define trait interfaces for extensibility
+   - Implement file-based content provider first
+   - Add caching for frequently accessed content
+
+2. EXTRACT CONTENT TO FILES:
+   - Create config/story/ directory structure
+   - Move all hardcoded arrays to YAML/JSON files
+   - Create template files with Handlebars syntax
+   - Version the content files
+
+3. IMPLEMENT TEMPLATE ENGINE:
+   - Use Handlebars or similar for flexibility
+   - Support conditional templates
+   - Allow custom helpers for formatting
+   - Cache compiled templates
+
+4. UPDATE SESSION MODEL:
+   - Remove generate_story() method
+   - Remove all story-related constants
+   - Keep only data fields
+   - Add story_generation_request field if needed
+
+5. WIRE UP IN ROUTES:
+   ```rust
+   // In session_routes.rs
+   #[post("/session/{id}/generate-story")]
+   pub async fn generate_story(
+       path: web::Path<String>,
+       story_service: web::Data<StoryService>,
+       session_service: web::Data<SessionService>,
+   ) -> Result<HttpResponse, AppError> {
+       let session_id = path.into_inner();
+
+       // Load session
+       let session = session_service.get(&session_id).await?;
+
+       // Generate story
+       let selections = StorySelections {
+           weapon_id: session.weapon.ok_or(ValidationError::MissingWeapon)?,
+           land_id: session.land.ok_or(ValidationError::MissingLand)?,
+           companion_id: session.companion.ok_or(ValidationError::MissingCompanion)?,
+       };
+
+       let story = story_service.generate_story(selections).await?;
+
+       // Update session
+       session_service.update_story(&session_id, story).await?;
+
+       Ok(HttpResponse::Ok().json(story))
+   }
+   ```
+
+MIGRATION STRATEGY:
+
+1. PHASE 1 - PARALLEL IMPLEMENTATION:
+   - Create new story service alongside existing code
+   - Implement with same content but from files
+   - Add feature flag to switch between old/new
+
+2. PHASE 2 - CONTENT EXTRACTION:
+   - Extract all hardcoded content to files
+   - Create comprehensive test suite
+   - Verify identical output
+
+3. PHASE 3 - GRADUAL MIGRATION:
+   - Update routes to use new service
+   - Remove old generate_story method
+   - Clean up Session struct
+
+4. PHASE 4 - ENHANCEMENT:
+   - Add content validation
+   - Implement A/B testing for stories
+   - Add analytics for popular combinations
+   - Support multiple languages
+
+BEST PRACTICES TO FOLLOW:
+- Content as configuration, not code
+- Use dependency injection for flexibility
+- Cache aggressively but invalidate correctly
+- Version your content files
+- Make templates debuggable
+- Support hot-reloading in development
+- Log story generation for analytics
+- Design for extensibility
+
+ANTI-PATTERNS TO AVOID:
+- Don't embed content in source code
+- Don't couple business logic to data models
+- Don't use string concatenation for templates
+- Don't hardcode language-specific content
+- Don't skip content validation
+- Don't ignore template errors
+- Don't make templates too complex
+
+VALIDATION CRITERIA:
+- All hardcoded content removed from source
+- Story generation works identically
+- New content can be added without code changes
+- Service is independently testable
+- Templates are maintainable
+- Performance is equal or better
+- Content files are documented
+- Localization is possible
+
+TESTING REQUIREMENTS:
+- Unit tests for story service
+- Integration tests with real content
+- Template rendering tests
+- Content validation tests
+- Performance benchmarks
+- Edge case handling (missing content)
+- A/B test framework validation
+- Regression tests for all combinations
+
+ADDITIONAL FEATURES TO CONSIDER:
+- Story variations based on time of day
+- Seasonal story content
+- User-contributed story templates
+- Story sharing functionality
+- Template preview tool
+- Content management UI
+- Story analytics dashboard

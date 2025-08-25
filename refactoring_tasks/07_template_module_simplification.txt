@@ -1,0 +1,236 @@
+REFACTORING TASK: Template Module Simplification
+===============================================
+
+OBJECTIVE:
+Simplify the templates.rs module by removing duplicate error definitions, consolidating platform-specific code, extracting hardcoded values, breaking down complex functions, and improving overall code organization and testability.
+
+CURRENT PROBLEMS:
+1. TemplateError is defined both here and in errors.rs (duplicate definition)
+2. Excessive #[cfg(target_os = "linux")] attributes throughout the file
+3. Hardcoded font path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+4. Complex image composition logic in single large functions
+5. Stub implementations mixed with real implementations
+6. No abstraction for text rendering operations
+7. Magic numbers for dimensions and positioning
+8. Tight coupling between template rendering and file I/O
+9. No way to preview templates without saving to disk
+10. Error handling uses strings instead of proper error types
+
+FILES TO EXAMINE:
+- src/templates.rs (entire file, especially compose_template method)
+- src/errors.rs (to use the centralized TemplateError)
+- src/config.rs (to integrate template configuration)
+- Look for hardcoded values around lines:
+  - Line ~196: Font path
+  - Lines defining dimensions (PRINT_WIDTH: 1200, PRINT_HEIGHT: 1800, etc.)
+  - Text positioning constants
+
+SPECIFIC ISSUES TO ADDRESS:
+
+1. DUPLICATE ERROR DEFINITION:
+   ```rust
+   // Current (templates.rs):
+   #[cfg(target_os = "linux")]
+   #[derive(Debug)]
+   pub enum TemplateError {
+       ImageLoadError(String),
+       ImageSaveError(String),
+       CompositionError(String),
+   }
+
+   // Also defined in errors.rs - REMOVE from templates.rs!
+   ```
+
+2. HARDCODED VALUES:
+   - Font path: "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+   - Print dimensions: 1200x1800 (should be configurable)
+   - Text scales: 80.0, 100.0, 70.0, 65.0
+   - Positioning values: 400, 1350, 1700
+   - Overlay opacity: 20%
+
+3. COMPLEX FUNCTIONS:
+   - compose_template() does too many things
+   - add_text() is too long and handles multiple responsibilities
+   - No separation between layout calculation and rendering
+
+RECOMMENDED SOLUTION STRUCTURE:
+
+1. TEMPLATE CONFIGURATION:
+   ```rust
+   #[derive(Debug, Clone, Deserialize)]
+   pub struct TemplateConfig {
+       pub dimensions: PrintDimensions,
+       pub layout: LayoutConfig,
+       pub fonts: FontConfig,
+       pub styling: StylingConfig,
+   }
+
+   #[derive(Debug, Clone, Deserialize)]
+   pub struct PrintDimensions {
+       pub width: u32,
+       pub height: u32,
+       pub dpi: u32,
+       pub photo_area: PhotoArea,
+   }
+
+   #[derive(Debug, Clone, Deserialize)]
+   pub struct LayoutConfig {
+       pub header_height: u32,
+       pub photo_y_position: u32,
+       pub story_section_top: u32,
+       pub story_section_bottom: u32,
+       pub margins: Margins,
+   }
+   ```
+
+2. ABSTRACT TEMPLATE RENDERER:
+   ```rust
+   pub trait TemplateRenderer {
+       fn render(&self, context: &TemplateContext) -> Result<RgbImage, AppError>;
+       fn preview(&self, context: &TemplateContext) -> Result<Vec<u8>, AppError>;
+   }
+
+   pub struct PhotoBoothRenderer {
+       config: TemplateConfig,
+       font_loader: Box<dyn FontLoader>,
+       background_loader: Box<dyn BackgroundLoader>,
+   }
+   ```
+
+3. BREAK DOWN COMPLEX FUNCTIONS:
+   ```rust
+   impl PhotoBoothRenderer {
+       fn create_canvas(&self) -> Result<RgbImage, AppError>;
+       fn apply_background(&self, canvas: &mut RgbImage) -> Result<(), AppError>;
+       fn calculate_layout(&self, context: &TemplateContext) -> Layout;
+       fn place_photo(&self, canvas: &mut RgbImage, photo: &RgbImage, layout: &Layout) -> Result<(), AppError>;
+       fn render_text(&self, canvas: &mut RgbImage, text_elements: &[TextElement], layout: &Layout) -> Result<(), AppError>;
+       fn apply_overlays(&self, canvas: &mut RgbImage, layout: &Layout) -> Result<(), AppError>;
+   }
+   ```
+
+4. TEXT RENDERING ABSTRACTION:
+   ```rust
+   pub struct TextElement {
+       pub content: String,
+       pub style: TextStyle,
+       pub position: Position,
+       pub alignment: TextAlignment,
+   }
+
+   pub trait TextRenderer {
+       fn measure(&self, text: &str, style: &TextStyle) -> TextMetrics;
+       fn render(&self, canvas: &mut RgbImage, element: &TextElement) -> Result<(), AppError>;
+       fn wrap_text(&self, text: &str, max_width: u32, style: &TextStyle) -> Vec<String>;
+   }
+   ```
+
+IMPLEMENTATION GUIDELINES:
+
+1. REMOVE DUPLICATE ERROR TYPES:
+   - Delete the TemplateError enum from templates.rs
+   - Import TemplateError from errors module
+   - Update all error returns to use AppError/AppResult
+
+2. EXTRACT CONFIGURATION:
+   - Move all constants to configuration structs
+   - Load dimensions from config instead of hardcoding
+   - Make font paths configurable with fallbacks
+   - Allow customization of text styling
+
+3. SIMPLIFY PLATFORM-SPECIFIC CODE:
+   - Move all Linux-specific code to platform/linux/template.rs
+   - Create clean abstractions that hide platform details
+   - Use the trait pattern for platform-specific implementations
+
+4. BREAK DOWN COMPOSE_TEMPLATE:
+   ```rust
+   // Instead of one large function:
+   pub fn compose_template(&self, photo: DynamicImage) -> Result<RgbImage, AppError> {
+       let mut canvas = self.create_canvas()?;
+
+       if let Some(background) = self.load_background()? {
+           self.apply_background(&mut canvas, &background)?;
+       }
+
+       self.apply_overlays(&mut canvas)?;
+
+       let layout = self.calculate_layout();
+       let scaled_photo = self.scale_photo(&photo, &layout)?;
+       self.place_photo(&mut canvas, &scaled_photo, &layout)?;
+
+       let text_elements = self.prepare_text_elements(&layout);
+       self.render_text(&mut canvas, &text_elements)?;
+
+       Ok(canvas)
+   }
+   ```
+
+5. IMPROVE ERROR HANDLING:
+   - Use proper error types instead of strings
+   - Add context to errors for better debugging
+   - Handle missing fonts gracefully with fallbacks
+   - Validate inputs before processing
+
+6. ADD BUILDER PATTERN:
+   ```rust
+   pub struct TemplateBuilder {
+       config: TemplateConfig,
+       renderer: Option<Box<dyn TemplateRenderer>>,
+   }
+
+   impl TemplateBuilder {
+       pub fn new() -> Self;
+       pub fn with_dimensions(mut self, width: u32, height: u32) -> Self;
+       pub fn with_font(mut self, font_path: &str) -> Self;
+       pub fn with_background(mut self, background: Background) -> Self;
+       pub fn build(self) -> Result<PhotoBoothTemplate, AppError>;
+   }
+   ```
+
+MIGRATION STEPS:
+
+1. Create new template module structure without removing old code
+2. Extract all constants to configuration structs
+3. Implement trait-based abstractions
+4. Port functionality piece by piece
+5. Add comprehensive tests for each component
+6. Remove old implementation once new one is tested
+7. Update all calling code to use new API
+
+BEST PRACTICES TO FOLLOW:
+- Single Responsibility: Each function does one thing
+- Dependency Injection: Pass in dependencies rather than hardcoding
+- Configuration over Constants: Make everything configurable
+- Error Context: Add meaningful context to all errors
+- Testability: Design for easy unit testing
+- Composition over Inheritance: Use traits and composition
+- Fail Fast: Validate inputs early
+
+ANTI-PATTERNS TO AVOID:
+- Don't mix I/O with business logic
+- Don't hardcode file paths or dimensions
+- Don't use unwrap() in production code
+- Don't catch and ignore errors
+- Don't have functions longer than 50 lines
+- Don't repeat platform conditionals
+- Don't use mutable state unnecessarily
+
+VALIDATION CRITERIA:
+- No duplicate error definitions
+- All hardcoded values moved to configuration
+- Functions under 50 lines each
+- Platform-specific code isolated
+- All errors properly typed and handled
+- Comprehensive unit tests
+- Template preview without disk I/O
+- Configuration-driven behavior
+
+TESTING REQUIREMENTS:
+- Unit tests for each rendering component
+- Integration tests for full template rendering
+- Tests for missing fonts and backgrounds
+- Tests for various image sizes and formats
+- Performance benchmarks for rendering
+- Mock implementations for testing
+- Property-based tests for text wrapping
