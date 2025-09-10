@@ -84,6 +84,13 @@ if [ -d "${SCRIPT_DIR}/scripts" ]; then
     ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/scripts/'*.sh 2>/dev/null || true"
 fi
 
+# Copy operations directory if it exists
+if [ -d "${SCRIPT_DIR}/operations" ]; then
+    echo ">> Copying operations directory..."
+    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new -r "${SCRIPT_DIR}/operations" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/operations/'*.sh 2>/dev/null || true"
+fi
+
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
@@ -97,4 +104,16 @@ echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./s
 echo
 echo "Run directly (without startup script):"
 echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"'${REMOTE_DEST_PATH}'\""
+echo
+echo "Setup kiosk mode (first time only):"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo /home/${PI_USER}/operations/setup-kiosk.sh\""
+echo
+echo "Start kiosk mode:"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo systemctl start photobooth-kiosk.service\""
+echo
+echo "Stop kiosk mode:"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo systemctl stop photobooth-kiosk.service\""
+echo
+echo "Check kiosk status:"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo systemctl status photobooth-kiosk.service\""
 echo

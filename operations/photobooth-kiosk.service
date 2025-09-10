@@ -1,0 +1,26 @@
+[Unit]
+Description=Photo Booth Kiosk Mode
+After=graphical.target network.target
+
+[Service]
+Type=simple
+User=prospero
+Group=prospero
+WorkingDirectory=/home/prospero
+
+# Environment variables
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/prospero/.Xauthority"
+Environment="HOME=/home/prospero"
+Environment="PORT=8080"
+Environment="HOST=0.0.0.0"
+
+# Run the wrapper script
+ExecStart=/home/prospero/operations/run-kiosk.sh
+
+# Restart policy
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
