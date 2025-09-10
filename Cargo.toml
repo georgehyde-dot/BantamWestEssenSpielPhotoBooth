@@ -40,14 +40,11 @@ sqlx = { version = "0.8", features = [
 actix-embed = "0.1.0"
 rust-embed = "8"
 futures = "0.3.31"
-
-[features]
-default = ["printer-cups"]
-printer-cups = ["printers"]
-
-[target.'cfg(target_os = "linux")'.dependencies]
-
 image = { version = "0.24", features = ["jpeg"] }
 imageproc = "0.23"
 rusttype = "0.9"
 gphoto2 = "3"
+
+[features]
+default = ["printer-cups"]
+printer-cups = ["printers"]

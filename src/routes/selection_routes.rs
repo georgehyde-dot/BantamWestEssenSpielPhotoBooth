@@ -1,4 +1,4 @@
-use actix_web::{get, web, HttpResponse, Responder};
+use actix_web::{get, HttpResponse, Responder};
 
 // Embed HTML files at compile time
 const WEAPON_HTML: &str = include_str!("../../html/weapon.html");

@@ -13,7 +13,6 @@ const PRINT_HEIGHT: u32 = 1800; // 6 inches * 300 DPI
 // Define the area for the photo within the template
 const PHOTO_WIDTH: u32 = 1000; // Leave room for borders
 const PHOTO_HEIGHT: u32 = 667; // Maintain 3:2 aspect ratio
-const HEADER_HEIGHT: u32 = 200;
 const PHOTO_Y_POSITION: u32 = 400; // Moved up 1/3 closer to top
 const STORY_SECTION_TOP: u32 = 1350; // Start story section
 const STORY_SECTION_BOTTOM: u32 = 1700; // End story section
@@ -293,18 +292,6 @@ impl PrintTemplate {
 
         lines
     }
-}
-
-pub fn create_templated_print_with_text(
-    photo_path: &str,
-    output_path: &str,
-    header: &str,
-    name: &str,
-    headline: &str,
-    story: &str,
-) -> Result<(), TemplateError> {
-    let template = PrintTemplate::new(header, name, headline, story);
-    template.apply_to_photo(photo_path, output_path)
 }
 
 pub fn create_templated_print_with_background(

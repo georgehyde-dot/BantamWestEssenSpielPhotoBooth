@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 use uuid::Uuid;
@@ -119,56 +119,6 @@ impl Session {
         .map_err(|e| DatabaseError::QueryFailed(format!("Failed to load session: {}", e)))?;
 
         Ok(session)
-    }
-
-    /// Get all sessions created within a time range
-    pub async fn find_by_date_range(
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        pool: &SqlitePool,
-    ) -> AppResult<Vec<Self>> {
-        let start_str = start.to_rfc3339();
-        let end_str = end.to_rfc3339();
-
-        let sessions = sqlx::query_as::<_, Session>(
-            r#"
-            SELECT
-                id, group_name, created_at, weapon, land, companion,
-                email, photo_path, copies_printed, story_text, headline
-            FROM session
-            WHERE created_at >= ?1 AND created_at <= ?2
-            ORDER BY created_at DESC
-            "#,
-        )
-        .bind(&start_str)
-        .bind(&end_str)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| DatabaseError::QueryFailed(format!("Failed to find sessions: {}", e)))?;
-
-        Ok(sessions)
-    }
-
-    /// Get sessions by email
-    pub async fn find_by_email(email: &str, pool: &SqlitePool) -> AppResult<Vec<Self>> {
-        let sessions = sqlx::query_as::<_, Session>(
-            r#"
-            SELECT
-                id, group_name, created_at, weapon, land, companion,
-                email, photo_path, copies_printed, story_text, headline
-            FROM session
-            WHERE email = ?1
-            ORDER BY created_at DESC
-            "#,
-        )
-        .bind(email)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| {
-            DatabaseError::QueryFailed(format!("Failed to find sessions by email: {}", e))
-        })?;
-
-        Ok(sessions)
     }
 
     /// Set the photo path for this session

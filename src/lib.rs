@@ -30,7 +30,4 @@ pub use printers::EpsonPrinter;
 pub use session::Session;
 
 // Template exports
-pub use templates::{
-    create_templated_print_with_background, create_templated_print_with_text, PrintTemplate,
-    TemplateError,
-};
+pub use templates::{create_templated_print_with_background, PrintTemplate, TemplateError};
