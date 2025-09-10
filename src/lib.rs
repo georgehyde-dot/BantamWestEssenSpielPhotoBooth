@@ -18,21 +18,18 @@ pub mod config;
 pub mod gphoto_camera;
 
 // Re-export commonly used types for convenience
-#[cfg(target_os = "linux")]
 pub use printers::{
     new_printer, MockPrinter, PaperSize, PrintJob, PrintQuality, Printer, PrinterError,
     PrinterStatus,
 };
 
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 pub use printers::EpsonPrinter;
 
 // Session exports
-#[cfg(target_os = "linux")]
 pub use session::Session;
 
 // Template exports
-#[cfg(target_os = "linux")]
 pub use templates::{
     create_templated_print_with_background, create_templated_print_with_text, PrintTemplate,
     TemplateError,

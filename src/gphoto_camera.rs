@@ -10,7 +10,6 @@ use tracing::{debug, info, warn};
 // Use the camera config from the config module
 use crate::config::CameraConfig;
 
-#[cfg(target_os = "linux")]
 pub struct GPhotoCamera {
     config: CameraConfig,
     preview_process: Arc<Mutex<Option<Child>>>,
@@ -18,7 +17,6 @@ pub struct GPhotoCamera {
     preview_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
-#[cfg(target_os = "linux")]
 impl GPhotoCamera {
     /// Create a new GPhotoCamera instance
     pub fn new(config: CameraConfig) -> Result<Self, String> {
@@ -344,65 +342,5 @@ impl GPhotoCamera {
             return None;
         }
         last_frame_buffer.lock().unwrap().clone()
-    }
-}
-
-// Non-Linux stub implementation
-#[cfg(not(target_os = "linux"))]
-pub struct GPhotoCamera {
-    config: CameraConfig,
-}
-
-#[cfg(not(target_os = "linux"))]
-impl GPhotoCamera {
-    pub fn new(config: CameraConfig) -> Result<Self, String> {
-        Ok(GPhotoCamera { config })
-    }
-
-    pub async fn initialize(&self) -> Result<(), String> {
-        Err("GPhoto2 camera functionality not supported on this platform".to_string())
-    }
-
-    pub async fn start_preview_stream(
-        &self,
-        _frame_sink: tokio::sync::mpsc::Sender<Vec<u8>>,
-        _last_frame_buffer: std::sync::Arc<std::sync::Mutex<Option<Vec<u8>>>>,
-    ) -> Result<(), String> {
-        Err("Camera functionality not supported on this platform".to_string())
-    }
-
-    pub async fn stop_preview(&self) -> Result<(), String> {
-        Err("Camera functionality not supported on this platform".to_string())
-    }
-
-    pub async fn capture_photo(&self, _output_path: &str) -> Result<Vec<u8>, String> {
-        Err("Camera functionality not supported on this platform".to_string())
-    }
-
-    pub async fn countdown_capture(
-        &self,
-        _output_path: &str,
-        _countdown_seconds: u32,
-    ) -> Result<Vec<u8>, String> {
-        Err("Camera functionality not supported on this platform".to_string())
-    }
-
-    pub async fn check_connection(&self) -> bool {
-        false
-    }
-
-    pub fn is_streaming(&self) -> bool {
-        false
-    }
-
-    pub async fn cleanup(&self) -> Result<(), String> {
-        Ok(())
-    }
-
-    pub fn get_preview_frame(
-        &self,
-        _last_frame_buffer: std::sync::Arc<std::sync::Mutex<Option<Vec<u8>>>>,
-    ) -> Option<Vec<u8>> {
-        None
     }
 }

@@ -198,7 +198,6 @@ impl AppError {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl actix_web::ResponseError for AppError {
     fn error_response(&self) -> actix_web::HttpResponse {
         use actix_web::HttpResponse;

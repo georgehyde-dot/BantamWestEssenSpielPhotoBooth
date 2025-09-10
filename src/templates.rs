@@ -1,37 +1,23 @@
 // Template functionality for photo booth prints
 
-#[cfg(target_os = "linux")]
 use image::{DynamicImage, ImageBuffer, Rgb, RgbImage};
-#[cfg(target_os = "linux")]
 use imageproc::drawing::draw_text_mut;
-#[cfg(target_os = "linux")]
 use rusttype::{Font, Scale};
-#[cfg(target_os = "linux")]
 use std::error::Error;
-#[cfg(target_os = "linux")]
 use std::fmt;
 
 // Constants for a 4x6" print at 300 DPI
-#[cfg(target_os = "linux")]
 const PRINT_WIDTH: u32 = 1200; // 4 inches * 300 DPI
-#[cfg(target_os = "linux")]
 const PRINT_HEIGHT: u32 = 1800; // 6 inches * 300 DPI
 
 // Define the area for the photo within the template
-#[cfg(target_os = "linux")]
 const PHOTO_WIDTH: u32 = 1000; // Leave room for borders
-#[cfg(target_os = "linux")]
 const PHOTO_HEIGHT: u32 = 667; // Maintain 3:2 aspect ratio
-#[cfg(target_os = "linux")]
 const HEADER_HEIGHT: u32 = 200;
-#[cfg(target_os = "linux")]
 const PHOTO_Y_POSITION: u32 = 400; // Moved up 1/3 closer to top
-#[cfg(target_os = "linux")]
 const STORY_SECTION_TOP: u32 = 1350; // Start story section
-#[cfg(target_os = "linux")]
 const STORY_SECTION_BOTTOM: u32 = 1700; // End story section
 
-#[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub enum TemplateError {
     ImageLoadError(String),
@@ -39,7 +25,6 @@ pub enum TemplateError {
     CompositionError(String),
 }
 
-#[cfg(target_os = "linux")]
 impl fmt::Display for TemplateError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -50,10 +35,8 @@ impl fmt::Display for TemplateError {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl Error for TemplateError {}
 
-#[cfg(target_os = "linux")]
 pub struct PrintTemplate {
     header_text: String,
     name_text: String,
@@ -64,7 +47,6 @@ pub struct PrintTemplate {
     background_path: Option<String>,
 }
 
-#[cfg(target_os = "linux")]
 impl Default for PrintTemplate {
     fn default() -> Self {
         PrintTemplate {
@@ -79,7 +61,6 @@ impl Default for PrintTemplate {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl PrintTemplate {
     pub fn new(header: &str, name: &str, headline: &str, story: &str) -> Self {
         PrintTemplate {
@@ -314,7 +295,6 @@ impl PrintTemplate {
     }
 }
 
-#[cfg(target_os = "linux")]
 pub fn create_templated_print_with_text(
     photo_path: &str,
     output_path: &str,
@@ -327,7 +307,6 @@ pub fn create_templated_print_with_text(
     template.apply_to_photo(photo_path, output_path)
 }
 
-#[cfg(target_os = "linux")]
 pub fn create_templated_print_with_background(
     photo_path: &str,
     output_path: &str,
@@ -340,30 +319,4 @@ pub fn create_templated_print_with_background(
     let template =
         PrintTemplate::new(header, name, headline, story).with_background(background_path);
     template.apply_to_photo(photo_path, output_path)
-}
-
-// --- Non-Linux Stubs ---
-#[cfg(not(target_os = "linux"))]
-#[derive(Debug)]
-pub enum TemplateError {
-    NotSupported,
-}
-#[cfg(not(target_os = "linux"))]
-impl std::fmt::Display for TemplateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Not supported")
-    }
-}
-#[cfg(not(target_os = "linux"))]
-impl std::error::Error for TemplateError {}
-#[cfg(not(target_os = "linux"))]
-pub fn create_templated_print_with_text(
-    _p: &str,
-    _o: &str,
-    _h: &str,
-    _n: &str,
-    _hl: &str,
-    _s: &str,
-) -> Result<(), TemplateError> {
-    Err(TemplateError::NotSupported)
 }

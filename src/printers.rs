@@ -1,25 +1,18 @@
 // Printer functionality module
 
-#[cfg(target_os = "linux")]
 use async_trait::async_trait;
-#[cfg(target_os = "linux")]
 use chrono;
-#[cfg(target_os = "linux")]
 use image;
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 use printers::{
     common::base::job::PrinterJobOptions, common::base::printer::Printer as PrintersCratePrinter,
     get_printers,
 };
-#[cfg(target_os = "linux")]
 use serde::Serialize;
-#[cfg(target_os = "linux")]
 use std::error::Error;
-#[cfg(target_os = "linux")]
 use std::fmt;
 
 // Printer types and enums
-#[cfg(target_os = "linux")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PaperSize {
     Letter,
@@ -28,7 +21,6 @@ pub enum PaperSize {
     Photo5x7,
 }
 
-#[cfg(target_os = "linux")]
 #[derive(Debug, Clone, Serialize)]
 pub enum PrintQuality {
     Draft,
@@ -36,7 +28,6 @@ pub enum PrintQuality {
     High,
 }
 
-#[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub struct PrintJob {
     pub file_path: String,
@@ -45,7 +36,6 @@ pub struct PrintJob {
     pub quality: PrintQuality,
 }
 
-#[cfg(target_os = "linux")]
 #[derive(Debug, Serialize)]
 pub struct PrinterStatus {
     pub is_online: bool,
@@ -54,7 +44,6 @@ pub struct PrinterStatus {
     pub error_message: Option<String>,
 }
 
-#[cfg(target_os = "linux")]
 #[derive(Debug)]
 pub enum PrinterError {
     NotFound(String),
@@ -63,7 +52,6 @@ pub enum PrinterError {
     IoError(String),
 }
 
-#[cfg(target_os = "linux")]
 impl fmt::Display for PrinterError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -75,11 +63,9 @@ impl fmt::Display for PrinterError {
     }
 }
 
-#[cfg(target_os = "linux")]
 impl Error for PrinterError {}
 
 // Printer trait
-#[cfg(target_os = "linux")]
 #[async_trait]
 pub trait Printer: Send + Sync {
     async fn print_photo(&self, job: PrintJob) -> Result<String, PrinterError>;
@@ -89,13 +75,13 @@ pub trait Printer: Send + Sync {
 }
 
 // Epson printer implementation
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 pub struct EpsonPrinter {
     printer_name: String,
     cups_printer: Option<PrintersCratePrinter>,
 }
 
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 impl EpsonPrinter {
     pub async fn new(printer_name: &str) -> Result<Self, PrinterError> {
         // Get all available printers
@@ -121,7 +107,7 @@ impl EpsonPrinter {
     }
 }
 
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 #[async_trait]
 impl Printer for EpsonPrinter {
     async fn print_photo(&self, job: PrintJob) -> Result<String, PrinterError> {
@@ -234,10 +220,8 @@ impl Printer for EpsonPrinter {
 }
 
 // Mock printer implementation for testing or when no real printer is available
-#[cfg(target_os = "linux")]
 pub struct MockPrinter;
 
-#[cfg(target_os = "linux")]
 #[async_trait]
 impl Printer for MockPrinter {
     async fn print_photo(&self, _job: PrintJob) -> Result<String, PrinterError> {
@@ -268,7 +252,7 @@ impl Printer for MockPrinter {
 }
 
 // Factory function to create appropriate printer instance
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
     new_printer_with_config(
         "XP8700series-TurboPrint",
@@ -277,7 +261,7 @@ pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, 
     .await
 }
 
-#[cfg(all(target_os = "linux", feature = "printer-cups"))]
+#[cfg(feature = "printer-cups")]
 pub async fn new_printer_with_config(
     primary_name: &str,
     fallback_names: &[&str],
@@ -300,36 +284,8 @@ pub async fn new_printer_with_config(
     Ok(std::sync::Arc::new(MockPrinter))
 }
 
-#[cfg(all(target_os = "linux", not(feature = "printer-cups")))]
+#[cfg(not(feature = "printer-cups"))]
 pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
     // When CUPS feature is not enabled, always use mock printer
     Ok(std::sync::Arc::new(MockPrinter))
-}
-
-// Non-Linux stub types
-#[cfg(not(target_os = "linux"))]
-#[allow(dead_code)]
-pub struct MockPrinter;
-
-#[cfg(not(target_os = "linux"))]
-#[derive(Debug)]
-#[allow(dead_code)]
-pub enum PrinterError {
-    NotSupported,
-}
-
-#[cfg(not(target_os = "linux"))]
-impl std::fmt::Display for PrinterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Printer functionality not supported on this platform")
-    }
-}
-
-#[cfg(not(target_os = "linux"))]
-impl std::error::Error for PrinterError {}
-
-#[cfg(not(target_os = "linux"))]
-#[allow(dead_code)]
-pub async fn new_printer() -> Result<std::sync::Arc<MockPrinter>, PrinterError> {
-    Err(PrinterError::NotSupported)
 }

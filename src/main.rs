@@ -1,15 +1,9 @@
-// Linux (Raspberry Pi) implementation: GPhoto2-based camera control for Canon EOS DSLRs.
-// Non-Linux: build a stub that informs the user this is Linux-only.
+// GPhoto2-based camera control for Canon EOS DSLRs on Raspberry Pi.
 
-#[cfg(target_os = "linux")]
 use actix_files as fs;
-#[cfg(target_os = "linux")]
 use actix_web::{web, App, HttpServer};
-#[cfg(target_os = "linux")]
 use sqlx::SqlitePool;
-#[cfg(target_os = "linux")]
 use std::sync::{Arc, Mutex};
-#[cfg(target_os = "linux")]
 use tokio::sync::mpsc;
 
 // Module imports
@@ -21,20 +15,15 @@ mod routes;
 mod session;
 mod templates;
 
-#[cfg(target_os = "linux")]
 use config::Config;
-#[cfg(target_os = "linux")]
 use printers::new_printer;
-#[cfg(target_os = "linux")]
 use routes::{
     camera_page, capture_image, companion_page, copies_page, create_session, generate_story,
     get_session, land_page, name_entry_page, photo_page, preview_print, preview_stream,
     print_photo, save_session_final, start_page, update_session, weapon_page,
 };
-#[cfg(target_os = "linux")]
 use tracing::{error, info, warn};
 
-#[cfg(target_os = "linux")]
 fn spawn_gphoto_camera(
     config: config::CameraConfig,
     last_frame: Arc<Mutex<Option<Vec<u8>>>>,
@@ -104,7 +93,6 @@ fn spawn_gphoto_camera(
     })
 }
 
-#[cfg(target_os = "linux")]
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Initialize tracing
@@ -149,7 +137,6 @@ async fn main() -> std::io::Result<()> {
 
     let last_frame = Arc::new(Mutex::new(None::<Vec<u8>>));
 
-    #[cfg(target_os = "linux")]
     let printer = match new_printer().await {
         Ok(p) => Some(p),
         Err(e) => {
@@ -158,11 +145,9 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    #[cfg(target_os = "linux")]
     let gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>> =
         Arc::new(Mutex::new(None));
 
-    #[cfg(target_os = "linux")]
     let camera = {
         info!(
             "Initializing GPhoto2 camera with config: {:?}",
@@ -183,13 +168,8 @@ async fn main() -> std::io::Result<()> {
         let mut app = App::new()
             .app_data(web::Data::new(last_frame.clone()))
             .app_data(web::Data::new(app_config.clone()))
-            .app_data(web::Data::new(db_pool));
-
-        // Add GPhoto camera as app data
-        #[cfg(target_os = "linux")]
-        {
-            app = app.app_data(web::Data::new(gphoto_camera.clone()));
-        }
+            .app_data(web::Data::new(db_pool))
+            .app_data(web::Data::new(gphoto_camera.clone()));
 
         app = app
             .service(start_page)
@@ -225,21 +205,4 @@ async fn main() -> std::io::Result<()> {
     .bind(config.socket_addr())?
     .run()
     .await
-}
-
-#[cfg(not(target_os = "linux"))]
-fn main() -> std::io::Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
-        .init();
-
-    tracing::error!("This binary is intended to run on Linux (Raspberry Pi). The GPhoto2-based preview and capture are Linux-only.");
-    tracing::error!(
-        "Build for the target device (e.g., aarch64-unknown-linux-gnu) and run it there."
-    );
-    Ok(())
 }
