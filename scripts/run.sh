@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Startup script for running the photo booth application with GPhoto2
-# This script ensures proper setup and configuration for Canon EOS Rebel T7
+# Startup script for running the photo booth application
+# This script ensures proper setup and configuration for Canon EOS Rebel T7 via GPhoto2
 
 set -e
 
@@ -92,7 +92,6 @@ chmod 755 /home/prospero/photobooth/static
 
 # Step 7: Export environment variables
 print_info "Setting environment variables..."
-export USE_GPHOTO=true
 export V4L2_LOOPBACK_DEVICE="$V4L2_DEVICE"
 export RUST_LOG=info
 export RUST_BACKTRACE=1
@@ -111,7 +110,7 @@ echo ""
 echo "Configuration:"
 echo "  Binary: $BINARY_PATH"
 echo "  V4L2 Device: $V4L2_DEVICE"
-echo "  USE_GPHOTO: true"
+echo "  Camera: Canon EOS (GPhoto2)"
 echo "  Log Level: info"
 echo ""
 

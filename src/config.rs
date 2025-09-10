@@ -20,10 +20,7 @@ pub struct ServerConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CameraConfig {
-    pub device: String,
-    pub width: u32,
-    pub height: u32,
-    pub format: String,
+    pub v4l2_loopback_device: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -70,16 +67,8 @@ impl Config {
         };
 
         let camera = CameraConfig {
-            device: std::env::var("VIDEO_DEVICE").unwrap_or_else(|_| "/dev/video0".to_string()),
-            width: std::env::var("VIDEO_WIDTH")
-                .unwrap_or_else(|_| "1920".to_string())
-                .parse()
-                .map_err(|_| ConfigError::InvalidVideoWidth)?,
-            height: std::env::var("VIDEO_HEIGHT")
-                .unwrap_or_else(|_| "1080".to_string())
-                .parse()
-                .map_err(|_| ConfigError::InvalidVideoHeight)?,
-            format: std::env::var("VIDEO_FORMAT").unwrap_or_else(|_| "MJPG".to_string()),
+            v4l2_loopback_device: std::env::var("V4L2_LOOPBACK_DEVICE")
+                .unwrap_or_else(|_| "/dev/video2".to_string()),
         };
 
         let base_path = std::env::var("STORAGE_PATH")
@@ -141,16 +130,6 @@ impl Config {
             return Err(ConfigError::InvalidPort);
         }
 
-        // Validate video dimensions
-        if self.camera.width == 0 || self.camera.height == 0 {
-            return Err(ConfigError::InvalidVideoDimensions);
-        }
-
-        // Validate video format
-        if !["MJPG", "YUYV"].contains(&self.camera.format.as_str()) {
-            return Err(ConfigError::UnsupportedVideoFormat);
-        }
-
         Ok(())
     }
 
@@ -175,14 +154,6 @@ impl Config {
 pub enum ConfigError {
     #[error("Invalid port number")]
     InvalidPort,
-    #[error("Invalid video width")]
-    InvalidVideoWidth,
-    #[error("Invalid video height")]
-    InvalidVideoHeight,
-    #[error("Invalid video dimensions")]
-    InvalidVideoDimensions,
-    #[error("Unsupported video format")]
-    UnsupportedVideoFormat,
 }
 
 #[cfg(test)]
@@ -193,12 +164,10 @@ mod tests {
     fn test_default_config() {
         // Clear any existing env vars
         std::env::remove_var("PORT");
-        std::env::remove_var("VIDEO_WIDTH");
 
         let config = Config::from_env().expect("Failed to create config");
         assert_eq!(config.server.port, 8080);
-        assert_eq!(config.camera.width, 1920);
-        assert_eq!(config.camera.device, "/dev/video0");
+        assert_eq!(config.camera.v4l2_loopback_device, "/dev/video2");
     }
 
     #[test]
