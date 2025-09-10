@@ -5,9 +5,10 @@ use serde_json;
 use sqlx::SqlitePool;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::config::Config;
+use crate::gphoto_camera::GPhotoCamera;
 use crate::image_processing::ImageProcessor;
 use crate::session::Session;
 
@@ -64,6 +65,7 @@ pub async fn capture_image(
     config: web::Data<Config>,
     db_pool: web::Data<SqlitePool>,
     body: Option<web::Json<serde_json::Value>>,
+    gphoto_camera: web::Data<Arc<Mutex<Option<Arc<crate::gphoto_camera::GPhotoCamera>>>>>,
 ) -> impl Responder {
     std::fs::create_dir_all(&config.storage.base_path).ok();
 
@@ -78,21 +80,121 @@ pub async fn capture_image(
             let _ = std::fs::set_permissions(&config.storage.base_path, perms);
         }
     }
-    let filename = config
-        .storage
-        .base_path
-        .join(format!("cap_{}.png", chrono::Utc::now().timestamp()));
 
-    let img_opt = { last_frame.lock().unwrap().clone() };
-    match img_opt {
-        Some(bytes) => {
+    // Extract session_id before any moves
+    let session_id = body
+        .as_ref()
+        .and_then(|b| b.get("session_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    // Check if we're using GPhoto2 for high-resolution capture
+    let use_gphoto = std::env::var("USE_GPHOTO")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+
+    let capture_result = if use_gphoto {
+        // Use GPhoto2 for high-resolution capture
+        info!("Using GPhoto2 for high-resolution capture");
+
+        let filename = config
+            .storage
+            .base_path
+            .join(format!("cap_{}.jpg", chrono::Utc::now().timestamp()));
+
+        let save_path = filename.clone();
+
+        // Use the shared GPhoto2 camera instance if available
+        let camera_opt = gphoto_camera.lock().unwrap().clone();
+        if let Some(camera) = camera_opt.clone() {
+            match camera.capture_photo(save_path.to_str().unwrap_or("")).await {
+                Ok(jpeg_data) => {
+                    // Process the image to remove autofocus boxes
+                    let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
+                        let img = image::load_from_memory(&jpeg_data)
+                            .map_err(|e| format!("decode image: {e}"))?;
+
+                        let processed_img = ImageProcessor::remove_autofocus_boxes(&img);
+
+                        // Save as PNG for consistency
+                        let png_path = save_path.with_extension("png");
+                        processed_img
+                            .save(&png_path)
+                            .map_err(|e| format!("save PNG: {e}"))?;
+
+                        Ok(())
+                    });
+
+                    // Restart the preview stream after capture
+                    info!("Restarting preview stream after capture");
+                    let last_frame_clone = last_frame.get_ref().clone();
+                    let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+
+                    // Start preview in background
+                    let camera_clone = camera.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = camera_clone
+                            .start_preview_stream(tx, last_frame_clone)
+                            .await
+                        {
+                            warn!("Failed to restart preview stream: {}", e);
+                        }
+                    });
+
+                    // Spawn a task to drain the receiver
+                    tokio::spawn(async move {
+                        while let Some(_) = rx.recv().await {
+                            // Just drain the channel
+                        }
+                    });
+
+                    Some((res, filename.with_extension("png")))
+                }
+                Err(e) => {
+                    warn!("GPhoto2 capture failed: {}", e);
+
+                    // Try to restart preview even after failure
+                    info!("Attempting to restart preview stream after failed capture");
+                    let last_frame_clone = last_frame.get_ref().clone();
+                    let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+
+                    let camera_clone = camera.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = camera_clone
+                            .start_preview_stream(tx, last_frame_clone)
+                            .await
+                        {
+                            warn!("Failed to restart preview stream: {}", e);
+                        }
+                    });
+
+                    tokio::spawn(async move {
+                        while let Some(_) = rx.recv().await {
+                            // Just drain the channel
+                        }
+                    });
+
+                    None
+                }
+            }
+        } else {
+            warn!("GPhoto2 camera not available in app data");
+            None
+        }
+    } else {
+        // Use existing V4L2 preview frame capture
+        info!("Using V4L2 preview frame for capture");
+
+        let filename = config
+            .storage
+            .base_path
+            .join(format!("cap_{}.png", chrono::Utc::now().timestamp()));
+
+        let img_opt = { last_frame.lock().unwrap().clone() };
+
+        img_opt.map(|bytes| {
             let save_path = filename.clone();
-            // Extract session_id before the move
-            let session_id = body
-                .as_ref()
-                .and_then(|b| b.get("session_id"))
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
 
             let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
                 // Convert JPEG bytes to PNG format
@@ -107,8 +209,16 @@ pub async fn capture_image(
                     .map_err(|e| format!("save PNG: {e}"))?;
 
                 Ok(())
-            })
-            .await;
+            });
+
+            (res, filename)
+        })
+    };
+
+    // Handle the capture result
+    match capture_result {
+        Some((res, filename)) => {
+            let res = res.await;
 
             match res {
                 Ok(Ok(())) => {
@@ -155,7 +265,7 @@ pub async fn capture_image(
         }
         None => HttpResponse::InternalServerError().json(serde_json::json!({
             "ok": false,
-            "error": "no frame available yet"
+            "error": if use_gphoto { "camera capture failed" } else { "no frame available yet" }
         })),
     }
 }

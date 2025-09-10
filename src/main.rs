@@ -46,6 +46,7 @@ use image;
 mod camera;
 mod config;
 mod errors;
+mod gphoto_camera;
 mod image_processing;
 mod printers;
 mod routes;
@@ -69,33 +70,102 @@ use tracing::{error, info, warn};
 fn spawn_camera(
     config: config::CameraConfig,
     last_frame: Arc<Mutex<Option<Vec<u8>>>>,
+    gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>>,
 ) -> tokio::task::JoinHandle<()> {
-    info!("Spawning camera task for device: {}", config.device);
-    tokio::spawn(async move {
-        let camera = camera::Camera::new(config.clone());
-        let (tx, mut rx) = mpsc::channel(10);
+    // Check if we should use gphoto2 (for USB-connected DSLR cameras like Canon EOS)
+    let use_gphoto = std::env::var("USE_GPHOTO")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
 
-        // Start camera stream
-        let camera_handle = tokio::spawn(async move {
-            info!("Starting camera preview stream");
-            if let Err(e) = camera.start_preview_stream(tx, last_frame.clone()).await {
-                error!("Camera stream error: {}", e);
+    if use_gphoto {
+        info!("Using GPhoto2 camera interface for DSLR");
+        tokio::spawn(async move {
+            // Override device to use v4l2loopback device for GPhoto preview
+            let mut gphoto_config = config.clone();
+            gphoto_config.device =
+                std::env::var("V4L2_LOOPBACK_DEVICE").unwrap_or_else(|_| "/dev/video2".to_string());
+            info!("GPhoto2 will stream preview to: {}", gphoto_config.device);
+
+            // Create and initialize the GPhoto camera
+            let camera_arc = match gphoto_camera::GPhotoCamera::new(gphoto_config) {
+                Ok(camera) => {
+                    // Initialize the camera
+                    match camera.initialize().await {
+                        Ok(_) => {
+                            info!("GPhoto2 camera initialized successfully");
+                            let arc = Arc::new(camera);
+                            // Store the camera in the shared mutex
+                            *gphoto_camera.lock().unwrap() = Some(arc.clone());
+                            arc
+                        }
+                        Err(e) => {
+                            error!("Failed to initialize GPhoto2 camera: {}", e);
+                            return;
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to create GPhoto2 camera: {}", e);
+                    return;
+                }
+            };
+
+            let (tx, mut rx) = mpsc::channel(10);
+
+            // Start camera stream
+            let camera_stream = camera_arc.clone();
+            let camera_handle = tokio::spawn(async move {
+                info!("Starting GPhoto2 camera preview stream");
+                if let Err(e) = camera_stream
+                    .start_preview_stream(tx, last_frame.clone())
+                    .await
+                {
+                    error!("GPhoto2 camera stream error: {}", e);
+                }
+            });
+
+            // Drain the channel to prevent backpressure
+            let mut frame_count = 0;
+            while let Some(_frame) = rx.recv().await {
+                frame_count += 1;
+                if frame_count % 100 == 0 {
+                    info!("Received {} frames from GPhoto2 camera", frame_count);
+                }
+                // Frames are already stored in last_frame by the camera
             }
-        });
 
-        // Drain the channel to prevent backpressure
-        let mut frame_count = 0;
-        while let Some(_frame) = rx.recv().await {
-            frame_count += 1;
-            if frame_count % 1000 == 0 {
-                info!("Received {} frames from camera", frame_count);
+            warn!("GPhoto2 camera frame receiver loop ended");
+            let _ = camera_handle.await;
+        })
+    } else {
+        info!("Using V4L2 camera interface for device: {}", config.device);
+        tokio::spawn(async move {
+            let camera = camera::Camera::new(config.clone());
+            let (tx, mut rx) = mpsc::channel(10);
+
+            // Start camera stream
+            let camera_handle = tokio::spawn(async move {
+                info!("Starting V4L2 camera preview stream");
+                if let Err(e) = camera.start_preview_stream(tx, last_frame.clone()).await {
+                    error!("V4L2 camera stream error: {}", e);
+                }
+            });
+
+            // Drain the channel to prevent backpressure
+            let mut frame_count = 0;
+            while let Some(_frame) = rx.recv().await {
+                frame_count += 1;
+                if frame_count % 1000 == 0 {
+                    info!("Received {} frames from V4L2 camera", frame_count);
+                }
+                // Frames are already stored in last_frame by the camera
             }
-            // Frames are already stored in last_frame by the camera
-        }
 
-        warn!("Camera frame receiver loop ended");
-        let _ = camera_handle.await;
-    })
+            warn!("V4L2 camera frame receiver loop ended");
+            let _ = camera_handle.await;
+        })
+    }
 }
 
 #[cfg(target_os = "linux")]
@@ -153,9 +223,26 @@ async fn main() -> std::io::Result<()> {
     };
 
     #[cfg(target_os = "linux")]
+    let gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>> =
+        Arc::new(Mutex::new(None));
+
+    #[cfg(target_os = "linux")]
     let camera = {
-        info!("Initializing camera with config: {:?}", config.camera);
-        Some(spawn_camera(config.camera.clone(), last_frame.clone()))
+        let use_gphoto = std::env::var("USE_GPHOTO")
+            .unwrap_or_else(|_| "false".to_string())
+            .parse::<bool>()
+            .unwrap_or(false);
+
+        info!(
+            "Initializing camera with config: {:?} (using {})",
+            config.camera,
+            if use_gphoto { "GPhoto2" } else { "V4L2" }
+        );
+        Some(spawn_camera(
+            config.camera.clone(),
+            last_frame.clone(),
+            gphoto_camera.clone(),
+        ))
     };
 
     #[cfg(not(target_os = "linux"))]
@@ -169,7 +256,15 @@ async fn main() -> std::io::Result<()> {
         let mut app = App::new()
             .app_data(web::Data::new(last_frame.clone()))
             .app_data(web::Data::new(app_config.clone()))
-            .app_data(web::Data::new(db_pool))
+            .app_data(web::Data::new(db_pool));
+
+        // Add GPhoto camera as app data
+        #[cfg(target_os = "linux")]
+        {
+            app = app.app_data(web::Data::new(gphoto_camera.clone()));
+        }
+
+        app = app
             .service(start_page)
             .service(name_entry_page)
             .service(copies_page)

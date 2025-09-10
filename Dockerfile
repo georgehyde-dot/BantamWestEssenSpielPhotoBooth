@@ -20,6 +20,7 @@ RUN dpkg --add-architecture arm64 && \
     libclang-dev \
     libv4l-dev \
     libcups2-dev:arm64 \
+    libgphoto2-dev:arm64 \
     && ldconfig && rm -rf /var/lib/apt/lists/*
 
 # Install Rust via rustup
@@ -34,7 +35,9 @@ RUN rustup target add aarch64-unknown-linux-gnu
 ENV PKG_CONFIG_ALLOW_CROSS=1 \
     CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
     CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
-    AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+    AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar \
+    PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig \
+    PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig
 
 # Prepare workspace
 WORKDIR /work/canon_test_cam

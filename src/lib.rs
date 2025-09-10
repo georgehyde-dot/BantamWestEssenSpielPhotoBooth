@@ -11,6 +11,12 @@ pub mod templates;
 
 pub mod errors;
 
+// Configuration module
+pub mod config;
+
+// GPhoto2 camera functionality
+pub mod gphoto_camera;
+
 // Re-export commonly used types for convenience
 #[cfg(target_os = "linux")]
 pub use printers::{

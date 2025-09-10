@@ -77,14 +77,24 @@ if [ -f "${SCRIPT_DIR}/test_endpoints.sh" ]; then
     ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
 fi
 
+# Copy scripts directory if it exists
+if [ -d "${SCRIPT_DIR}/scripts" ]; then
+    echo ">> Copying scripts directory..."
+    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new -r "${SCRIPT_DIR}/scripts" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/scripts/'*.sh 2>/dev/null || true"
+fi
+
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
 echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
 echo
-echo "Run on the Pi (example):"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"VIDEO_DEVICE=/dev/video0 VIDEO_WIDTH=1920 VIDEO_HEIGHT=1080 '${REMOTE_DEST_PATH}'\""
+echo "Run on the Pi with GPhoto2 (Canon EOS):"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/run_with_gphoto.sh\""
 echo
-echo "Test the endpoints:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/test_endpoints.sh\""
+echo "Test GPhoto2 functionality:"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/test_gphoto.sh\""
+echo
+echo "Run with V4L2 (webcam):"
+echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"VIDEO_DEVICE=/dev/video0 VIDEO_WIDTH=1920 VIDEO_HEIGHT=1080 '${REMOTE_DEST_PATH}'\""
 echo
