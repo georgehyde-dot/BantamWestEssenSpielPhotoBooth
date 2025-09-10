@@ -16,7 +16,6 @@ use tokio::sync::mpsc;
 mod config;
 mod errors;
 mod gphoto_camera;
-mod image_processing;
 mod printers;
 mod routes;
 mod session;

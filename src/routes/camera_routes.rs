@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 
 use crate::config::Config;
-use crate::image_processing::ImageProcessor;
 use crate::session::Session;
 
 #[get("/preview")]
@@ -102,19 +101,10 @@ pub async fn capture_image(
     let capture_result = if let Some(camera) = camera_opt.clone() {
         match camera.capture_photo(save_path.to_str().unwrap_or("")).await {
             Ok(jpeg_data) => {
-                // Process the image to remove autofocus boxes
+                // Save the JPEG directly
                 let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
-                    let img = image::load_from_memory(&jpeg_data)
-                        .map_err(|e| format!("decode image: {e}"))?;
-
-                    let processed_img = ImageProcessor::remove_autofocus_boxes(&img);
-
-                    // Save as PNG for consistency
-                    let png_path = save_path.with_extension("png");
-                    processed_img
-                        .save(&png_path)
-                        .map_err(|e| format!("save PNG: {e}"))?;
-
+                    std::fs::write(&save_path, &jpeg_data)
+                        .map_err(|e| format!("save JPEG: {e}"))?;
                     Ok(())
                 });
 
@@ -141,7 +131,7 @@ pub async fn capture_image(
                     }
                 });
 
-                Some((res, filename.with_extension("png")))
+                Some((res, filename))
             }
             Err(e) => {
                 warn!("GPhoto2 capture failed: {}", e);
