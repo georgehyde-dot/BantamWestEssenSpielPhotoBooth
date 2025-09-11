@@ -1,175 +1,206 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Choose Your Weapon</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #2c3e50;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-
-        h1 {
-            font-size: 3em;
-            margin-bottom: 30px;
-            text-align: center;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(2, 300px);
-            grid-template-rows: repeat(2, 300px);
-            gap: 20px;
-            padding: 20px;
-        }
-
-        .weapon-button {
-            border: none;
-            padding: 0;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-            border-radius: 15px;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            background-color: #34495e;
-        }
-
-        .weapon-button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .weapon-button img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-
-        .weapon-button:active {
-            transform: scale(0.98);
-        }
-
-        .loading {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.8);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .loading.active {
-            display: flex;
-        }
-
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
-</head>
-<body>
-    <h1>Choose Your Weapon</h1>
-
-    <div class="grid-container">
-        <button class="weapon-button" onclick="selectWeapon(0)">
-            <img src="/static/resized_output/sword.jpg" alt="Sword">
-        </button>
-        <button class="weapon-button" onclick="selectWeapon(1)">
-            <img src="/static/resized_output/hammer.jpg" alt="Hammer">
-        </button>
-        <button class="weapon-button" onclick="selectWeapon(2)">
-            <img src="/static/resized_output/pistol.jpg" alt="Pistol">
-        </button>
-        <button class="weapon-button" onclick="selectWeapon(3)">
-            <img src="/static/resized_output/fie.jpg" alt="Fie">
-        </button>
-    </div>
-
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-    </div>
-
-    <script>
-        // Get session ID from URL or sessionStorage
-        function getSessionId() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sessionId = urlParams.get('session_id') || sessionStorage.getItem('session_id');
-            if (!sessionId) {
-                alert('No session found. Redirecting to start...');
-                window.location.href = '/';
-                return null;
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Choose Your Weapon</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+                background-color: #2c3e50;
+                color: white;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                overflow: hidden;
             }
-            return sessionId;
-        }
 
-        async function selectWeapon(weaponIndex) {
-            const sessionId = getSessionId();
-            if (!sessionId) return;
+            h1 {
+                font-size: 2.5em;
+                margin: 20px 0;
+                text-align: center;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            }
 
-            // Show loading spinner
-            document.getElementById('loading').classList.add('active');
+            .grid-container {
+                display: grid;
+                grid-template-columns: repeat(2, min(200px, 25vw));
+                grid-template-rows: repeat(2, min(200px, 25vw));
+                gap: 15px;
+                padding: 10px;
+            }
 
-            try {
-                const response = await fetch(`/session/${sessionId}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        weapon: weaponIndex
-                    })
-                });
+            .weapon-button {
+                border: none;
+                padding: 0;
+                cursor: pointer;
+                position: relative;
+                overflow: hidden;
+                border-radius: 10px;
+                transition:
+                    transform 0.3s ease,
+                    box-shadow 0.3s ease;
+                background-color: #34495e;
+                width: 100%;
+                height: 100%;
+            }
 
-                const data = await response.json();
+            .weapon-button:hover {
+                transform: scale(1.05);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            }
 
-                if (data.ok) {
-                    // Store session ID and proceed to land selection
-                    sessionStorage.setItem('session_id', sessionId);
-                    window.location.href = `/land?session_id=${sessionId}`;
-                } else {
-                    alert('Error updating selection: ' + (data.error || 'Unknown error'));
-                    document.getElementById('loading').classList.remove('active');
+            .weapon-button img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+
+            .weapon-button:active {
+                transform: scale(0.98);
+            }
+
+            .loading {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .loading.active {
+                display: flex;
+            }
+
+            .spinner {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #3498db;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
                 }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Network error. Please try again.');
-                document.getElementById('loading').classList.remove('active');
+                100% {
+                    transform: rotate(360deg);
+                }
             }
-        }
 
-        // Ensure session ID is available on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            const sessionId = getSessionId();
-            if (sessionId) {
-                // Store in sessionStorage for consistency
-                sessionStorage.setItem('session_id', sessionId);
+            /* Responsive adjustments for smaller screens */
+            @media (max-height: 600px) {
+                h1 {
+                    font-size: 2em;
+                    margin: 10px 0;
+                }
+                .grid-container {
+                    grid-template-columns: repeat(2, min(150px, 22vw));
+                    grid-template-rows: repeat(2, min(150px, 22vw));
+                    gap: 10px;
+                }
             }
-        });
-    </script>
-</body>
+        </style>
+    </head>
+    <body>
+        <h1>Choose Your Weapon</h1>
+
+        <div class="grid-container">
+            <button class="weapon-button" onclick="selectWeapon(0)">
+                <img src="/static/resized_output/sword.jpg" alt="Sword" />
+            </button>
+            <button class="weapon-button" onclick="selectWeapon(1)">
+                <img src="/static/resized_output/hammer.jpg" alt="Hammer" />
+            </button>
+            <button class="weapon-button" onclick="selectWeapon(2)">
+                <img src="/static/resized_output/pistol.jpg" alt="Pistol" />
+            </button>
+            <button class="weapon-button" onclick="selectWeapon(3)">
+                <img src="/static/resized_output/fie.jpg" alt="Fie" />
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+        </div>
+
+        <script>
+            // Get session ID from URL or sessionStorage
+            function getSessionId() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId =
+                    urlParams.get("session_id") ||
+                    sessionStorage.getItem("session_id");
+                if (!sessionId) {
+                    alert("No session found. Redirecting to start...");
+                    window.location.href = "/";
+                    return null;
+                }
+                return sessionId;
+            }
+
+            async function selectWeapon(weaponIndex) {
+                const sessionId = getSessionId();
+                if (!sessionId) return;
+
+                // Show loading spinner
+                document.getElementById("loading").classList.add("active");
+
+                try {
+                    const response = await fetch(`/session/${sessionId}`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            weapon: weaponIndex,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.ok) {
+                        // Store session ID and proceed to land selection
+                        sessionStorage.setItem("session_id", sessionId);
+                        window.location.href = `/land?session_id=${sessionId}`;
+                    } else {
+                        alert(
+                            "Error updating selection: " +
+                                (data.error || "Unknown error"),
+                        );
+                        document
+                            .getElementById("loading")
+                            .classList.remove("active");
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                    alert("Network error. Please try again.");
+                    document
+                        .getElementById("loading")
+                        .classList.remove("active");
+                }
+            }
+
+            // Ensure session ID is available on page load
+            window.addEventListener("DOMContentLoaded", () => {
+                const sessionId = getSessionId();
+                if (sessionId) {
+                    // Store in sessionStorage for consistency
+                    sessionStorage.setItem("session_id", sessionId);
+                }
+            });
+        </script>
+    </body>
 </html>
