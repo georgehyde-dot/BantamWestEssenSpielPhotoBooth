@@ -43,6 +43,10 @@ chromium-browser \
     --window-position=0,0 \
     --disable-pinch \
     --overscroll-history-navigation=0 \
+    --enable-features=VirtualKeyboard \
+    --touch-events=enabled \
+    --enable-touch-drag-drop \
+    --enable-touch-editing \
     http://localhost:8080/ &
 BROWSER_PID=$!
 

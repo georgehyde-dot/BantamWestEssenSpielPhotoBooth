@@ -6,7 +6,7 @@
             name="viewport"
             content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
         />
-        <title>Enter Your Names</title>
+        <title>Enter Group Name</title>
         <style>
             * {
                 margin: 0;
@@ -19,26 +19,28 @@
                     -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                     Oxygen, Ubuntu, Cantarell, sans-serif;
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
-                overflow-x: hidden;
-                position: relative;
-            }
-
-            .container {
-                padding: 30px 20px;
-                max-width: 800px;
-                margin: 0 auto;
-                min-height: 100vh;
+                height: 100vh;
+                overflow: hidden;
                 display: flex;
                 flex-direction: column;
-                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .main-content {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                padding: 20px;
+                transition: all 0.3s ease;
+            }
+
+            .main-content.keyboard-active {
+                padding-bottom: 10px;
             }
 
             .header {
-                flex-shrink: 0;
                 text-align: center;
-                margin-bottom: 40px;
-                animation: fadeInDown 0.6s ease-out;
+                margin-bottom: 20px;
+                animation: fadeInDown 0.8s ease-out;
             }
 
             .header h1 {
@@ -47,97 +49,78 @@
                 font-weight: bold;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
                 margin-bottom: 10px;
+                transition: font-size 0.3s ease;
+            }
+
+            .main-content.keyboard-active .header h1 {
+                font-size: 32px;
             }
 
             .header p {
                 color: rgba(255, 255, 255, 0.9);
                 font-size: 18px;
                 text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+                transition: opacity 0.3s ease;
             }
 
-            .name-inputs {
+            .main-content.keyboard-active .header p {
+                opacity: 0;
+                height: 0;
+                margin: 0;
+            }
+
+            .input-container {
                 flex: 1;
                 display: flex;
                 flex-direction: column;
-                justify-content: center;
-                gap: 30px;
-                margin-bottom: 30px;
+                justify-content: flex-start;
+                align-items: center;
+                max-width: 600px;
+                width: 100%;
+                margin: 0 auto;
+                padding-top: 40px;
                 animation: fadeIn 0.8s ease-out 0.2s both;
             }
 
-            .input-group {
-                position: relative;
-                transition: all 0.3s ease;
+            .input-wrapper {
+                width: 100%;
+                margin-bottom: 40px;
             }
 
             .input-label {
-                position: absolute;
-                top: -25px;
-                left: 20px;
-                color: rgba(255, 255, 255, 0.9);
-                font-size: 14px;
-                font-weight: 500;
+                display: block;
+                color: rgba(255, 255, 255, 0.95);
+                font-size: 16px;
+                font-weight: 600;
+                margin-bottom: 12px;
+                text-align: center;
                 text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
-                opacity: 0;
-                transition: all 0.3s ease;
             }
 
-            .input-group.has-value .input-label,
-            .name-input:focus ~ .input-label {
-                opacity: 1;
-                transform: translateY(-5px);
-            }
-
-            /* When keyboard is open, adjust the container */
-            .container.keyboard-open {
-                padding-top: 20px;
-            }
-
-            .container.keyboard-open .header h1 {
-                font-size: 32px;
-            }
-
-            .container.keyboard-open .header p {
-                display: none;
-            }
-
-            .name-input {
+            .group-name-input {
                 width: 100%;
                 padding: 25px;
                 font-size: 24px;
                 border: 3px solid rgba(255, 255, 255, 0.3);
-                border-radius: 15px;
+                border-radius: 20px;
                 text-align: center;
                 background: rgba(255, 255, 255, 0.95);
                 color: #333;
                 cursor: pointer;
                 transition: all 0.3s ease;
                 box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-                position: relative;
             }
 
-            .name-input::placeholder {
+            .group-name-input::placeholder {
                 color: #999;
                 font-style: italic;
             }
 
-            .name-input.active {
+            .group-name-input.active {
                 border-color: white;
                 background: white;
                 transform: scale(1.02);
                 box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-            }
-
-            /* Hide non-active inputs when keyboard is open */
-            .container.keyboard-open .input-group:not(:has(.active)) {
-                opacity: 0.5;
-                transform: scale(0.95);
-            }
-
-            .submit-section {
-                flex-shrink: 0;
-                margin-top: 20px;
-                animation: fadeInUp 0.8s ease-out 0.4s both;
             }
 
             .submit-btn {
@@ -152,6 +135,7 @@
                 cursor: pointer;
                 box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
                 transition: all 0.3s ease;
+                animation: fadeInUp 0.8s ease-out 0.3s both;
             }
 
             .submit-btn:hover:not(:disabled) {
@@ -173,26 +157,20 @@
             /* Custom Keyboard Styles */
             .custom-keyboard {
                 position: fixed;
-                bottom: 0;
+                bottom: -100%;
                 left: 0;
                 right: 0;
                 background: rgba(245, 245, 245, 0.98);
                 backdrop-filter: blur(10px);
-                border-top: 1px solid rgba(0, 0, 0, 0.1);
+                border-top: 2px solid rgba(0, 0, 0, 0.1);
                 padding: 15px 10px 20px;
                 z-index: 1000;
-                display: none;
                 box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
-                animation: slideUp 0.3s ease-out;
+                transition: bottom 0.3s ease-out;
             }
 
-            @keyframes slideUp {
-                from {
-                    transform: translateY(100%);
-                }
-                to {
-                    transform: translateY(0);
-                }
+            .custom-keyboard.active {
+                bottom: 0;
             }
 
             .keyboard-row {
@@ -209,8 +187,8 @@
                 padding: 0;
                 font-size: 20px;
                 font-weight: 500;
-                min-width: 50px;
-                height: 55px;
+                width: 52px;
+                height: 52px;
                 cursor: pointer;
                 user-select: none;
                 display: flex;
@@ -219,6 +197,7 @@
                 transition: all 0.1s ease;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
                 color: #333;
+                flex-shrink: 0;
             }
 
             .key:active {
@@ -244,13 +223,49 @@
             }
 
             .key.wide {
-                flex: 2;
-                min-width: 120px;
+                width: 80px;
+            }
+
+            .key.wider {
+                width: 100px;
             }
 
             .key.space {
-                flex: 3;
-                min-width: 200px;
+                width: 250px;
+            }
+
+            /* Keyboard tabs for language switching */
+            .keyboard-tabs {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 10px;
+                gap: 8px;
+            }
+
+            .keyboard-tab {
+                padding: 8px 16px;
+                background: white;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+                color: #666;
+                transition: all 0.2s ease;
+            }
+
+            .keyboard-tab.active {
+                background: #667eea;
+                color: white;
+                border-color: #667eea;
+            }
+
+            .keyboard-layout {
+                display: none;
+            }
+
+            .keyboard-layout.active {
+                display: block;
             }
 
             /* Animations */
@@ -285,20 +300,57 @@
                 }
             }
 
-            @media (max-width: 480px) {
-                .header h1 {
-                    font-size: 32px;
+            /* Responsive adjustments */
+            @media (max-width: 768px) {
+                .key {
+                    width: 45px;
+                    height: 45px;
+                    font-size: 18px;
                 }
 
-                .name-input {
+                .key.space {
+                    width: 200px;
+                }
+
+                .keyboard-row {
+                    gap: 5px;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .header h1 {
+                    font-size: 36px;
+                }
+
+                .main-content.keyboard-active .header h1 {
+                    font-size: 28px;
+                }
+
+                .group-name-input {
                     font-size: 20px;
                     padding: 20px;
                 }
 
                 .key {
-                    min-width: 40px;
-                    height: 48px;
-                    font-size: 18px;
+                    width: 38px;
+                    height: 38px;
+                    font-size: 16px;
+                }
+
+                .key.wide {
+                    width: 65px;
+                }
+
+                .key.wider {
+                    width: 85px;
+                }
+
+                .key.space {
+                    width: 160px;
+                }
+
+                .keyboard-row {
+                    gap: 4px;
                 }
 
                 .custom-keyboard {
@@ -308,39 +360,33 @@
         </style>
     </head>
     <body>
-        <div class="container" id="mainContainer">
+        <div class="main-content" id="mainContent">
             <div class="header">
-                <h1>Enter Your Names</h1>
-                <p>Who's creating this adventure?</p>
+                <h1>Enter Group Name</h1>
+                <p>Who's creating this adventure today?</p>
             </div>
 
-            <div class="name-inputs">
-                <div class="input-group" id="firstNameGroup">
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <label class="input-label" for="groupName"
+                        >Group Name</label
+                    >
                     <input
                         type="text"
-                        id="firstName"
-                        class="name-input"
-                        placeholder="Tap to enter first name"
+                        id="groupName"
+                        class="group-name-input"
+                        placeholder="Tap to enter group name"
                         readonly
-                        maxlength="30"
+                        maxlength="50"
                     />
-                    <label class="input-label">First Name</label>
                 </div>
-                <div class="input-group" id="secondNameGroup">
-                    <input
-                        type="text"
-                        id="secondName"
-                        class="name-input"
-                        placeholder="Tap to enter second name (optional)"
-                        readonly
-                        maxlength="30"
-                    />
-                    <label class="input-label">Second Name (Optional)</label>
-                </div>
-            </div>
 
-            <div class="submit-section">
-                <button id="submitBtn" class="submit-btn" disabled>
+                <button
+                    id="submitBtn"
+                    class="submit-btn"
+                    type="button"
+                    disabled
+                >
                     Continue to Photo Booth
                 </button>
             </div>
@@ -348,63 +394,239 @@
 
         <!-- Custom Keyboard -->
         <div id="customKeyboard" class="custom-keyboard">
-            <div class="keyboard-row">
-                <button type="button" class="key" data-key="Q">Q</button>
-                <button type="button" class="key" data-key="W">W</button>
-                <button type="button" class="key" data-key="E">E</button>
-                <button type="button" class="key" data-key="R">R</button>
-                <button type="button" class="key" data-key="T">T</button>
-                <button type="button" class="key" data-key="Y">Y</button>
-                <button type="button" class="key" data-key="U">U</button>
-                <button type="button" class="key" data-key="I">I</button>
-                <button type="button" class="key" data-key="O">O</button>
-                <button type="button" class="key" data-key="P">P</button>
-            </div>
-            <div class="keyboard-row">
-                <button type="button" class="key" data-key="A">A</button>
-                <button type="button" class="key" data-key="S">S</button>
-                <button type="button" class="key" data-key="D">D</button>
-                <button type="button" class="key" data-key="F">F</button>
-                <button type="button" class="key" data-key="G">G</button>
-                <button type="button" class="key" data-key="H">H</button>
-                <button type="button" class="key" data-key="J">J</button>
-                <button type="button" class="key" data-key="K">K</button>
-                <button type="button" class="key" data-key="L">L</button>
-            </div>
-            <div class="keyboard-row">
-                <button type="button" class="key special" data-key="shift">
-                    ⇧
+            <div class="keyboard-tabs">
+                <button
+                    type="button"
+                    class="keyboard-tab active"
+                    data-layout="abc"
+                >
+                    ABC
                 </button>
-                <button type="button" class="key" data-key="Z">Z</button>
-                <button type="button" class="key" data-key="X">X</button>
-                <button type="button" class="key" data-key="C">C</button>
-                <button type="button" class="key" data-key="V">V</button>
-                <button type="button" class="key" data-key="B">B</button>
-                <button type="button" class="key" data-key="N">N</button>
-                <button type="button" class="key" data-key="M">M</button>
-                <button type="button" class="key special" data-key="backspace">
-                    ⌫
+                <button
+                    type="button"
+                    class="keyboard-tab"
+                    data-layout="special"
+                >
+                    ÄÖÜ
+                </button>
+                <button
+                    type="button"
+                    class="keyboard-tab"
+                    data-layout="symbols"
+                >
+                    123
                 </button>
             </div>
-            <div class="keyboard-row">
-                <button type="button" class="key special" data-key="&">
-                    &
-                </button>
-                <button type="button" class="key special space" data-key=" ">
-                    Space
-                </button>
-                <button type="button" class="key special" data-key="clear">
-                    Clear
-                </button>
-                <button type="button" class="key special" data-key="done">
-                    Done
-                </button>
+
+            <!-- Main ABC Layout -->
+            <div class="keyboard-layout active" id="abc-layout">
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="Q">Q</button>
+                    <button type="button" class="key" data-key="W">W</button>
+                    <button type="button" class="key" data-key="E">E</button>
+                    <button type="button" class="key" data-key="R">R</button>
+                    <button type="button" class="key" data-key="T">T</button>
+                    <button type="button" class="key" data-key="Y">Y</button>
+                    <button type="button" class="key" data-key="U">U</button>
+                    <button type="button" class="key" data-key="I">I</button>
+                    <button type="button" class="key" data-key="O">O</button>
+                    <button type="button" class="key" data-key="P">P</button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="A">A</button>
+                    <button type="button" class="key" data-key="S">S</button>
+                    <button type="button" class="key" data-key="D">D</button>
+                    <button type="button" class="key" data-key="F">F</button>
+                    <button type="button" class="key" data-key="G">G</button>
+                    <button type="button" class="key" data-key="H">H</button>
+                    <button type="button" class="key" data-key="J">J</button>
+                    <button type="button" class="key" data-key="K">K</button>
+                    <button type="button" class="key" data-key="L">L</button>
+                </div>
+                <div class="keyboard-row">
+                    <button
+                        type="button"
+                        class="key special wide"
+                        data-key="shift"
+                    >
+                        ⇧
+                    </button>
+                    <button type="button" class="key" data-key="Z">Z</button>
+                    <button type="button" class="key" data-key="X">X</button>
+                    <button type="button" class="key" data-key="C">C</button>
+                    <button type="button" class="key" data-key="V">V</button>
+                    <button type="button" class="key" data-key="B">B</button>
+                    <button type="button" class="key" data-key="N">N</button>
+                    <button type="button" class="key" data-key="M">M</button>
+                    <button
+                        type="button"
+                        class="key special wide"
+                        data-key="backspace"
+                    >
+                        ⌫
+                    </button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key special" data-key="&">
+                        &
+                    </button>
+                    <button
+                        type="button"
+                        class="key special space"
+                        data-key=" "
+                    >
+                        Space
+                    </button>
+                    <button type="button" class="key special" data-key="clear">
+                        Clear
+                    </button>
+                    <button
+                        type="button"
+                        class="key special wider"
+                        data-key="done"
+                    >
+                        Done
+                    </button>
+                </div>
+            </div>
+
+            <!-- Special Characters Layout (German, etc.) -->
+            <div class="keyboard-layout" id="special-layout">
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="Ä">Ä</button>
+                    <button type="button" class="key" data-key="Ö">Ö</button>
+                    <button type="button" class="key" data-key="Ü">Ü</button>
+                    <button type="button" class="key" data-key="ä">ä</button>
+                    <button type="button" class="key" data-key="ö">ö</button>
+                    <button type="button" class="key" data-key="ü">ü</button>
+                    <button type="button" class="key" data-key="ß">ß</button>
+                    <button type="button" class="key" data-key="€">€</button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="À">À</button>
+                    <button type="button" class="key" data-key="È">È</button>
+                    <button type="button" class="key" data-key="É">É</button>
+                    <button type="button" class="key" data-key="Ç">Ç</button>
+                    <button type="button" class="key" data-key="Ñ">Ñ</button>
+                    <button type="button" class="key" data-key="à">à</button>
+                    <button type="button" class="key" data-key="è">è</button>
+                    <button type="button" class="key" data-key="é">é</button>
+                    <button type="button" class="key" data-key="ç">ç</button>
+                    <button type="button" class="key" data-key="ñ">ñ</button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="Á">Á</button>
+                    <button type="button" class="key" data-key="Í">Í</button>
+                    <button type="button" class="key" data-key="Ó">Ó</button>
+                    <button type="button" class="key" data-key="Ú">Ú</button>
+                    <button type="button" class="key" data-key="á">á</button>
+                    <button type="button" class="key" data-key="í">í</button>
+                    <button type="button" class="key" data-key="ó">ó</button>
+                    <button type="button" class="key" data-key="ú">ú</button>
+                    <button
+                        type="button"
+                        class="key special wide"
+                        data-key="backspace"
+                    >
+                        ⌫
+                    </button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key special" data-key="'">
+                        '
+                    </button>
+                    <button
+                        type="button"
+                        class="key special space"
+                        data-key=" "
+                    >
+                        Space
+                    </button>
+                    <button type="button" class="key special" data-key="clear">
+                        Clear
+                    </button>
+                    <button
+                        type="button"
+                        class="key special wider"
+                        data-key="done"
+                    >
+                        Done
+                    </button>
+                </div>
+            </div>
+
+            <!-- Numbers & Symbols Layout -->
+            <div class="keyboard-layout" id="symbols-layout">
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="1">1</button>
+                    <button type="button" class="key" data-key="2">2</button>
+                    <button type="button" class="key" data-key="3">3</button>
+                    <button type="button" class="key" data-key="4">4</button>
+                    <button type="button" class="key" data-key="5">5</button>
+                    <button type="button" class="key" data-key="6">6</button>
+                    <button type="button" class="key" data-key="7">7</button>
+                    <button type="button" class="key" data-key="8">8</button>
+                    <button type="button" class="key" data-key="9">9</button>
+                    <button type="button" class="key" data-key="0">0</button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="!">!</button>
+                    <button type="button" class="key" data-key="@">@</button>
+                    <button type="button" class="key" data-key="#">#</button>
+                    <button type="button" class="key" data-key="$">$</button>
+                    <button type="button" class="key" data-key="%">%</button>
+                    <button type="button" class="key" data-key="^">^</button>
+                    <button type="button" class="key" data-key="&">&</button>
+                    <button type="button" class="key" data-key="*">*</button>
+                    <button type="button" class="key" data-key="(">(</button>
+                    <button type="button" class="key" data-key=")">)</button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key" data-key="-">-</button>
+                    <button type="button" class="key" data-key="_">_</button>
+                    <button type="button" class="key" data-key="=">=</button>
+                    <button type="button" class="key" data-key="+">+</button>
+                    <button type="button" class="key" data-key="/">/</button>
+                    <button type="button" class="key" data-key=".">.</button>
+                    <button type="button" class="key" data-key=",">,</button>
+                    <button type="button" class="key" data-key="?">?</button>
+                    <button
+                        type="button"
+                        class="key special wide"
+                        data-key="backspace"
+                    >
+                        ⌫
+                    </button>
+                </div>
+                <div class="keyboard-row">
+                    <button type="button" class="key special" data-key="'">
+                        '
+                    </button>
+                    <button
+                        type="button"
+                        class="key special space"
+                        data-key=" "
+                    >
+                        Space
+                    </button>
+                    <button type="button" class="key special" data-key="clear">
+                        Clear
+                    </button>
+                    <button
+                        type="button"
+                        class="key special wider"
+                        data-key="done"
+                    >
+                        Done
+                    </button>
+                </div>
             </div>
         </div>
 
         <script>
             let activeInput = null;
             let isShiftPressed = false;
+            let currentLayout = "abc";
             const sessionId = sessionStorage.getItem("session_id");
 
             // Redirect to start if no session
@@ -412,46 +634,52 @@
                 window.location.href = "/";
             }
 
+            const groupNameInput = document.getElementById("groupName");
+            const submitBtn = document.getElementById("submitBtn");
+            const keyboard = document.getElementById("customKeyboard");
+            const mainContent = document.getElementById("mainContent");
+
             // Handle input clicks
-            document.querySelectorAll(".name-input").forEach((input) => {
-                input.addEventListener("click", function () {
-                    // Remove active class from all inputs
-                    document.querySelectorAll(".name-input").forEach((inp) => {
-                        inp.classList.remove("active");
-                    });
+            groupNameInput.addEventListener("click", function () {
+                this.classList.add("active");
+                activeInput = this;
 
-                    // Add active class to clicked input
-                    this.classList.add("active");
-                    activeInput = this;
+                // Show keyboard
+                keyboard.classList.add("active");
+                mainContent.classList.add("keyboard-active");
 
-                    // Show keyboard and adjust container
-                    document.getElementById("customKeyboard").style.display =
-                        "block";
-                    document
-                        .getElementById("mainContainer")
-                        .classList.add("keyboard-open");
+                // Ensure input is visible by scrolling to top
+                window.scrollTo(0, 0);
+            });
 
-                    // Scroll input into view
-                    setTimeout(() => {
-                        this.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                        });
-                    }, 100);
+            // Handle keyboard tab switching
+            document.querySelectorAll(".keyboard-tab").forEach((tab) => {
+                tab.addEventListener("click", function () {
+                    const layoutName = this.dataset.layout;
+                    switchLayout(layoutName);
                 });
             });
 
-            // Update input group state
-            function updateInputGroupState() {
-                ["firstName", "secondName"].forEach((id) => {
-                    const input = document.getElementById(id);
-                    const group = document.getElementById(id + "Group");
-                    if (input.value.trim()) {
-                        group.classList.add("has-value");
-                    } else {
-                        group.classList.remove("has-value");
-                    }
+            function switchLayout(layoutName) {
+                // Update tabs
+                document.querySelectorAll(".keyboard-tab").forEach((tab) => {
+                    tab.classList.remove("active");
                 });
+                document
+                    .querySelector(`[data-layout="${layoutName}"]`)
+                    .classList.add("active");
+
+                // Update layouts
+                document
+                    .querySelectorAll(".keyboard-layout")
+                    .forEach((layout) => {
+                        layout.classList.remove("active");
+                    });
+                document
+                    .getElementById(`${layoutName}-layout`)
+                    .classList.add("active");
+
+                currentLayout = layoutName;
             }
 
             // Handle keyboard keys
@@ -482,44 +710,56 @@
 
                         default:
                             let char = keyValue;
-                            if (keyValue.match(/[A-Z]/) && !isShiftPressed) {
+
+                            // Handle shift for letters in ABC layout
+                            if (
+                                currentLayout === "abc" &&
+                                keyValue.match(/[A-Z]/) &&
+                                !isShiftPressed
+                            ) {
                                 char = char.toLowerCase();
                             }
 
-                            // Handle first character capitalization
+                            // Handle first character capitalization for ABC layout
                             if (
-                                activeInput.value.length === 0 ||
-                                activeInput.value[
-                                    activeInput.value.length - 1
-                                ] === " "
+                                currentLayout === "abc" &&
+                                (activeInput.value.length === 0 ||
+                                    activeInput.value[
+                                        activeInput.value.length - 1
+                                    ] === " ")
                             ) {
-                                char = char.toUpperCase();
+                                if (keyValue.match(/[A-Z]/)) {
+                                    char = char.toUpperCase();
+                                }
                             }
 
                             activeInput.value += char;
 
-                            // Auto-disable shift after typing a letter
-                            if (isShiftPressed && keyValue.match(/[A-Z]/)) {
+                            // Auto-disable shift after typing a letter in ABC layout
+                            if (
+                                currentLayout === "abc" &&
+                                isShiftPressed &&
+                                keyValue.match(/[A-Z]/)
+                            ) {
                                 isShiftPressed = false;
-                                document
-                                    .querySelector('[data-key="shift"]')
-                                    .classList.remove("shift-active");
+                                const shiftKey = document.querySelector(
+                                    '#abc-layout [data-key="shift"]',
+                                );
+                                if (shiftKey) {
+                                    shiftKey.classList.remove("shift-active");
+                                }
                                 updateKeyboardCase();
                             }
                             break;
                     }
 
                     updateSubmitButton();
-                    updateInputGroupState();
                 });
             });
 
             function closeKeyboard() {
-                document.getElementById("customKeyboard").style.display =
-                    "none";
-                document
-                    .getElementById("mainContainer")
-                    .classList.remove("keyboard-open");
+                keyboard.classList.remove("active");
+                mainContent.classList.remove("keyboard-active");
                 if (activeInput) {
                     activeInput.classList.remove("active");
                     activeInput = null;
@@ -527,7 +767,9 @@
             }
 
             function updateKeyboardCase() {
-                document.querySelectorAll(".key").forEach((key) => {
+                if (currentLayout !== "abc") return;
+
+                document.querySelectorAll("#abc-layout .key").forEach((key) => {
                     const keyValue = key.dataset.key;
                     if (keyValue && keyValue.match(/[A-Z]/)) {
                         key.textContent = isShiftPressed
@@ -538,61 +780,46 @@
             }
 
             function updateSubmitButton() {
-                const firstName = document
-                    .getElementById("firstName")
-                    .value.trim();
-                const submitBtn = document.getElementById("submitBtn");
-
-                submitBtn.disabled = firstName.length === 0;
+                const groupName = groupNameInput.value.trim();
+                submitBtn.disabled = groupName.length === 0;
             }
 
             // Handle submit
-            document
-                .getElementById("submitBtn")
-                .addEventListener("click", async function () {
-                    const firstName = document
-                        .getElementById("firstName")
-                        .value.trim();
-                    const secondName = document
-                        .getElementById("secondName")
-                        .value.trim();
+            submitBtn.addEventListener("click", async function () {
+                const groupName = groupNameInput.value.trim();
 
-                    if (!firstName) return;
+                if (!groupName) return;
 
-                    this.disabled = true;
-                    this.textContent = "Saving...";
+                this.disabled = true;
+                this.textContent = "Saving...";
 
-                    const groupName = secondName
-                        ? `${firstName} & ${secondName}`
-                        : firstName;
+                try {
+                    // Update session with group name
+                    const response = await fetch(`/session/${sessionId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ group_name: groupName }),
+                    });
 
-                    try {
-                        // Update session with group name
-                        const response = await fetch(`/session/${sessionId}`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ group_name: groupName }),
-                        });
-
-                        if (response.ok) {
-                            // Navigate to copies selection
-                            window.location.href = `/copies?session_id=${sessionId}`;
-                        } else {
-                            throw new Error("Failed to save names");
-                        }
-                    } catch (error) {
-                        console.error("Error:", error);
-                        this.disabled = false;
-                        this.textContent = "Continue to Photo Booth";
-                        alert("Error saving names. Please try again.");
+                    if (response.ok) {
+                        // Navigate to copies selection
+                        window.location.href = `/copies?session_id=${sessionId}`;
+                    } else {
+                        throw new Error("Failed to save group name");
                     }
-                });
+                } catch (error) {
+                    console.error("Error:", error);
+                    this.disabled = false;
+                    this.textContent = "Continue to Photo Booth";
+                    alert("Error saving group name. Please try again.");
+                }
+            });
 
             // Close keyboard when clicking outside
             document.addEventListener("click", function (e) {
                 if (
                     !e.target.closest(".custom-keyboard") &&
-                    !e.target.closest(".name-input") &&
+                    !e.target.closest(".group-name-input") &&
                     activeInput
                 ) {
                     closeKeyboard();
@@ -602,7 +829,6 @@
             // Initialize
             updateSubmitButton();
             updateKeyboardCase();
-            updateInputGroupState();
         </script>
     </body>
 </html>
