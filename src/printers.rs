@@ -11,6 +11,7 @@ use printers::{
 use serde::Serialize;
 use std::error::Error;
 use std::fmt;
+use tracing::{info, warn};
 
 // Printer types and enums
 #[derive(Debug, Clone, Serialize)]
@@ -87,22 +88,52 @@ impl EpsonPrinter {
         // Get all available printers
         let printers = get_printers();
 
-        // Prioritize TurboPrint printer
+        info!("Looking for printer: {}", printer_name);
+        info!("Available printers:");
+        for printer in &printers {
+            info!(
+                "  - Name: '{}', System Name: '{}', URI: '{}'",
+                printer.name, printer.system_name, printer.uri
+            );
+        }
+
+        // Look for exact match first
         let cups_printer = printers
             .iter()
-            .find(|p| p.name.contains("TurboPrint") || p.system_name == "XP8700series-TurboPrint")
+            .find(|p| {
+                p.name == "XP8700series-TurboPrint" || p.system_name == "XP8700series-TurboPrint"
+            })
             .or_else(|| printers.iter().find(|p| p.name == printer_name))
+            .or_else(|| {
+                printers
+                    .iter()
+                    .find(|p| p.name.contains("XP8700") && p.name.contains("TurboPrint"))
+            })
+            .or_else(|| printers.iter().find(|p| p.name.contains("TurboPrint")))
             .cloned();
 
         match cups_printer {
-            Some(printer) => Ok(EpsonPrinter {
-                printer_name: printer.name.clone(),
-                cups_printer: Some(printer),
-            }),
-            None => Err(PrinterError::NotFound(format!(
-                "TurboPrint printer '{}' not found in CUPS",
-                printer_name
-            ))),
+            Some(printer) => {
+                info!(
+                    "Selected printer: '{}' (System: '{}')",
+                    printer.name, printer.system_name
+                );
+                Ok(EpsonPrinter {
+                    printer_name: printer.name.clone(),
+                    cups_printer: Some(printer),
+                })
+            }
+            None => {
+                warn!("Printer '{}' not found in CUPS", printer_name);
+                warn!("Available printers were:");
+                for printer in &printers {
+                    warn!("  - '{}'", printer.name);
+                }
+                Err(PrinterError::NotFound(format!(
+                    "TurboPrint printer '{}' not found in CUPS",
+                    printer_name
+                )))
+            }
         }
     }
 }
@@ -111,10 +142,17 @@ impl EpsonPrinter {
 #[async_trait]
 impl Printer for EpsonPrinter {
     async fn print_photo(&self, job: PrintJob) -> Result<String, PrinterError> {
+        info!(
+            "Starting print job: {} copies of {}",
+            job.copies, job.file_path
+        );
+
         let printer = self
             .cups_printer
             .as_ref()
             .ok_or_else(|| PrinterError::NotReady("Printer not initialized".to_string()))?;
+
+        info!("Using printer: {}", printer.name);
 
         // Check if file exists
         let file_path = std::path::Path::new(&job.file_path);
@@ -172,6 +210,10 @@ impl Printer for EpsonPrinter {
         }
 
         raw_properties.push(("copies", job.copies.to_string()));
+        info!(
+            "Print settings: {} copies, Paper: {:?}, Quality: {:?}",
+            job.copies, job.paper_size, job.quality
+        );
 
         let job_name = format!("PhotoBooth-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
         raw_properties.push(("job-name", job_name.clone()));
@@ -187,11 +229,17 @@ impl Printer for EpsonPrinter {
         };
 
         match printer.print_file(&print_file_path, options) {
-            Ok(job_id) => Ok(job_id.to_string()),
-            Err(e) => Err(PrinterError::PrintFailed(format!(
-                "CUPS print error: {}",
-                e
-            ))),
+            Ok(job_id) => {
+                info!("Print job submitted successfully with ID: {}", job_id);
+                Ok(job_id.to_string())
+            }
+            Err(e) => {
+                warn!("Print job failed: {}", e);
+                Err(PrinterError::PrintFailed(format!(
+                    "CUPS print error: {}",
+                    e
+                )))
+            }
         }
     }
 
@@ -254,9 +302,14 @@ impl Printer for MockPrinter {
 // Factory function to create appropriate printer instance
 #[cfg(feature = "printer-cups")]
 pub async fn new_printer() -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
+    info!("Initializing printer system...");
     new_printer_with_config(
         "XP8700series-TurboPrint",
-        &["EPSON_XP_8700_Series_USB", "XP-8700"],
+        &[
+            "EPSON_XP_8700_Series_USB",
+            "XP-8700",
+            "EPSON_XP-8700_Series",
+        ],
     )
     .await
 }
@@ -266,21 +319,36 @@ pub async fn new_printer_with_config(
     primary_name: &str,
     fallback_names: &[&str],
 ) -> Result<std::sync::Arc<dyn Printer + Send + Sync>, PrinterError> {
+    info!("Attempting to connect to printer: {}", primary_name);
+
     // Try primary printer first
     match EpsonPrinter::new(primary_name).await {
-        Ok(printer) => return Ok(std::sync::Arc::new(printer)),
-        Err(_) => {
+        Ok(printer) => {
+            info!("Successfully connected to primary printer");
+            return Ok(std::sync::Arc::new(printer));
+        }
+        Err(e) => {
+            warn!("Failed to connect to primary printer: {}", e);
+
             // Try fallback printers
             for name in fallback_names {
+                info!("Trying fallback printer: {}", name);
                 match EpsonPrinter::new(name).await {
-                    Ok(printer) => return Ok(std::sync::Arc::new(printer)),
-                    Err(_) => continue,
+                    Ok(printer) => {
+                        info!("Successfully connected to fallback printer: {}", name);
+                        return Ok(std::sync::Arc::new(printer));
+                    }
+                    Err(e) => {
+                        warn!("Failed to connect to {}: {}", name, e);
+                        continue;
+                    }
                 }
             }
         }
     }
 
     // Fall back to mock printer
+    warn!("No physical printer found, using mock printer for testing");
     Ok(std::sync::Arc::new(MockPrinter))
 }
 

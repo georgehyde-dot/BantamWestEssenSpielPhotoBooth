@@ -28,64 +28,58 @@
                     Arial,
                     sans-serif;
                 margin: 0;
-                min-height: 100vh;
+                height: 100vh;
                 display: flex;
                 flex-direction: column;
+                overflow: hidden;
             }
             #wrap {
-                padding: 20px;
+                padding: 15px;
                 text-align: center;
                 flex: 1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
+                justify-content: flex-start;
+                overflow-y: auto;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
             #wrap.keyboard-open {
                 padding-top: 10px;
+                padding-bottom: 280px; /* Space for keyboard */
             }
             h1 {
-                font-size: 2.5em;
+                font-size: 2em;
                 margin-bottom: 10px;
-                transition: font-size 0.3s ease;
-            }
-            #wrap.keyboard-open h1 {
-                font-size: 1.8em;
             }
             .photo-container {
-                margin: 20px 0;
-                max-width: min(90vw, 800px);
+                margin: 15px 0;
+                max-width: min(70vw, 400px);
                 width: 100%;
-                transition: all 0.3s ease;
-            }
-            #wrap.keyboard-open .photo-container {
-                max-width: min(80vw, 600px);
-                margin: 10px 0;
             }
             img.photo {
                 background: #222;
                 width: 100%;
                 height: auto;
+                max-height: 30vh;
+                object-fit: contain;
                 border-radius: 8px;
                 box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1);
             }
             .email-section {
-                margin: 30px 0;
+                margin: 20px 0;
                 width: 100%;
                 max-width: 500px;
             }
-            #wrap.keyboard-open .email-section {
-                margin: 15px 0;
-            }
             .email-label {
                 color: #aaa;
-                font-size: 1.1em;
+                font-size: 1em;
                 margin-bottom: 10px;
                 display: block;
             }
             .email-input {
                 width: 100%;
-                padding: 15px 20px;
+                padding: 12px 18px;
                 font-size: 18px;
                 border: 2px solid #444;
                 border-radius: 10px;
@@ -121,8 +115,8 @@
             }
             button,
             a.button {
-                font-size: 18px;
-                padding: 12px 24px;
+                font-size: 16px;
+                padding: 10px 20px;
                 border-radius: 8px;
                 border: 1px solid #666;
                 background: #1f1f1f;
@@ -149,14 +143,22 @@
             button.primary:hover:not(:disabled) {
                 background: #0052a3;
             }
+            button.success {
+                background: #28a745;
+                border-color: #28a745;
+                font-weight: bold;
+            }
+            button.success:hover:not(:disabled) {
+                background: #218838;
+            }
             .error {
                 color: #ff8080;
                 margin: 16px 0;
             }
             .filename {
                 color: #aaa;
-                font-size: 0.9rem;
-                margin: 8px 0;
+                font-size: 0.8rem;
+                margin: 5px 0;
                 word-break: break-all;
             }
 
@@ -169,11 +171,12 @@
                 background: rgba(30, 30, 30, 0.98);
                 backdrop-filter: blur(10px);
                 border-top: 1px solid #444;
-                padding: 15px 10px 20px;
+                padding: 10px 5px 15px;
                 z-index: 1000;
                 display: none;
                 box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
                 animation: slideUp 0.3s ease-out;
+                max-height: 280px;
             }
             @keyframes slideUp {
                 from {
@@ -186,18 +189,19 @@
             .keyboard-row {
                 display: flex;
                 justify-content: center;
-                margin: 6px 0;
-                gap: 6px;
+                margin: 4px 0;
+                gap: 4px;
             }
             .key {
                 background: #2a2a2a;
                 border: 1px solid #444;
-                border-radius: 8px;
+                border-radius: 6px;
                 padding: 0;
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: 500;
-                min-width: 40px;
-                height: 48px;
+                min-width: 32px;
+                width: 32px;
+                height: 42px;
                 cursor: pointer;
                 user-select: none;
                 display: flex;
@@ -205,6 +209,8 @@
                 justify-content: center;
                 transition: all 0.1s ease;
                 color: #fff;
+                flex: 1;
+                max-width: 45px;
             }
             .key:active {
                 background: #444;
@@ -214,22 +220,29 @@
                 background: #1a1a1a;
                 color: #aaa;
                 font-weight: 600;
+                font-size: 14px;
             }
             .key.special:active {
                 background: #333;
             }
-            .key.wide {
-                flex: 2;
-                min-width: 100px;
+            .key.backspace {
+                flex: 1.5;
+                max-width: 65px;
             }
             .key.space {
-                flex: 3;
-                min-width: 180px;
+                flex: 4;
+                max-width: 140px;
+            }
+            .key.at-symbol {
+                background: #2a4a6a;
+                font-size: 18px;
+                font-weight: bold;
             }
             .key.done {
                 background: #0066cc;
                 color: white;
-                min-width: 80px;
+                flex: 1.5;
+                max-width: 70px;
             }
             .key.done:active {
                 background: #0052a3;
@@ -238,20 +251,56 @@
                 display: none !important;
             }
 
+            /* Ensure no scrolling when keyboard is open */
+            body.keyboard-active {
+                overflow: hidden;
+            }
+
             @media (max-width: 480px) {
                 h1 {
-                    font-size: 2em;
+                    font-size: 1.8em;
                 }
-                #wrap.keyboard-open h1 {
-                    font-size: 1.5em;
+                .photo-container {
+                    max-width: min(80vw, 350px);
+                }
+                img.photo {
+                    max-height: 25vh;
                 }
                 .key {
-                    min-width: 32px;
-                    height: 42px;
-                    font-size: 16px;
+                    min-width: 28px;
+                    width: 28px;
+                    height: 38px;
+                    font-size: 14px;
+                    max-width: 40px;
+                }
+                .key.space {
+                    max-width: 120px;
                 }
                 .custom-keyboard {
-                    padding: 10px 5px 15px;
+                    padding: 8px 3px 12px;
+                    max-height: 250px;
+                }
+            }
+
+            @media (max-height: 700px) {
+                #wrap {
+                    padding: 10px;
+                }
+                h1 {
+                    font-size: 1.6em;
+                    margin-bottom: 8px;
+                }
+                .photo-container {
+                    margin: 10px 0;
+                }
+                img.photo {
+                    max-height: 25vh;
+                }
+                .email-section {
+                    margin: 15px 0;
+                }
+                .actions {
+                    margin-top: 15px;
                 }
             }
         </style>
@@ -283,12 +332,20 @@
             <div class="actions">
                 <a class="button" href="/camera">Retake Photo</a>
                 <button
-                    id="printBtn"
+                    id="previewBtn"
                     class="button primary"
                     type="button"
                     disabled
                 >
                     Preview Adventure
+                </button>
+                <button
+                    id="printBtn"
+                    class="button success"
+                    type="button"
+                    disabled
+                >
+                    Print Photo
                 </button>
             </div>
 
@@ -332,21 +389,24 @@
                 <button type="button" class="key" data-key="b">b</button>
                 <button type="button" class="key" data-key="n">n</button>
                 <button type="button" class="key" data-key="m">m</button>
-                <button type="button" class="key special" data-key="backspace">
+                <button
+                    type="button"
+                    class="key special backspace"
+                    data-key="backspace"
+                >
                     ⌫
                 </button>
             </div>
             <div class="keyboard-row">
-                <button type="button" class="key" data-key="@">@</button>
                 <button type="button" class="key" data-key=".">.</button>
-                <button type="button" class="key" data-key="_">_</button>
-                <button type="button" class="key" data-key="-">-</button>
+                <button type="button" class="key at-symbol" data-key="@">
+                    @
+                </button>
                 <button type="button" class="key space" data-key=" ">
                     space
                 </button>
-                <button type="button" class="key special" data-key="clear">
-                    Clear
-                </button>
+                <button type="button" class="key" data-key="_">_</button>
+                <button type="button" class="key" data-key="-">-</button>
                 <button type="button" class="key special done" data-key="done">
                     Done
                 </button>
@@ -379,9 +439,11 @@
                 const errEl = document.getElementById("error");
                 const nameEl = document.getElementById("filename");
                 const emailInput = document.getElementById("emailInput");
+                const previewBtn = document.getElementById("previewBtn");
                 const printBtn = document.getElementById("printBtn");
                 const keyboard = document.getElementById("customKeyboard");
                 const wrap = document.getElementById("wrap");
+                const body = document.body;
 
                 // Email validation regex
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -415,19 +477,29 @@
                     this.classList.add("active");
                     keyboard.style.display = "block";
                     wrap.classList.add("keyboard-open");
+                    body.classList.add("keyboard-active");
 
-                    // Scroll input into view
+                    // Ensure email input is visible
                     setTimeout(() => {
-                        this.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                        });
+                        const rect = this.getBoundingClientRect();
+                        const keyboardHeight = 280;
+                        const viewportHeight = window.innerHeight;
+
+                        if (rect.bottom > viewportHeight - keyboardHeight) {
+                            wrap.scrollTop +=
+                                rect.bottom -
+                                (viewportHeight - keyboardHeight) +
+                                20;
+                        }
                     }, 100);
                 });
 
                 // Keyboard handling
                 document.querySelectorAll(".key").forEach((key) => {
-                    key.addEventListener("click", function () {
+                    key.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
                         const keyValue = this.dataset.key;
 
                         switch (keyValue) {
@@ -436,9 +508,6 @@
                                     0,
                                     -1,
                                 );
-                                break;
-                            case "clear":
-                                emailInput.value = "";
                                 break;
                             case "done":
                                 closeKeyboard();
@@ -449,12 +518,14 @@
                         }
 
                         validateEmail();
+                        emailInput.focus();
                     });
                 });
 
                 function closeKeyboard() {
                     keyboard.style.display = "none";
                     wrap.classList.remove("keyboard-open");
+                    body.classList.remove("keyboard-active");
                     emailInput.classList.remove("active");
                 }
 
@@ -467,10 +538,11 @@
                         emailInput.classList.add(isValid ? "valid" : "invalid");
                     }
 
+                    previewBtn.disabled = !isValid;
                     printBtn.disabled = !isValid;
                 }
 
-                // Preview button handling
+                // Print button handling
                 printBtn.addEventListener("click", async () => {
                     const email = emailInput.value.trim();
                     if (!emailRegex.test(email)) {
@@ -479,7 +551,116 @@
                     }
 
                     printBtn.disabled = true;
-                    printBtn.textContent = "Creating Preview...";
+                    printBtn.textContent = "Printing...";
+
+                    try {
+                        // First get session data to retrieve copies
+                        const sessionResponse = await fetch(
+                            `/session/${sessionId}`,
+                            {
+                                method: "GET",
+                            },
+                        );
+
+                        const sessionData = await sessionResponse.json();
+                        const copies =
+                            sessionData.ok && sessionData.session
+                                ? sessionData.session.copies_printed || 1
+                                : 1;
+
+                        printBtn.textContent = `Printing ${copies} ${copies === 1 ? "copy" : "copies"}...`;
+
+                        // Update session with email
+                        const updateResponse = await fetch(
+                            `/session/${sessionId}`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    email: email,
+                                    photo_path: src,
+                                }),
+                            },
+                        );
+
+                        if (!updateResponse.ok) {
+                            throw new Error("Failed to update session");
+                        }
+
+                        // Generate story based on selections before printing
+                        printBtn.textContent = "Generating story...";
+                        const storyResponse = await fetch(
+                            `/session/${sessionId}/generate-story`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            },
+                        );
+
+                        if (!storyResponse.ok) {
+                            console.warn(
+                                "Story generation failed, continuing with print anyway",
+                            );
+                        }
+
+                        printBtn.textContent = `Printing ${copies} ${copies === 1 ? "copy" : "copies"}...`;
+
+                        // Send print request
+                        const printResponse = await fetch("/print", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                filename: file,
+                                session_id: sessionId,
+                                copies: copies,
+                            }),
+                        });
+
+                        const result = await printResponse.json();
+
+                        if (result.ok) {
+                            // Save session to database before leaving
+                            await fetch(`/session/${sessionId}/save`, {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type": "application/json",
+                                },
+                            });
+
+                            // Clear session and return to start
+                            sessionStorage.removeItem("session_id");
+                            window.location.href = "/";
+                        } else {
+                            alert(
+                                "Print failed: " +
+                                    (result.error || "Unknown error"),
+                            );
+                            printBtn.textContent = "Print Photo";
+                            printBtn.disabled = false;
+                        }
+                    } catch (error) {
+                        alert("Print failed: " + error.message);
+                        printBtn.textContent = "Print Photo";
+                        printBtn.disabled = false;
+                    }
+                });
+
+                // Preview button handling
+                previewBtn.addEventListener("click", async () => {
+                    const email = emailInput.value.trim();
+                    if (!emailRegex.test(email)) {
+                        alert("Please enter a valid email address");
+                        return;
+                    }
+
+                    previewBtn.disabled = true;
+                    previewBtn.textContent = "Creating Preview...";
 
                     try {
                         // First update session with email
@@ -515,7 +696,7 @@
                         // Proceed with preview even if story generation fails
 
                         // Now generate preview
-                        printBtn.textContent = "Generating...";
+                        previewBtn.textContent = "Generating...";
                         const previewResponse = await fetch("/preview", {
                             method: "POST",
                             headers: {
@@ -542,6 +723,7 @@
                             previewImg.src = result.preview_url;
                             previewImg.className = "photo";
                             previewImg.style.maxWidth = "100%";
+                            previewImg.style.maxHeight = "60vh";
                             previewImg.alt = "Your adventure preview";
 
                             // Replace photo with preview
@@ -554,7 +736,8 @@
                             const h1 = document.querySelector("h1");
                             h1.textContent = "Your Adventure is Ready!";
 
-                            // Hide print button and show return button
+                            // Hide buttons and show return button
+                            previewBtn.style.display = "none";
                             printBtn.style.display = "none";
 
                             // Update the back button
@@ -582,21 +765,21 @@
                                 console.error(
                                     "Failed to save session to database",
                                 );
-                                printBtn.textContent = "Preview Adventure";
-                                printBtn.disabled = false;
+                                previewBtn.textContent = "Preview Adventure";
+                                previewBtn.disabled = false;
                             }
                         } else {
                             alert(
                                 "Preview failed: " +
                                     (result.error || "Unknown error"),
                             );
-                            printBtn.textContent = "Preview Adventure";
-                            printBtn.disabled = false;
+                            previewBtn.textContent = "Preview Adventure";
+                            previewBtn.disabled = false;
                         }
                     } catch (error) {
                         alert("Operation failed: " + error.message);
-                        printBtn.textContent = "Preview Adventure";
-                        printBtn.disabled = false;
+                        previewBtn.textContent = "Preview Adventure";
+                        previewBtn.disabled = false;
                     }
                 });
 
@@ -614,6 +797,7 @@
                 // If image fails to load, show an error
                 photoEl.addEventListener("error", () => {
                     photoEl.setAttribute("hidden", "hidden");
+                    previewBtn.style.display = "none";
                     printBtn.style.display = "none";
                     errEl.textContent = "Failed to load image: " + file;
                     errEl.classList.remove("hidden");

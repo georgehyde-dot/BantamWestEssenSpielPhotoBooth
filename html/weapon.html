@@ -28,10 +28,10 @@
 
             .grid-container {
                 display: grid;
-                grid-template-columns: repeat(2, min(200px, 25vw));
-                grid-template-rows: repeat(2, min(200px, 25vw));
-                gap: 15px;
+                grid-template-columns: repeat(4, min(300px, 22vw));
+                gap: 20px;
                 padding: 10px;
+                justify-content: center;
             }
 
             .weapon-button {
@@ -107,9 +107,12 @@
                     margin: 10px 0;
                 }
                 .grid-container {
-                    grid-template-columns: repeat(2, min(150px, 22vw));
-                    grid-template-rows: repeat(2, min(150px, 22vw));
+                    grid-template-columns: repeat(4, min(180px, 20vw));
                     gap: 10px;
+                }
+                .weapon-button {
+                    width: min(180px, 20vw);
+                    height: min(180px, 20vw);
                 }
             }
         </style>

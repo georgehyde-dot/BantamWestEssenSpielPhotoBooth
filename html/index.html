@@ -8,47 +8,166 @@
             :root {
                 color-scheme: dark;
             }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                height: 100vh;
+                overflow: hidden;
+            }
             body {
                 background: black;
                 color: white;
                 font-family: sans-serif;
                 text-align: center;
-                margin: 0;
+                display: flex;
+                flex-direction: column;
             }
             #wrap {
-                padding: 20px;
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                padding: 10px;
+                gap: 10px;
+            }
+            h1 {
+                font-size: 1.8em;
+                margin: 0;
+            }
+            h2#groupName {
+                color: #ccc;
+                font-size: 1.3em;
+                margin: 0;
+                min-height: 1.5em;
+            }
+            #instructions {
+                font-size: 1em;
+                color: #aaa;
+                margin: 0;
+            }
+            .preview-container {
+                position: relative;
+                display: inline-block;
+                max-width: 90vw;
+                max-height: 50vh;
+            }
+            #preview {
+                background: #222;
+                width: 100%;
+                height: auto;
+                max-width: 90vw;
+                max-height: 50vh;
+                object-fit: contain;
+                border-radius: 8px;
             }
             #countdown {
                 position: absolute;
-                top: 40%;
-                left: 0;
-                right: 0;
-                font-size: 80px;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: min(80px, 15vw);
+                font-weight: bold;
+                color: white;
+                text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+                z-index: 10;
             }
-            button {
-                font-size: 20px;
-                padding: 10px 20px;
+            #startBtn {
+                font-size: 1.2em;
+                padding: 12px 30px;
+                margin-top: 10px;
+                background: #0066cc;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.3s ease;
             }
-            img {
-                background: #222;
+            #startBtn:hover:not(:disabled) {
+                background: #0052a3;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
+            }
+            #startBtn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            /* Responsive adjustments */
+            @media (max-height: 700px) {
+                h1 {
+                    font-size: 1.5em;
+                }
+                h2#groupName {
+                    font-size: 1.1em;
+                }
+                #instructions {
+                    font-size: 0.9em;
+                }
+                #wrap {
+                    gap: 8px;
+                    padding: 8px;
+                }
+                .preview-container {
+                    max-height: 45vh;
+                }
+                #preview {
+                    max-height: 45vh;
+                }
+                #startBtn {
+                    padding: 10px 25px;
+                    font-size: 1.1em;
+                }
+            }
+
+            @media (max-height: 600px) {
+                h1 {
+                    font-size: 1.3em;
+                }
+                h2#groupName {
+                    font-size: 1em;
+                    min-height: 1.2em;
+                }
+                #instructions {
+                    display: none;
+                }
+                .preview-container {
+                    max-height: 40vh;
+                }
+                #preview {
+                    max-height: 40vh;
+                }
+                #startBtn {
+                    padding: 8px 20px;
+                    font-size: 1em;
+                    margin-top: 8px;
+                }
+            }
+
+            @media (min-width: 1024px) {
+                #preview {
+                    max-width: 800px;
+                    max-height: 60vh;
+                }
+                .preview-container {
+                    max-height: 60vh;
+                }
             }
         </style>
     </head>
     <body>
         <div id="wrap">
             <h1>Photo Booth Camera</h1>
-            <h2 id="groupName" style="color: #ccc; margin: 10px 0"></h2>
+            <h2 id="groupName"></h2>
             <p id="instructions">Get ready for your photo!</p>
-            <div style="position: relative; display: inline-block">
-                <img
-                    id="preview"
-                    src="/preview"
-                    width="800"
-                    alt="Preview stream"
-                />
+            <div class="preview-container">
+                <img id="preview" src="/preview" alt="Camera Preview" />
                 <div id="countdown"></div>
             </div>
-            <br />
             <button id="startBtn" onclick="startCountdown()">
                 Start Countdown
             </button>
@@ -116,12 +235,12 @@
                                         window.location.href = d.redirect;
                                     } else if (d.file) {
                                         window.location.href =
-                                            "/photo.html?file=" +
+                                            "/photo?file=" +
                                             encodeURIComponent(d.file);
                                     } else if (d.path) {
                                         // Accept path form; photo.html can parse ?path=/images/<name></name>
                                         window.location.href =
-                                            "/photo.html?path=" +
+                                            "/photo?path=" +
                                             encodeURIComponent(d.path);
                                     } else {
                                         resetWithError(
