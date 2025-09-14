@@ -1,6 +1,7 @@
 // GPhoto2-based camera implementation for Canon EOS Rebel T7
 // Uses gphoto2 CLI for preview streaming and capture operations
 
+use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -28,9 +29,21 @@ impl GPhotoCamera {
         })
     }
 
-    /// Kill any existing gphoto2 processes
+    /// Kill any existing gphoto2 and related processes
     fn kill_gphoto_processes() {
+        // Kill gphoto2 processes
         let _ = Command::new("pkill").args(&["-f", "gphoto2"]).output();
+        // Kill any ffmpeg processes that might be connected to v4l2 devices
+        let _ = Command::new("pkill").args(&["-f", "ffmpeg.*v4l2"]).output();
+        // Give processes time to die
+        std::thread::sleep(Duration::from_millis(200));
+        // Force kill if still running
+        let _ = Command::new("pkill")
+            .args(&["-9", "-f", "gphoto2"])
+            .output();
+        let _ = Command::new("pkill")
+            .args(&["-9", "-f", "ffmpeg.*v4l2"])
+            .output();
     }
 
     /// Initialize and connect to the camera
@@ -92,17 +105,28 @@ impl GPhotoCamera {
         info!("Starting gphoto2 preview stream to {}", v4l2_device);
 
         // Use bash to run the piped command
-        let preview_cmd = Command::new("bash")
-            .args(&[
-                "-c",
-                &format!(
-                    "gphoto2 --stdout --capture-movie | ffmpeg -i - -vcodec rawvideo -pix_fmt yuv420p -threads 0 -f v4l2 {}",
-                    v4l2_device
-                )
-            ])
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
+        // Set process group to ensure all children are killed together
+        let mut cmd = Command::new("bash");
+        cmd.args(&[
+            "-c",
+            &format!(
+                "gphoto2 --stdout --capture-movie | ffmpeg -i - -vcodec rawvideo -pix_fmt yuv420p -threads 0 -f v4l2 {}",
+                v4l2_device
+            )
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+        // Create a new process group so we can kill all children
+        unsafe {
+            cmd.pre_exec(|| {
+                libc::setpgid(0, 0);
+                Ok(())
+            });
+        }
+
+        let preview_cmd = cmd
             .spawn()
             .map_err(|e| format!("Failed to start preview command: {}", e))?;
 
@@ -180,7 +204,7 @@ impl GPhotoCamera {
                 }
 
                 // Control frame rate (approximately 30fps)
-                tokio::time::sleep(Duration::from_millis(33)).await;
+                tokio::time::sleep(Duration::from_millis(1)).await;
             }
 
             info!("Preview loop ended after {} frames", frame_count);
@@ -197,12 +221,27 @@ impl GPhotoCamera {
     async fn stop_preview_internal(&self) {
         // Kill the preview process if it exists
         if let Some(mut process) = self.preview_process.lock().unwrap().take() {
-            info!("Killing preview process");
+            info!("Killing preview process and its children");
+
+            // Try to get the process ID
+            let pid = process.id();
+            // Kill the entire process group (negative PID kills the group)
+            unsafe {
+                libc::kill(-(pid as i32), libc::SIGTERM);
+            }
+            // Give it a moment to terminate gracefully
+            std::thread::sleep(Duration::from_millis(100));
+            // Force kill if still running
+            unsafe {
+                libc::kill(-(pid as i32), libc::SIGKILL);
+            }
+
+            // Also try the standard kill
             let _ = process.kill();
             let _ = process.wait();
         }
 
-        // Kill any gphoto2 processes
+        // Kill any remaining gphoto2/ffmpeg processes
         Self::kill_gphoto_processes();
     }
 
@@ -270,5 +309,41 @@ impl GPhotoCamera {
             .map_err(|e| format!("Failed to read captured photo: {}", e))?;
 
         Ok(jpeg_data)
+    }
+}
+
+impl Drop for GPhotoCamera {
+    fn drop(&mut self) {
+        info!("GPhotoCamera dropping, cleaning up processes...");
+
+        // Set streaming flag to false
+        *self.is_streaming.lock().unwrap() = false;
+
+        // Kill the preview process if it exists
+        if let Some(mut process) = self.preview_process.lock().unwrap().take() {
+            info!("Cleaning up preview process on drop");
+
+            // Try to get the process ID
+            let pid = process.id();
+            // Kill the entire process group
+            unsafe {
+                libc::kill(-(pid as i32), libc::SIGTERM);
+                std::thread::sleep(Duration::from_millis(100));
+                libc::kill(-(pid as i32), libc::SIGKILL);
+            }
+
+            let _ = process.kill();
+            let _ = process.wait();
+        }
+
+        // Cancel the preview task
+        if let Some(handle) = self.preview_task.lock().unwrap().take() {
+            handle.abort();
+        }
+
+        // Kill any remaining gphoto2/ffmpeg processes
+        Self::kill_gphoto_processes();
+
+        info!("GPhotoCamera cleanup complete");
     }
 }

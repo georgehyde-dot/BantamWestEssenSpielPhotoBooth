@@ -44,6 +44,7 @@ image = { version = "0.24", features = ["jpeg"] }
 imageproc = "0.23"
 rusttype = "0.9"
 gphoto2 = "3"
+libc = "0.2"
 
 [features]
 default = ["printer-cups"]

@@ -493,6 +493,7 @@ dependencies = [
  "gphoto2",
  "image",
  "imageproc",
+ "libc",
  "printers",
  "rust-embed 8.7.2",
  "rusttype",

@@ -4,6 +4,7 @@ use actix_files as fs;
 use actix_web::{web, App, HttpServer};
 use sqlx::SqlitePool;
 use std::sync::{Arc, Mutex};
+use tokio::signal;
 use tokio::sync::mpsc;
 
 // Module imports
@@ -93,6 +94,32 @@ fn spawn_gphoto_camera(
     })
 }
 
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("Shutdown signal received");
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     // Initialize tracing
@@ -161,8 +188,9 @@ async fn main() -> std::io::Result<()> {
     };
 
     let server_config = config.clone();
+    let gphoto_for_shutdown = gphoto_camera.clone();
 
-    HttpServer::new(move || {
+    let server = HttpServer::new(move || {
         let app_config = server_config.clone();
         let db_pool = connection_pool.clone();
         let mut app = App::new()
@@ -203,6 +231,49 @@ async fn main() -> std::io::Result<()> {
         app
     })
     .bind(config.socket_addr())?
-    .run()
-    .await
+    .shutdown_timeout(5)
+    .run();
+
+    // Run server with graceful shutdown
+    let server_handle = server.handle();
+
+    // Spawn the server
+    let server_task = tokio::spawn(async move { server.await });
+
+    // Wait for shutdown signal
+    shutdown_signal().await;
+
+    info!("Initiating graceful shutdown...");
+
+    // Stop the server gracefully
+    server_handle.stop(true).await;
+
+    // Clean up the camera
+    if let Some(camera_arc) = gphoto_for_shutdown.lock().unwrap().take() {
+        info!("Cleaning up GPhoto camera...");
+        // Dropping the Arc will trigger the Drop impl
+        drop(camera_arc);
+        // Give it a moment to clean up
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    }
+
+    // Kill any remaining gphoto processes (belt and suspenders approach)
+    let _ = std::process::Command::new("pkill")
+        .args(&["-f", "gphoto2"])
+        .output();
+    let _ = std::process::Command::new("pkill")
+        .args(&["-f", "ffmpeg.*v4l2"])
+        .output();
+
+    info!("Graceful shutdown complete");
+
+    // Wait for server to finish
+    server_task.await.map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Server task error: {}", e),
+        )
+    })??;
+
+    Ok(())
 }
