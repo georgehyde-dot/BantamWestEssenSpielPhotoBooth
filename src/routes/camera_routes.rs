@@ -11,45 +11,118 @@ use crate::config::Config;
 use crate::session::Session;
 
 #[get("/preview")]
-pub async fn preview_stream(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) -> impl Responder {
-    let last_frame_arc = last_frame.get_ref().clone();
+pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
+    let v4l2_device = config.camera.v4l2_loopback_device.clone();
 
     let stream = async_stream::stream! {
-        // multipart/x-mixed-replace; boundary=frame
-        const BOUNDARY: &str = "frame";
-        let boundary_prefix = format!("--{}\r\n", BOUNDARY).into_bytes();
-        let header = b"Content-Type: image/jpeg\r\n\r\n";
-        let tail = b"\r\n";
+        info!("Starting direct preview stream from {}", v4l2_device);
 
-        // Stream frames at ~30fps
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(33));
+        // Use ffmpeg to stream directly from v4l2 device as MJPEG
+        let mut cmd = tokio::process::Command::new("ffmpeg");
+        cmd.args(&[
+            "-f", "v4l2",
+            "-i", &v4l2_device,
+            "-f", "mjpeg",
+            "-q:v", "5",  // Quality setting (lower = better quality)
+            "-r", "30",   // Frame rate
+            "-"           // Output to stdout
+        ])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null());
+
+        let mut process = match cmd.spawn() {
+            Ok(p) => p,
+            Err(e) => {
+                warn!("Failed to start ffmpeg for preview stream: {}", e);
+                return;
+            }
+        };
+
+        let stdout = process.stdout.take().expect("Failed to get stdout");
+        let mut reader = tokio::io::BufReader::new(stdout);
+
+        // MJPEG stream parsing
+        const JPEG_START: &[u8] = &[0xFF, 0xD8];
+        const JPEG_END: &[u8] = &[0xFF, 0xD9];
+        const BOUNDARY: &str = "frame";
+
+        let mut buffer = Vec::with_capacity(1024 * 1024); // 1MB buffer
+        let mut jpeg_buffer = Vec::new();
+        let mut in_jpeg = false;
+
+        use tokio::io::AsyncReadExt;
 
         loop {
-            interval.tick().await;
+            let mut chunk = vec![0u8; 65536]; // 64KB chunks
+            match reader.read(&mut chunk).await {
+                Ok(0) => {
+                    warn!("Preview stream ended");
+                    break;
+                }
+                Ok(n) => {
+                    buffer.extend_from_slice(&chunk[..n]);
 
-            // Get the latest frame from the shared buffer
-            let frame_opt = {
-                last_frame_arc.lock().unwrap().clone()
-            };
+                    // Look for JPEG markers
+                    let mut i = 0;
+                    while i < buffer.len() {
+                        if !in_jpeg {
+                            // Look for JPEG start
+                            if i + 1 < buffer.len() && buffer[i] == JPEG_START[0] && buffer[i+1] == JPEG_START[1] {
+                                in_jpeg = true;
+                                jpeg_buffer.clear();
+                                jpeg_buffer.push(buffer[i]);
+                                jpeg_buffer.push(buffer[i+1]);
+                                i += 2;
+                            } else {
+                                i += 1;
+                            }
+                        } else {
+                            // Look for JPEG end
+                            if i + 1 < buffer.len() && buffer[i] == JPEG_END[0] && buffer[i+1] == JPEG_END[1] {
+                                jpeg_buffer.push(buffer[i]);
+                                jpeg_buffer.push(buffer[i+1]);
 
-            if let Some(frame) = frame_opt {
-                let mut part = Vec::with_capacity(boundary_prefix.len() + header.len() + frame.len() + tail.len());
-                part.extend_from_slice(&boundary_prefix);
-                part.extend_from_slice(header);
-                part.extend_from_slice(&frame);
-                part.extend_from_slice(tail);
+                                // We have a complete JPEG frame
+                                let boundary_prefix = format!("--{}\r\n", BOUNDARY).into_bytes();
+                                let header = b"Content-Type: image/jpeg\r\n\r\n";
+                                let tail = b"\r\n";
 
-                // Convert to bytes and yield a Result<Bytes, actix_web::Error>
-                yield Ok::<Bytes, actix_web::Error>(Bytes::from(part));
-            } else {
-                // Log once if no frames are available
-                static LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-                if !LOGGED.load(std::sync::atomic::Ordering::Relaxed) {
-                    warn!("No frames available in preview stream");
-                    LOGGED.store(true, std::sync::atomic::Ordering::Relaxed);
+                                let mut part = Vec::with_capacity(
+                                    boundary_prefix.len() + header.len() + jpeg_buffer.len() + tail.len()
+                                );
+                                part.extend_from_slice(&boundary_prefix);
+                                part.extend_from_slice(header);
+                                part.extend_from_slice(&jpeg_buffer);
+                                part.extend_from_slice(tail);
+
+                                yield Ok::<Bytes, actix_web::Error>(Bytes::from(part));
+
+                                in_jpeg = false;
+                                i += 2;
+                            } else {
+                                jpeg_buffer.push(buffer[i]);
+                                i += 1;
+                            }
+                        }
+                    }
+
+                    // Keep unprocessed bytes
+                    if in_jpeg {
+                        buffer.clear();
+                    } else {
+                        buffer.drain(..i);
+                    }
+                }
+                Err(e) => {
+                    warn!("Error reading preview stream: {}", e);
+                    break;
                 }
             }
         }
+
+        // Clean up process
+        let _ = process.kill().await;
     };
 
     HttpResponse::Ok()
@@ -59,7 +132,6 @@ pub async fn preview_stream(last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>) 
 
 #[post("/capture")]
 pub async fn capture_image(
-    last_frame: web::Data<Arc<Mutex<Option<Vec<u8>>>>>,
     config: web::Data<Config>,
     db_pool: web::Data<SqlitePool>,
     body: Option<web::Json<serde_json::Value>>,
@@ -110,24 +182,12 @@ pub async fn capture_image(
 
                 // Restart the preview stream after capture
                 info!("Restarting preview stream after capture");
-                let last_frame_clone = last_frame.get_ref().clone();
-                let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 
-                // Start preview in background
+                // Start preview in background (simplified - no frame buffer needed)
                 let camera_clone = camera.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = camera_clone
-                        .start_preview_stream(tx, last_frame_clone)
-                        .await
-                    {
+                    if let Err(e) = camera_clone.start_preview_stream().await {
                         warn!("Failed to restart preview stream: {}", e);
-                    }
-                });
-
-                // Spawn a task to drain the receiver
-                tokio::spawn(async move {
-                    while let Some(_) = rx.recv().await {
-                        // Just drain the channel
                     }
                 });
 
@@ -138,22 +198,11 @@ pub async fn capture_image(
 
                 // Try to restart preview even after failure
                 info!("Attempting to restart preview stream after failed capture");
-                let last_frame_clone = last_frame.get_ref().clone();
-                let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 
                 let camera_clone = camera.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = camera_clone
-                        .start_preview_stream(tx, last_frame_clone)
-                        .await
-                    {
+                    if let Err(e) = camera_clone.start_preview_stream().await {
                         warn!("Failed to restart preview stream: {}", e);
-                    }
-                });
-
-                tokio::spawn(async move {
-                    while let Some(_) = rx.recv().await {
-                        // Just drain the channel
                     }
                 });
 

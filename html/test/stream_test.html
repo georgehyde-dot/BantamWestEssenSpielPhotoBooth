@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Stream Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+            font-family: monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        #stream {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #444;
+            background: #111;
+        }
+        #stats {
+            margin-top: 20px;
+            padding: 10px;
+            background: #222;
+            border-radius: 5px;
+            min-width: 300px;
+        }
+        .stat-line {
+            margin: 5px 0;
+        }
+        .good { color: #0f0; }
+        .warning { color: #ff0; }
+        .bad { color: #f00; }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #666;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct /dev/video2 Stream Test</h1>
+
+    <img id="stream" src="/preview" alt="Camera Stream">
+
+    <div id="stats">
+        <div class="stat-line">Status: <span id="status">Loading...</span></div>
+        <div class="stat-line">Stream Source: <span id="source">/preview (direct from /dev/video2)</span></div>
+        <div class="stat-line">Time Connected: <span id="uptime">0s</span></div>
+        <div class="stat-line">Stream State: <span id="state">-</span></div>
+        <div class="stat-line">Last Update: <span id="lastUpdate">-</span></div>
+    </div>
+
+    <div id="controls">
+        <button onclick="reloadStream()">Reload Stream</button>
+        <button onclick="testLatency()">Test Latency</button>
+        <button onclick="window.location.href='/camera'">Back to Camera</button>
+    </div>
+
+    <script>
+        const streamImg = document.getElementById('stream');
+        const statusEl = document.getElementById('status');
+        const uptimeEl = document.getElementById('uptime');
+        const stateEl = document.getElementById('state');
+        const lastUpdateEl = document.getElementById('lastUpdate');
+
+        let startTime = Date.now();
+        let frameCount = 0;
+        let lastFrameTime = Date.now();
+
+        // Monitor stream status
+        streamImg.onload = function() {
+            statusEl.textContent = 'Connected';
+            statusEl.className = 'good';
+            stateEl.textContent = 'Streaming';
+            stateEl.className = 'good';
+
+            frameCount++;
+            lastFrameTime = Date.now();
+            lastUpdateEl.textContent = new Date().toLocaleTimeString();
+        };
+
+        streamImg.onerror = function() {
+            statusEl.textContent = 'Error';
+            statusEl.className = 'bad';
+            stateEl.textContent = 'Failed';
+            stateEl.className = 'bad';
+        };
+
+        // Update uptime
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            uptimeEl.textContent = `${elapsed}s`;
+
+            // Check if stream is stalled
+            const timeSinceLastFrame = Date.now() - lastFrameTime;
+            if (timeSinceLastFrame > 5000) {
+                stateEl.textContent = 'Stalled';
+                stateEl.className = 'warning';
+            }
+        }, 1000);
+
+        function reloadStream() {
+            streamImg.src = '/preview?t=' + Date.now();
+            startTime = Date.now();
+            frameCount = 0;
+        }
+
+        function testLatency() {
+            // Simple visual test - flash background
+            document.body.style.background = '#fff';
+            setTimeout(() => {
+                document.body.style.background = '#000';
+                alert('Watch the camera feed - if you saw the white flash, the latency is low!');
+            }, 100);
+        }
+    </script>
+</body>
+</html>

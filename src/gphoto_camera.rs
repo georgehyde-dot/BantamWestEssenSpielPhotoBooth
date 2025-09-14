@@ -15,7 +15,6 @@ pub struct GPhotoCamera {
     config: CameraConfig,
     preview_process: Arc<Mutex<Option<Child>>>,
     is_streaming: Arc<Mutex<bool>>,
-    preview_task: Arc<Mutex<Option<tokio::task::JoinHandle<()>>>>,
 }
 
 impl GPhotoCamera {
@@ -25,7 +24,6 @@ impl GPhotoCamera {
             config,
             preview_process: Arc::new(Mutex::new(None)),
             is_streaming: Arc::new(Mutex::new(false)),
-            preview_task: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -76,11 +74,7 @@ impl GPhotoCamera {
     }
 
     /// Start the camera preview stream using gphoto2 CLI and v4l2loopback
-    pub async fn start_preview_stream(
-        &self,
-        frame_sink: mpsc::Sender<Vec<u8>>,
-        last_frame_buffer: Arc<Mutex<Option<Vec<u8>>>>,
-    ) -> Result<(), String> {
+    pub async fn start_preview_stream(&self) -> Result<(), String> {
         // Check if already streaming
         {
             let is_streaming = self.is_streaming.lock().unwrap();
@@ -136,82 +130,8 @@ impl GPhotoCamera {
         // Set streaming flag
         *self.is_streaming.lock().unwrap() = true;
 
-        // Give it a moment to start
+        // Give the stream a moment to stabilize
         tokio::time::sleep(Duration::from_secs(1)).await;
-
-        // Start a task to read frames from the v4l2 device
-        let is_streaming = self.is_streaming.clone();
-        let device_path = v4l2_device.clone();
-
-        let preview_handle = tokio::spawn(async move {
-            // Wait a bit for the stream to stabilize
-            tokio::time::sleep(Duration::from_secs(2)).await;
-
-            info!("Starting frame capture from {}", device_path);
-
-            // Now we need to read frames from the v4l2 device
-            // We'll use ffmpeg to grab frames periodically
-            let mut frame_count = 0;
-            let mut last_error_time = std::time::Instant::now();
-
-            while *is_streaming.lock().unwrap() {
-                // Capture a single frame from the v4l2 device using ffmpeg
-                let output = tokio::process::Command::new("ffmpeg")
-                    .args(&[
-                        "-f",
-                        "v4l2",
-                        "-i",
-                        &device_path,
-                        "-frames:v",
-                        "1",
-                        "-f",
-                        "mjpeg",
-                        "-",
-                    ])
-                    .output()
-                    .await;
-
-                match output {
-                    Ok(output) if !output.stdout.is_empty() => {
-                        frame_count += 1;
-                        if frame_count % 30 == 0 {
-                            debug!("Captured {} preview frames", frame_count);
-                        }
-
-                        let frame_data = output.stdout;
-
-                        // Store in last frame buffer
-                        {
-                            let mut last_frame = last_frame_buffer.lock().unwrap();
-                            *last_frame = Some(frame_data.clone());
-                        }
-
-                        // Send to sink (non-blocking)
-                        let _ = frame_sink.send(frame_data).await;
-                    }
-                    Ok(_) => {
-                        if last_error_time.elapsed() > Duration::from_secs(5) {
-                            warn!("Empty frame captured from {}", device_path);
-                            last_error_time = std::time::Instant::now();
-                        }
-                    }
-                    Err(e) => {
-                        if last_error_time.elapsed() > Duration::from_secs(5) {
-                            warn!("Failed to capture frame: {}", e);
-                            last_error_time = std::time::Instant::now();
-                        }
-                    }
-                }
-
-                // Control frame rate (approximately 30fps)
-                tokio::time::sleep(Duration::from_millis(1)).await;
-            }
-
-            info!("Preview loop ended after {} frames", frame_count);
-        });
-
-        // Store the task handle
-        *self.preview_task.lock().unwrap() = Some(preview_handle);
 
         info!("Preview stream started successfully");
         Ok(())
@@ -254,15 +174,6 @@ impl GPhotoCamera {
 
         // Stop the preview process
         self.stop_preview_internal().await;
-
-        // Wait for preview task to complete
-        let handle = self.preview_task.lock().unwrap().take();
-        if let Some(handle) = handle {
-            // Give it a moment to finish gracefully
-            tokio::time::timeout(Duration::from_secs(2), handle)
-                .await
-                .ok();
-        }
 
         info!("Preview stopped");
         Ok(())
@@ -334,11 +245,6 @@ impl Drop for GPhotoCamera {
 
             let _ = process.kill();
             let _ = process.wait();
-        }
-
-        // Cancel the preview task
-        if let Some(handle) = self.preview_task.lock().unwrap().take() {
-            handle.abort();
         }
 
         // Kill any remaining gphoto2/ffmpeg processes

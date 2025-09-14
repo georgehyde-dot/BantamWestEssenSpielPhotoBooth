@@ -6,6 +6,7 @@ const ENTER_NAMES_HTML: &str = include_str!("../../html/enter_names.html");
 const COPIES_HTML: &str = include_str!("../../html/copies.html");
 const INDEX_HTML: &str = include_str!("../../html/index.html");
 const PHOTO_HTML: &str = include_str!("../../html/photo.html");
+const STREAM_TEST_HTML: &str = include_str!("../../html/test/stream_test.html");
 
 #[get("/")]
 pub async fn start_page() -> impl Responder {
@@ -42,4 +43,11 @@ pub async fn photo_page(
     HttpResponse::Ok()
         .content_type("text/html")
         .body(PHOTO_HTML)
+}
+
+#[get("/test/stream")]
+pub async fn test_stream() -> impl Responder {
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(STREAM_TEST_HTML)
 }

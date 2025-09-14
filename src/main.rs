@@ -21,13 +21,12 @@ use printers::new_printer;
 use routes::{
     camera_page, capture_image, companion_page, copies_page, create_session, generate_story,
     get_session, land_page, name_entry_page, photo_page, preview_print, preview_stream,
-    print_photo, save_session_final, start_page, update_session, weapon_page,
+    print_photo, save_session_final, start_page, test_stream, update_session, weapon_page,
 };
 use tracing::{error, info, warn};
 
 fn spawn_gphoto_camera(
     config: config::CameraConfig,
-    last_frame: Arc<Mutex<Option<Vec<u8>>>>,
     gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>>,
 ) -> tokio::task::JoinHandle<()> {
     info!("Using GPhoto2 camera interface for DSLR");
@@ -65,32 +64,11 @@ fn spawn_gphoto_camera(
             }
         };
 
-        let (tx, mut rx) = mpsc::channel(10);
-
         // Start camera stream
-        let camera_stream = camera_arc.clone();
-        let camera_handle = tokio::spawn(async move {
-            info!("Starting GPhoto2 camera preview stream");
-            if let Err(e) = camera_stream
-                .start_preview_stream(tx, last_frame.clone())
-                .await
-            {
-                error!("GPhoto2 camera stream error: {}", e);
-            }
-        });
-
-        // Drain the channel to prevent backpressure
-        let mut frame_count = 0;
-        while let Some(_frame) = rx.recv().await {
-            frame_count += 1;
-            if frame_count % 100 == 0 {
-                info!("Received {} frames from GPhoto2 camera", frame_count);
-            }
-            // Frames are already stored in last_frame by the camera
+        info!("Starting GPhoto2 camera preview stream");
+        if let Err(e) = camera_arc.start_preview_stream().await {
+            error!("GPhoto2 camera stream error: {}", e);
         }
-
-        warn!("GPhoto2 camera frame receiver loop ended");
-        let _ = camera_handle.await;
     })
 }
 
@@ -162,8 +140,6 @@ async fn main() -> std::io::Result<()> {
 
     info!("Database connected and migrations completed");
 
-    let last_frame = Arc::new(Mutex::new(None::<Vec<u8>>));
-
     let printer = match new_printer().await {
         Ok(p) => Some(p),
         Err(e) => {
@@ -182,19 +158,18 @@ async fn main() -> std::io::Result<()> {
         );
         Some(spawn_gphoto_camera(
             config.camera.clone(),
-            last_frame.clone(),
             gphoto_camera.clone(),
         ))
     };
 
     let server_config = config.clone();
+    let socket_addr = config.socket_addr();
     let gphoto_for_shutdown = gphoto_camera.clone();
 
     let server = HttpServer::new(move || {
         let app_config = server_config.clone();
         let db_pool = connection_pool.clone();
         let mut app = App::new()
-            .app_data(web::Data::new(last_frame.clone()))
             .app_data(web::Data::new(app_config.clone()))
             .app_data(web::Data::new(db_pool))
             .app_data(web::Data::new(gphoto_camera.clone()));
@@ -215,6 +190,7 @@ async fn main() -> std::io::Result<()> {
             .service(weapon_page)
             .service(land_page)
             .service(companion_page)
+            .service(test_stream)
             .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
             .service(
                 fs::Files::new("/static", app_config.storage.static_path.clone())
@@ -230,7 +206,7 @@ async fn main() -> std::io::Result<()> {
 
         app
     })
-    .bind(config.socket_addr())?
+    .bind(socket_addr)?
     .shutdown_timeout(5)
     .run();
 
