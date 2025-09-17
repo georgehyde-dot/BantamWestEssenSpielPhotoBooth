@@ -21,6 +21,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 DOCKERFILE_PATH="${SCRIPT_DIR}/Dockerfile"
 OUT_DIR="${SCRIPT_DIR}/dist"
 LOCAL_BIN="${OUT_DIR}/${BINARY_NAME}"
+REMOTE_ASSETS_DIR="/usr/local/share/photo_booth"
 
 echo "------------------------------------------------------------------"
 echo "Build and Deploy Configuration:"
@@ -91,6 +92,14 @@ if [ -d "${SCRIPT_DIR}/operations" ]; then
     ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/operations/'*.sh 2>/dev/null || true"
 fi
 
+# Copy static directory if it exists (contains background images, etc.)
+if [ -d "${SCRIPT_DIR}/static" ]; then
+    echo ">> Ensuring remote assets directory exists: ${REMOTE_ASSETS_DIR}"
+    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "sudo mkdir -p '${REMOTE_ASSETS_DIR}'"
+    echo ">> Copying static directory..."
+    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new -r "${SCRIPT_DIR}/static" "${PI_USER}@${PI_HOST}:/tmp/"
+    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "sudo rm -rf '${REMOTE_ASSETS_DIR}/static' && sudo mv /tmp/static '${REMOTE_ASSETS_DIR}/' && sudo chown -R ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/static'"
+fi
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
