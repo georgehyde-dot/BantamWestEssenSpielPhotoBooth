@@ -4,6 +4,15 @@ use sqlx::SqlitePool;
 
 use crate::session::Session;
 
+#[derive(serde::Serialize, sqlx::FromRow)]
+struct WallPhoto {
+    id: String,
+    photo_path: String,
+    group_name: Option<String>,
+    headline: Option<String>,
+    created_at: String,
+}
+
 #[post("/session")]
 pub async fn create_session(db_pool: web::Data<SqlitePool>) -> impl Responder {
     let session = Session::new();
@@ -181,6 +190,33 @@ pub async fn save_session_final(
         Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
             "ok": false,
             "error": format!("Failed to load session: {}", e)
+        })),
+    }
+}
+
+#[get("/sessions/recent")]
+pub async fn get_recent_sessions(db_pool: web::Data<SqlitePool>) -> impl Responder {
+    // Fetch recent sessions that have templated photos
+    let query = r#"
+        SELECT id, photo_path, group_name, headline, created_at
+        FROM session
+        WHERE photo_path IS NOT NULL
+        AND (photo_path LIKE 'print_%' OR photo_path LIKE 'preview_%')
+        ORDER BY created_at DESC
+        LIMIT 50
+    "#;
+
+    match sqlx::query_as::<_, WallPhoto>(query)
+        .fetch_all(db_pool.as_ref())
+        .await
+    {
+        Ok(photos) => HttpResponse::Ok().json(serde_json::json!({
+            "ok": true,
+            "photos": photos
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "ok": false,
+            "error": format!("Failed to fetch recent sessions: {}", e)
         })),
     }
 }

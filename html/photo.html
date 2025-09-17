@@ -633,9 +633,8 @@
                                 },
                             });
 
-                            // Clear session and return to start
-                            sessionStorage.removeItem("session_id");
-                            window.location.href = "/";
+                            // Redirect to wanted poster wall (session cleared there)
+                            window.location.href = "/wanted_poster_wall";
                         } else {
                             alert(
                                 "Print failed: " +
@@ -746,8 +745,8 @@
                             backBtn.href = "/";
                             backBtn.addEventListener("click", function (e) {
                                 e.preventDefault();
-                                sessionStorage.removeItem("session_id");
-                                window.location.href = "/";
+                                // Redirect to wanted poster wall (session cleared there)
+                                window.location.href = "/wanted_poster_wall";
                             });
 
                             // Save session to database

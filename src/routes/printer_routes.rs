@@ -126,10 +126,8 @@ pub async fn print_photo(
     }
 
     // Create templated version of the photo
-    let templated_filename = config
-        .storage
-        .base_path
-        .join(format!("print_{}.png", chrono::Utc::now().timestamp()));
+    let templated_filename_only = format!("print_{}.png", chrono::Utc::now().timestamp());
+    let templated_filename = config.storage.base_path.join(&templated_filename_only);
 
     info!("Creating templated print:");
     info!("  Source: {:?}", file_path);
@@ -161,8 +159,7 @@ pub async fn print_photo(
             info!("Template created successfully");
             // Update session with templated print path if we have a session
             if let Some(mut session) = session_to_update {
-                let templated_path = format!("print_{}.png", chrono::Utc::now().timestamp());
-                session.photo_path = Some(templated_path);
+                session.photo_path = Some(templated_filename_only.clone());
 
                 // Save the updated session
                 if let Err(e) = session.update(&db_pool).await {
@@ -285,6 +282,33 @@ pub async fn preview_print(
         config.background_path().to_str().unwrap(),
     ) {
         Ok(()) => {
+            // Update session with templated preview path if we have a session
+            if let Some(session_id_str) = body.get("session_id").and_then(|v| v.as_str()) {
+                match Session::load(session_id_str, &db_pool).await {
+                    Ok(Some(mut session)) => {
+                        session.photo_path = Some(preview_filename.clone());
+                        if let Err(e) = session.update(&db_pool).await {
+                            warn!(
+                                "Failed to update session with templated preview path: {}",
+                                e
+                            );
+                        }
+                    }
+                    Ok(None) => {
+                        warn!(
+                            "Session {} not found when updating preview path",
+                            session_id_str
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to load session {} for preview path update: {}",
+                            session_id_str, e
+                        );
+                    }
+                }
+            }
+
             // Return the URL to the preview
             HttpResponse::Ok().json(serde_json::json!({
                 "ok": true,

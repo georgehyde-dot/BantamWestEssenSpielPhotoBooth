@@ -5,7 +5,6 @@ use actix_web::{web, App, HttpServer};
 use sqlx::SqlitePool;
 use std::sync::{Arc, Mutex};
 use tokio::signal;
-use tokio::sync::mpsc;
 
 // Module imports
 mod config;
@@ -20,8 +19,9 @@ use config::Config;
 use printers::new_printer;
 use routes::{
     camera_page, capture_image, companion_page, copies_page, create_session, generate_story,
-    get_session, land_page, name_entry_page, photo_page, preview_print, preview_stream,
-    print_photo, save_session_final, start_page, test_stream, update_session, weapon_page,
+    get_recent_sessions, get_session, land_page, name_entry_page, photo_page, preview_print,
+    preview_stream, print_photo, save_session_final, start_page, test_stream, update_session,
+    wanted_poster_wall_page, weapon_page,
 };
 use tracing::{error, info, warn};
 
@@ -40,7 +40,6 @@ fn spawn_gphoto_camera(
             gphoto_config.v4l2_loopback_device
         );
 
-        // Create and initialize the GPhoto camera
         let camera_arc = match gphoto_camera::GPhotoCamera::new(gphoto_config) {
             Ok(camera) => {
                 // Initialize the camera
@@ -64,7 +63,6 @@ fn spawn_gphoto_camera(
             }
         };
 
-        // Start camera stream
         info!("Starting GPhoto2 camera preview stream");
         if let Err(e) = camera_arc.start_preview_stream().await {
             error!("GPhoto2 camera stream error: {}", e);
@@ -151,7 +149,7 @@ async fn main() -> std::io::Result<()> {
     let gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>> =
         Arc::new(Mutex::new(None));
 
-    let camera = {
+    let _camera = {
         info!(
             "Initializing GPhoto2 camera with config: {:?}",
             config.camera
@@ -184,12 +182,14 @@ async fn main() -> std::io::Result<()> {
             .service(photo_page)
             .service(create_session)
             .service(get_session)
+            .service(get_recent_sessions)
             .service(update_session)
             .service(generate_story)
             .service(save_session_final)
             .service(weapon_page)
             .service(land_page)
             .service(companion_page)
+            .service(wanted_poster_wall_page)
             .service(test_stream)
             .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
             .service(
@@ -210,21 +210,16 @@ async fn main() -> std::io::Result<()> {
     .shutdown_timeout(5)
     .run();
 
-    // Run server with graceful shutdown
     let server_handle = server.handle();
 
-    // Spawn the server
     let server_task = tokio::spawn(async move { server.await });
 
-    // Wait for shutdown signal
     shutdown_signal().await;
 
     info!("Initiating graceful shutdown...");
 
-    // Stop the server gracefully
     server_handle.stop(true).await;
 
-    // Clean up the camera
     if let Some(camera_arc) = gphoto_for_shutdown.lock().unwrap().take() {
         info!("Cleaning up GPhoto camera...");
         // Dropping the Arc will trigger the Drop impl
@@ -233,7 +228,7 @@ async fn main() -> std::io::Result<()> {
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     }
 
-    // Kill any remaining gphoto processes (belt and suspenders approach)
+    // Kill any remaining gphoto processes to prevent issues on restart
     let _ = std::process::Command::new("pkill")
         .args(&["-f", "gphoto2"])
         .output();
@@ -243,7 +238,6 @@ async fn main() -> std::io::Result<()> {
 
     info!("Graceful shutdown complete");
 
-    // Wait for server to finish
     server_task.await.map_err(|e| {
         std::io::Error::new(
             std::io::ErrorKind::Other,

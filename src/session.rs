@@ -21,7 +21,6 @@ pub struct Session {
 }
 
 impl Session {
-    /// Create a new session with a unique ID and current timestamp
     pub fn new() -> Self {
         Self {
             id: Uuid::new_v4().to_string(),
@@ -38,7 +37,6 @@ impl Session {
         }
     }
 
-    /// Save the session to the database
     pub async fn save(&self, pool: &SqlitePool) -> AppResult<()> {
         sqlx::query(
             r#"
@@ -68,7 +66,6 @@ impl Session {
         Ok(())
     }
 
-    /// Update an existing session in the database
     pub async fn update(&self, pool: &SqlitePool) -> AppResult<()> {
         sqlx::query(
             r#"
@@ -102,7 +99,6 @@ impl Session {
         Ok(())
     }
 
-    /// Load a session by ID from the database
     pub async fn load(id: &str, pool: &SqlitePool) -> AppResult<Option<Self>> {
         let session = sqlx::query_as::<_, Session>(
             r#"
@@ -121,26 +117,6 @@ impl Session {
         Ok(session)
     }
 
-    /// Set the photo path for this session
-    pub async fn set_photo_path(&mut self, path: String, pool: &SqlitePool) -> AppResult<()> {
-        self.photo_path = Some(path.clone());
-
-        sqlx::query(
-            r#"
-            UPDATE session SET photo_path = ?2
-            WHERE id = ?1
-            "#,
-        )
-        .bind(&self.id)
-        .bind(&path)
-        .execute(pool)
-        .await
-        .map_err(|e| DatabaseError::QueryFailed(format!("Failed to set photo path: {}", e)))?;
-
-        Ok(())
-    }
-
-    /// Check if session has all required fields filled
     pub fn is_complete(&self) -> bool {
         self.group_name.is_some()
             && self.weapon.is_some()
@@ -152,19 +128,12 @@ impl Session {
             && self.headline.is_some()
     }
 
-    /// Generate story and headline based on selections
     pub fn generate_story(&mut self) {
         if let (Some(weapon_idx), Some(land_idx), Some(companion_idx)) =
             (self.weapon, self.land, self.companion)
         {
             // Define the updated names for weapons, lands, and companions
-            let weapons = [
-                "Cascan Recurve",
-                "Foreigner",
-                "Handtorch",
-                "Peacemaker", // Corrected name
-            ];
-            // Shortened land descriptions
+            let weapons = ["Cascan Recurve", "Foreigner", "Handtorch", "Peacemaker"];
             let lands = [
                 "a broken wagon at a fork in the road",
                 "a mine shaft entrance",
@@ -178,7 +147,6 @@ impl Session {
                 "Helena Bindi",
             ];
 
-            // Get the selected items
             let weapon = weapons
                 .get(weapon_idx as usize)
                 .unwrap_or(&"a mysterious weapon");
@@ -187,7 +155,6 @@ impl Session {
                 .get(companion_idx as usize)
                 .unwrap_or(&"a lone traveler");
 
-            // Generate revised story templates
             let story = match (weapon_idx, land_idx, companion_idx) {
                 // Cascan Recurve combinations (Bow)
                 (0, 0, _) => format!("At the {}, they drew their {}, while {} watched the dark path ahead.", land, weapon, companion),
@@ -217,7 +184,6 @@ impl Session {
                 _ => format!("Armed with their {}, they ventured through the {} with their loyal companion, {}.", weapon, land, companion),
             };
 
-            // Headlines remain effective and do not need changes
             let headline = match (weapon_idx, companion_idx) {
                 (0, 0) => "The Hunter and the Guide",
                 (0, 1) => "An Arrow for an Outlaw",

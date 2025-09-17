@@ -1,7 +1,6 @@
 use std::io;
 use thiserror::Error;
 
-/// Main error type for the photo booth application
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("Camera error: {0}")]
@@ -26,7 +25,6 @@ pub enum AppError {
     Web(String),
 }
 
-/// Camera-related errors
 #[derive(Debug, Error)]
 pub enum CameraError {
     #[error("Camera device not found: {device}")]
@@ -51,7 +49,6 @@ pub enum CameraError {
     IoError(#[from] io::Error),
 }
 
-/// Printer-related errors
 #[derive(Debug, Error)]
 pub enum PrinterError {
     #[error("Printer not found: {name}")]
@@ -70,7 +67,6 @@ pub enum PrinterError {
     IoError(#[from] io::Error),
 }
 
-/// Template-related errors
 #[derive(Debug, Error)]
 pub enum TemplateError {
     #[error("Failed to load image: {0}")]
@@ -92,7 +88,6 @@ pub enum TemplateError {
     FontError(String),
 }
 
-/// Configuration-related errors
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("Invalid port number")]
@@ -117,7 +112,6 @@ pub enum ConfigError {
     EnvVarError(#[from] std::env::VarError),
 }
 
-/// Storage and file system errors
 #[derive(Debug, Error)]
 pub enum StorageError {
     #[error("Failed to create directory: {path}")]
@@ -136,7 +130,6 @@ pub enum StorageError {
     IoError(#[from] io::Error),
 }
 
-/// Database-related errors
 #[derive(Debug, Error)]
 pub enum DatabaseError {
     #[error("Database connection failed: {0}")]
@@ -158,10 +151,8 @@ pub enum DatabaseError {
     Sqlx(#[from] sqlx::Error),
 }
 
-/// Result type alias using AppError
 pub type AppResult<T> = Result<T, AppError>;
 
-/// Convert AppError to HTTP response
 impl AppError {
     pub fn status_code(&self) -> u16 {
         match self {
@@ -195,16 +186,6 @@ impl AppError {
             AppError::Database(_) => "database_error",
             AppError::Web(_) => "web_error",
         }
-    }
-}
-
-#[cfg(target_os = "linux")]
-impl actix_web::ResponseError for AppError {
-    fn error_response(&self) -> actix_web::HttpResponse {
-        use actix_web::HttpResponse;
-
-        HttpResponse::build(actix_web::http::StatusCode::from_u16(self.status_code()).unwrap())
-            .json(self.error_response())
     }
 }
 

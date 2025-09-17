@@ -1,5 +1,3 @@
-// Printer functionality module
-
 use async_trait::async_trait;
 use chrono;
 use image;
@@ -13,7 +11,6 @@ use std::error::Error;
 use std::fmt;
 use tracing::{info, warn};
 
-// Printer types and enums
 #[derive(Debug, Clone, Serialize)]
 pub enum PaperSize {
     Letter,
@@ -97,7 +94,7 @@ impl EpsonPrinter {
             );
         }
 
-        // Look for exact match first
+        // Look for exact match first, TODO clean this up
         let cups_printer = printers
             .iter()
             .find(|p| {
@@ -195,7 +192,6 @@ impl Printer for EpsonPrinter {
         // Set up printer options
         let mut raw_properties = Vec::new();
 
-        // Set paper size
         let paper_size_str = match job.paper_size {
             PaperSize::Photo4x6 => "Borderless4x6in",
             PaperSize::Photo5x7 => "Borderless5x7in",
@@ -203,7 +199,6 @@ impl Printer for EpsonPrinter {
         };
         raw_properties.push(("PageSize", paper_size_str.to_string()));
 
-        // Set media type and borderless expand for photo sizes
         if matches!(job.paper_size, PaperSize::Photo4x6 | PaperSize::Photo5x7) {
             raw_properties.push(("MediaType", "EpsonPremiumGlossy_6".to_string()));
             raw_properties.push(("zedoBorderlessExpand", "4".to_string()));
@@ -228,6 +223,9 @@ impl Printer for EpsonPrinter {
             raw_properties: &raw_props,
         };
 
+        // This success messaged doesn't actually mean the print itself was successful,
+        // it only shows that the job was loaded into CUPS successfully, and
+        // CUPS itself may fail to print the photo for a variety of reasons
         match printer.print_file(&print_file_path, options) {
             Ok(job_id) => {
                 info!("Print job submitted successfully with ID: {}", job_id);

@@ -8,7 +8,6 @@ use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 
 use crate::config::Config;
-use crate::session::Session;
 
 #[get("/preview")]
 pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
@@ -121,7 +120,6 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
             }
         }
 
-        // Clean up process
         let _ = process.kill().await;
     };
 
@@ -233,25 +231,8 @@ pub async fn capture_image(
                     });
 
                     if let Some(session_id) = session_id {
-                        // Load and update session
-                        match Session::load(&session_id, &db_pool).await {
-                            Ok(Some(mut session)) => {
-                                if let Err(e) = session.set_photo_path(file_path, &db_pool).await {
-                                    warn!("Failed to update session photo path: {}", e);
-                                } else {
-                                    response_json["session_id"] = serde_json::json!(&session_id);
-                                }
-                            }
-                            Ok(None) => {
-                                warn!(
-                                    "Session {} not found when trying to associate photo",
-                                    &session_id
-                                );
-                            }
-                            Err(e) => {
-                                warn!("Failed to load session {}: {}", &session_id, e);
-                            }
-                        }
+                        // Don't save the raw photo path - we'll save the templated version later
+                        response_json["session_id"] = serde_json::json!(&session_id);
                     }
 
                     HttpResponse::Ok().json(response_json)
