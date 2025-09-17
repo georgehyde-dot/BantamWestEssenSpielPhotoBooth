@@ -18,10 +18,9 @@ mod templates;
 use config::Config;
 use printers::new_printer;
 use routes::{
-    camera_page, capture_image, companion_page, copies_page, create_session, generate_story,
-    get_recent_sessions, get_session, land_page, name_entry_page, photo_page, preview_print,
+    camera_page, capture_image, choice_page, class_page, copies_page, create_session,
+    generate_story, get_session, land_page, name_entry_page, photo_page, preview_print,
     preview_stream, print_photo, save_session_final, start_page, test_stream, update_session,
-    wanted_poster_wall_page, weapon_page,
 };
 use tracing::{error, info, warn};
 
@@ -182,14 +181,12 @@ async fn main() -> std::io::Result<()> {
             .service(photo_page)
             .service(create_session)
             .service(get_session)
-            .service(get_recent_sessions)
             .service(update_session)
             .service(generate_story)
             .service(save_session_final)
-            .service(weapon_page)
+            .service(class_page)
             .service(land_page)
-            .service(companion_page)
-            .service(wanted_poster_wall_page)
+            .service(choice_page)
             .service(test_stream)
             .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
             .service(

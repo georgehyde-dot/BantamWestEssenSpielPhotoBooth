@@ -206,9 +206,9 @@
                     const data = await response.json();
 
                     if (data.ok) {
-                        // Store session ID and proceed to weapon selection
+                        // Store session ID and proceed to class selection
                         sessionStorage.setItem("session_id", sessionId);
-                        window.location.href = `/weapon?session_id=${sessionId}`;
+                        window.location.href = `/class?session_id=${sessionId}`;
                     } else {
                         alert(
                             "Error updating selection: " +

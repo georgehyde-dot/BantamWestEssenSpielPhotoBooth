@@ -1,7 +1,7 @@
 # Selection Image Requirements
 
 ## Overview
-This document outlines the image requirements for the photo booth selection pages (weapon, land, and companion selection screens).
+This document outlines the image requirements for the photo booth selection pages (class, land, and choice selection screens).
 
 ## Image Locations
 
@@ -14,7 +14,7 @@ All selection images should be placed in the following directory:
 
 ## Image Files Required
 
-### Weapon Selection Page
+### class Selection Page
 - `sword.jpg` - Button 1 (top-left)
 - `hammer.jpg` - Button 2 (top-right)
 - `pistol.jpg` - Button 3 (bottom-left)
@@ -26,7 +26,7 @@ All selection images should be placed in the following directory:
 - `road.jpg` - Button 3 (bottom-left)
 - `stream.jpg` - Button 4 (bottom-right)
 
-### Companion Selection Page
+### choice Selection Page
 - `cat.jpg` - Button 1 (top-left)
 - `dog.jpg` - Button 2 (top-right)
 - `duck.jpg` - Button 3 (bottom-left)

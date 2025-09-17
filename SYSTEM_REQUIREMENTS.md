@@ -123,8 +123,8 @@ sudo ufw allow 22/tcp
 ├── static/                     # Static assets
 │   ├── background.png         # Template background
 │   └── resized_output/        # Selection images
-│       ├── weapon_1.jpg
-│       ├── companion_1.jpg
+│       ├── class_1.jpg
+│       ├── choice_1.jpg
 │       └── ... (12 total) (format <type>_<#1-4>.jpg)
 ├── captured/                   # Captured photos
 └── previews/                   # Generated previews

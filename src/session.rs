@@ -10,9 +10,9 @@ pub struct Session {
     pub id: String,
     pub group_name: Option<String>,
     pub created_at: String,
-    pub weapon: Option<i32>,
+    pub class: Option<i32>,
+    pub choice: Option<i32>,
     pub land: Option<i32>,
-    pub companion: Option<i32>,
     pub email: Option<String>,
     pub photo_path: Option<String>,
     pub copies_printed: i32,
@@ -26,9 +26,9 @@ impl Session {
             id: Uuid::new_v4().to_string(),
             group_name: None,
             created_at: Utc::now().to_rfc3339(),
-            weapon: None,
+            class: None,
+            choice: None,
             land: None,
-            companion: None,
             email: None,
             photo_path: None,
             copies_printed: 0,
@@ -41,7 +41,7 @@ impl Session {
         sqlx::query(
             r#"
             INSERT INTO session (
-                id, group_name, created_at, weapon, land, companion,
+                id, group_name, created_at, class, choice, land,
                 email, photo_path, copies_printed, story_text, headline
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11
@@ -51,9 +51,9 @@ impl Session {
         .bind(&self.id)
         .bind(&self.group_name)
         .bind(&self.created_at)
-        .bind(self.weapon)
+        .bind(self.class)
+        .bind(self.choice)
         .bind(self.land)
-        .bind(self.companion)
         .bind(&self.email)
         .bind(&self.photo_path)
         .bind(self.copies_printed)
@@ -71,9 +71,9 @@ impl Session {
             r#"
             UPDATE session SET
                 group_name = ?2,
-                weapon = ?3,
-                land = ?4,
-                companion = ?5,
+                class = ?3,
+                choice = ?4,
+                land = ?5,
                 email = ?6,
                 photo_path = ?7,
                 copies_printed = ?8,
@@ -84,9 +84,9 @@ impl Session {
         )
         .bind(&self.id)
         .bind(&self.group_name)
-        .bind(self.weapon)
+        .bind(self.class)
+        .bind(self.choice)
         .bind(self.land)
-        .bind(self.companion)
         .bind(&self.email)
         .bind(&self.photo_path)
         .bind(self.copies_printed)
@@ -103,7 +103,7 @@ impl Session {
         let session = sqlx::query_as::<_, Session>(
             r#"
             SELECT
-                id, group_name, created_at, weapon, land, companion,
+                id, group_name, created_at, class, choice, land,
                 email, photo_path, copies_printed, story_text, headline
             FROM session
             WHERE id = ?1
@@ -119,9 +119,9 @@ impl Session {
 
     pub fn is_complete(&self) -> bool {
         self.group_name.is_some()
-            && self.weapon.is_some()
+            && self.class.is_some()
+            && self.choice.is_some()
             && self.land.is_some()
-            && self.companion.is_some()
             && self.email.is_some()
             && self.photo_path.is_some()
             && self.story_text.is_some()
@@ -129,79 +129,97 @@ impl Session {
     }
 
     pub fn generate_story(&mut self) {
-        if let (Some(weapon_idx), Some(land_idx), Some(companion_idx)) =
-            (self.weapon, self.land, self.companion)
+        if let (Some(class_idx), Some(choice_idx), Some(land_idx)) =
+            (self.class, self.choice, self.land)
         {
-            // Define the updated names for weapons, lands, and companions
-            let weapons = ["Cascan Recurve", "Foreigner", "Handtorch", "Peacemaker"];
+            // Define the names for classes, lands, and choices
+            let classes = ["Gunslinger", "Merchant", "Thief", "Arsonist"];
             let lands = [
                 "a broken wagon at a fork in the road",
                 "a mine shaft entrance",
                 "distant mountain swamplands",
                 "a cabin by a stream",
             ];
-            let companions = [
-                "Kila Graham",
-                "Sneaky Pete",
-                "Acacia Goodwin",
-                "Helena Bindi",
+            let choices = [
+                "At high noon, face to face, pistol steady.",
+                "By standing between the good folks and the bad ones.",
+                "With my fist and a shot of whiskey.",
+                "Through a shooting challenge — fair, no hard feelings.",
+                "Won the town from the mayor in a single poker hand.",
+                "Gave away half my fortune to the townsfolk.",
+                "Sold snake oil to a snake.",
+                "Controlled the entire gunpowder supply.",
+                "Snatched the prized treasure from a crooked tycoon.",
+                "Stole the Marshal’s keys and freed my friends in jail.",
+                "Returned a stolen jewel to its rightful owner.",
+                "Stole a wagonload of candy from a bunch of babies.",
+                "The corrupt mayor’s mansion, lit up like judgment day.",
+                "The saloon’s piano, mid-song, while I kept playing.",
+                "A gun powder factory.",
+                "The gambling hall—luck burned faster than the cards.",
             ];
 
-            let weapon = weapons
-                .get(weapon_idx as usize)
-                .unwrap_or(&"a mysterious weapon");
-            let land = lands.get(land_idx as usize).unwrap_or(&"an unknown land");
-            let companion = companions
-                .get(companion_idx as usize)
-                .unwrap_or(&"a lone traveler");
+            let class = classes
+                .get(class_idx as usize)
+                .unwrap_or(&"A hooded stranger");
+            let choice = choices
+                .get(choice_idx as usize)
+                .unwrap_or(&"No Options Left");
+            let land = lands
+                .get(land_idx as usize)
+                .unwrap_or(&"off into the sunset");
 
-            let story = match (weapon_idx, land_idx, companion_idx) {
-                // Cascan Recurve combinations (Bow)
-                (0, 0, _) => format!("At the {}, they drew their {}, while {} watched the dark path ahead.", land, weapon, companion),
-                (0, 1, _) => format!("They scanned the {}, {} held steady, as {} tended the nearby campfire.", land, weapon, companion),
-                (0, 2, _) => format!("They moved silently through the {}, {} in hand, with {} pointing toward the mountains.", land, weapon, companion),
-                (0, 3, _) => format!("By the {}, they practiced with their {}, arrows whistling past as {} looked on.", land, weapon, companion),
+            // --- UPDATED STORIES ---
+            // The stories now directly reflect the chosen class and action.
+            let story = match (class_idx, choice_idx) {
+                // Gunslinger Stories
+                (0, 0) => format!("They said the only way to settle things was the old way. So there, by {}, the {} stood their ground. The legend of how they won? '{}'", land, class, choice),
+                (0, 1) => format!("Trouble was brewing, but near {}, one figure stood tall. The {} earned their reputation '{}'", land, class, choice),
+                (0, 2) => format!("Some problems can't be solved with words. Near {}, the {} proved that. They settled the dispute '{}'", land, class, choice),
+                (0, 3) => format!("It wasn't about violence, it was about skill. At {}, the {} made a name for themself '{}'", land, class, choice),
 
-                // Foreigner combinations (Hatchet)
-                (1, 0, _) => format!("Sizing up the {}, they gripped their worn {}, while {} gathered supplies.", land, weapon, companion),
-                (1, 1, _) => format!("They chopped firewood with the {} outside the {}, a steady rhythm that comforted {}.", weapon, land, companion),
-                (1, 2, _) => format!("Their {} cut a path through the dense {}, making the journey easier for {}.", weapon, land, companion),
-                (1, 3, _) => format!("They rested near the {}, carving wood with their {} as {} watched peacefully.", land, weapon, companion),
+                // Merchant Stories
+                (1, 4) => format!("Power in the west isn't always won with a gun. Near {}, a crafty {} changed the whole territory. How? They '{}'", land, class, choice),
+                (1, 5) => format!("A true {} knows that wealth is for more than just keeping. Near {}, they became a local hero when they '{}'", land, class, choice),
+                (1, 6) => format!("Every {} needs a silver tongue. Out by {}, they pulled off their most legendary swindle when they '{}'", land, class, choice),
+                (1, 7) => format!("The greatest {} doesn't just sell goods, they control the market. From their post at {}, they changed the game because they '{}'", land, class, choice),
 
-                // Handtorch combinations (Torch)
-                (2, 0, _) => format!("They held the {} high, its light dancing on the {} as {} peered into the darkness.", weapon, land, companion),
-                (2, 1, _) => format!("With the {} held aloft, they stepped into the {}, {} following close behind.", weapon, land, companion),
-                (2, 2, _) => format!("The {} cut through the gloom of the {}, a small beacon for them and {}.", weapon, land, companion),
-                (2, 3, _) => format!("As night fell on the {}, they lit the {}, sharing its simple warmth with {}.", land, weapon, companion),
+                // Thief Stories
+                (2, 8) => format!("Some called it crime, but the {} called it justice. Their greatest act of redistribution started at {}, where they '{}'", land, class, choice),
+                (2, 9) => format!("Loyalty is worth more than gold. Near {}, the {} risked it all for their crew. They tell the tale of how they '{}'", land, class, choice),
+                (2, 10) => format!("Even a {} with sticky fingers can have a heart of gold. By {}, they righted a terrible wrong when they '{}'", land, class, choice),
+                (2, 11) => format!("Not every score is for riches. The {} once pulled a comical heist near {}, and all they did was '{}'", land, class, choice),
 
-                // Peacemaker combinations (Revolver)
-                (3, 0, _) => format!("At the {}, their hand rested on their {}, a silent promise to protect {}.", land, weapon, companion),
-                (3, 1, _) => format!("Firelight glinted off their {} at the {}; {} stayed quiet, sensing trouble.", weapon, land, companion),
-                (3, 2, _) => format!("In the lawless {}, the only authority was their {}, a fact {} knew well.", land, weapon, companion),
-                (3, 3, _) => format!("As the sun rose over the {}, they cleaned their {}, a quiet ritual shared with {}.", land, weapon, companion),
+                // Arsonist Stories
+                (3, 12) => format!("Sometimes, the only way to cleanse a town is with fire. From {}, the {} watched their handiwork: '{}'", land, class, choice),
+                (3, 13) => format!("The {} was an artist, and their medium was chaos. Their masterpiece began near {} with '{}'", land, class, choice),
+                (3, 14) => format!("A message needed to be sent, loud and clear. The {} sent it from {}, targeting '{}' The explosion was heard for miles.", land, class, choice),
+                (3, 15) => format!("The house always wins, they say. Not when the {} is dealing. By {}, they ensured no one would ever cheat there again by igniting '{}'", land, class, choice),
 
                 // Default fallback
-                _ => format!("Armed with their {}, they ventured through the {} with their loyal companion, {}.", weapon, land, companion),
+                _ => format!("The story of the {} near {} is one for the ages, defined by a single, legendary choice: '{}'", class, land, choice),
             };
 
-            let headline = match (weapon_idx, companion_idx) {
-                (0, 0) => "The Hunter and the Guide",
-                (0, 1) => "An Arrow for an Outlaw",
-                (0, 2) => "The Convict's Aim",
-                (0, 3) => "The Cowgirl Archer",
-                (1, 0) => "Wilderness Warriors",
-                (1, 1) => "The Hatchet and the Thief",
-                (1, 2) => "A Fugitive's Resolve",
-                (1, 3) => "An Axe to Grind",
-                (2, 0) => "Into the Dark",
-                (2, 1) => "A Thief in the Night",
-                (2, 2) => "Escaping the Shadows",
-                (2, 3) => "The Guiding Light",
-                (3, 0) => "The Survivor's Six-Shooter",
-                (3, 1) => "An Unlikely Alliance",
-                (3, 2) => "Justice for the Fugitive",
-                (3, 3) => "The Saloon Standoff",
-                _ => "A New Chapter",
+            // --- UPDATED HEADLINES ---
+            // Headlines are now matched to the specific choice for better relevance.
+            let headline = match choice_idx {
+                0 => "High Noon Reckoning",
+                1 => "The Town's Shield",
+                2 => "Whiskey & Bruised Knuckles",
+                3 => "The Sharpshooter's Challenge",
+                4 => "The Mayor's Losing Hand",
+                5 => "A Fortune for the Folk",
+                6 => "The Serpent's Swindle",
+                7 => "The Gunpowder Gambit",
+                8 => "The Tycoon's Treasure",
+                9 => "The Marshal's Keys",
+                10 => "A Jewel for Justice",
+                11 => "The Great Candy Caper",
+                12 => "Mansion in Flames",
+                13 => "A Fiery Tune",
+                14 => "The Factory's Final Boom",
+                15 => "Luck Runs Out",
+                _ => "A Legend is Born",
             };
 
             self.headline = Some(headline.to_string());
@@ -234,9 +252,9 @@ mod tests {
         assert!(!session.is_complete());
 
         session.group_name = Some("Test Group".to_string());
-        session.weapon = Some(1);
-        session.land = Some(2);
-        session.companion = Some(3);
+        session.class = Some(1);
+        session.choice = Some(2);
+        session.land = Some(3);
         session.email = Some("test@example.com".to_string());
         session.photo_path = Some("/path/to/photo.png".to_string());
         session.story_text = Some("Test story".to_string());
@@ -248,9 +266,9 @@ mod tests {
     #[test]
     fn test_generate_story() {
         let mut session = Session::new();
-        session.weapon = Some(1);
-        session.land = Some(2);
-        session.companion = Some(3);
+        session.class = Some(1);
+        session.choice = Some(2);
+        session.land = Some(3);
 
         session.generate_story();
 

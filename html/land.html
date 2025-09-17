@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Choose Your Land</title>
+        <title>Where are you off to next?</title>
         <style>
             body {
                 margin: 0;
@@ -122,7 +122,7 @@
         </style>
     </head>
     <body>
-        <h1>Choose Your Land</h1>
+        <h1>Where to next?</h1>
 
         <div class="grid-container">
             <button class="land-button" onclick="selectLand(0)">
@@ -179,9 +179,9 @@
                     const data = await response.json();
 
                     if (data.ok) {
-                        // Store session ID and proceed to companion selection
+                        // Store session ID and proceed to camera
                         sessionStorage.setItem("session_id", sessionId);
-                        window.location.href = `/companion?session_id=${sessionId}`;
+                        window.location.href = `/camera?session_id=${sessionId}`;
                     } else {
                         alert(
                             "Error updating selection: " +

@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Make Your Choice</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+                background-image: url("/static/interface_background.jpg");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+                color: white;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+
+            h1 {
+                font-size: 2.5em;
+                margin: 20px 0;
+                text-align: center;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            }
+
+            .choices-container {
+                display: flex;
+                flex-direction: column;
+                gap: 20px;
+                width: 100%;
+                max-width: 800px;
+                padding: 10px;
+            }
+
+            .choice-button {
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                padding: 20px 30px;
+                cursor: pointer;
+                border-radius: 10px;
+                transition:
+                    transform 0.3s ease,
+                    box-shadow 0.3s ease,
+                    background-color 0.3s ease;
+                background-color: rgba(52, 73, 94, 0.9);
+                backdrop-filter: blur(5px);
+                width: 100%;
+                font-size: 1.2em;
+                color: white;
+                text-align: left;
+                text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            }
+
+            .choice-button:hover {
+                transform: translateX(10px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                background-color: rgba(52, 73, 94, 1);
+                border-color: rgba(255, 255, 255, 0.5);
+            }
+
+            .choice-button:active {
+                transform: translateX(5px);
+            }
+
+            .loading {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .loading.active {
+                display: flex;
+            }
+
+            .spinner {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #3498db;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* Responsive adjustments for smaller screens */
+            @media (max-height: 700px) {
+                h1 {
+                    font-size: 2em;
+                    margin: 15px 0;
+                }
+                .choice-button {
+                    padding: 15px 25px;
+                    font-size: 1.1em;
+                }
+            }
+
+            @media (max-width: 600px) {
+                h1 {
+                    font-size: 1.8em;
+                }
+                .choice-button {
+                    font-size: 1em;
+                    padding: 15px 20px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h1 id="question">Loading...</h1>
+
+        <div class="choices-container" id="choicesContainer">
+            <!-- Choices will be dynamically added here -->
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+        </div>
+
+        <script>
+            // All possible choice texts
+            const allChoices = [
+                "At high noon, face to face, pistol steady.",
+                "By standing between the good folks and the bad ones.",
+                "With my fist and a shot of whiskey",
+                "Through a shooting challenge — fair, no hard feelings.",
+                "Won the town from the mayor in a single poker hand.",
+                "Gave away half my fortune to the townsfolk.",
+                "Sold snake oil to a snake.",
+                "Controlled the entire gunpowder supply",
+                "Snatched the prized treasure from a crooked tycoon.",
+                "Stole the Marshal's keys and freed my friends in jail.",
+                "Returned a stolen jewel to its rightful owner.",
+                "Stole a wagonload of candy from a bunch of babies",
+                "The corrupt mayor's mansion, lit up like judgment day",
+                "The saloon's piano, mid-song, while I kept playing",
+                "A gun powder factory",
+                "The gambling hall—luck burned faster than the cards",
+            ];
+
+            // Questions for each class
+            const classQuestions = [
+                "How do you settle a dispute?", // Gunslinger
+                "What's your greatest business achievement?", // Merchant
+                "What's your most daring heist?", // Thief
+                "What burned brightest?", // Arsonist
+            ];
+
+            // Get session ID from URL or sessionStorage
+            function getSessionId() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId =
+                    urlParams.get("session_id") ||
+                    sessionStorage.getItem("session_id");
+                if (!sessionId) {
+                    alert("No session found. Redirecting to start...");
+                    window.location.href = "/";
+                    return null;
+                }
+                return sessionId;
+            }
+
+            async function loadChoices() {
+                const sessionId = getSessionId();
+                if (!sessionId) return;
+
+                try {
+                    // Load session to get the selected class
+                    const response = await fetch(`/session/${sessionId}`);
+                    const data = await response.json();
+
+                    if (
+                        data.ok &&
+                        data.session &&
+                        data.session.class !== null &&
+                        data.session.class !== undefined
+                    ) {
+                        const classIndex = data.session.class;
+
+                        // Set the question based on class
+                        document.getElementById("question").textContent =
+                            classQuestions[classIndex] || "Make your choice:";
+
+                        // Calculate the choice indices based on class
+                        // Class 0: choices 0-3
+                        // Class 1: choices 4-7
+                        // Class 2: choices 8-11
+                        // Class 3: choices 12-15
+                        const startIdx = classIndex * 4;
+                        const endIdx = startIdx + 4;
+
+                        // Display the appropriate choices
+                        const container =
+                            document.getElementById("choicesContainer");
+                        container.innerHTML = "";
+
+                        for (
+                            let i = startIdx;
+                            i < endIdx && i < allChoices.length;
+                            i++
+                        ) {
+                            const button = document.createElement("button");
+                            button.className = "choice-button";
+                            button.textContent = allChoices[i];
+                            button.onclick = () => selectChoice(i);
+                            container.appendChild(button);
+                        }
+                    } else {
+                        alert("Please select a class first.");
+                        window.location.href = `/class?session_id=${sessionId}`;
+                    }
+                } catch (error) {
+                    console.error("Error loading session:", error);
+                    alert("Error loading choices. Please try again.");
+                }
+            }
+
+            async function selectChoice(choiceIndex) {
+                const sessionId = getSessionId();
+                if (!sessionId) return;
+
+                // Show loading spinner
+                document.getElementById("loading").classList.add("active");
+
+                try {
+                    const response = await fetch(`/session/${sessionId}`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            choice: choiceIndex,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.ok) {
+                        // Store session ID and proceed to land selection
+                        sessionStorage.setItem("session_id", sessionId);
+                        window.location.href = `/land?session_id=${sessionId}`;
+                    } else {
+                        alert(
+                            "Error updating selection: " +
+                                (data.error || "Unknown error"),
+                        );
+                        document
+                            .getElementById("loading")
+                            .classList.remove("active");
+                    }
+                } catch (error) {
+                    console.error("Error:", error);
+                    alert("Network error. Please try again.");
+                    document
+                        .getElementById("loading")
+                        .classList.remove("active");
+                }
+            }
+
+            // Load choices when page loads
+            window.addEventListener("DOMContentLoaded", () => {
+                const sessionId = getSessionId();
+                if (sessionId) {
+                    // Store in sessionStorage for consistency
+                    sessionStorage.setItem("session_id", sessionId);
+                    loadChoices();
+                }
+            });
+        </script>
+    </body>
+</html>
