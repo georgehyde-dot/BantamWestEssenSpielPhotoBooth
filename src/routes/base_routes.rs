@@ -3,6 +3,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 // Embed HTML files at compile time
 const START_HTML: &str = include_str!("../../html/start.html");
 const ENTER_NAMES_HTML: &str = include_str!("../../html/enter_names.html");
+const EMAIL_ENTRY_HTML: &str = include_str!("../../html/email_entry.html");
 const COPIES_HTML: &str = include_str!("../../html/copies.html");
 const INDEX_HTML: &str = include_str!("../../html/index.html");
 const PHOTO_HTML: &str = include_str!("../../html/photo.html");
@@ -20,6 +21,13 @@ pub async fn name_entry_page() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/html")
         .body(ENTER_NAMES_HTML)
+}
+
+#[get("/email-entry")]
+pub async fn email_entry_page() -> impl Responder {
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(EMAIL_ENTRY_HTML)
 }
 
 #[get("/copies")]

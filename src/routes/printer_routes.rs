@@ -172,7 +172,7 @@ pub async fn print_photo(
                 file_path: templated_filename.to_str().unwrap().to_string(),
                 copies: copies,
                 paper_size: PaperSize::Photo4x6,
-                quality: PrintQuality::High,
+                quality: PrintQuality::Draft,
             };
 
             info!("Sending print job to printer: {:?}", print_job);

@@ -83,6 +83,9 @@ pub async fn update_session(
             if let Some(copies) = body.get("copies_printed").and_then(|v| v.as_i64()) {
                 session.copies_printed = copies as i32;
             }
+            if let Some(mailing_list) = body.get("mailing_list").and_then(|v| v.as_i64()) {
+                session.mailing_list = mailing_list as i32;
+            }
 
             // Save updated session
             match session.update(&db_pool).await {

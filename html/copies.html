@@ -5,16 +5,18 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Select Number of Copies</title>
         <style>
+            @import url("https://fonts.googleapis.com/css2?family=Rye&family=Bebas+Neue&display=swap");
+
             body {
                 margin: 0;
                 padding: 0;
-                font-family: Arial, sans-serif;
+                font-family: "Rye", cursive;
                 background-image: url("/static/interface_background.jpg");
                 background-size: cover;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
-                color: white;
+                color: #f4e4c1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -30,14 +32,25 @@
                 margin-bottom: 10px;
                 margin-top: 20px;
                 text-align: center;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+                color: #f4e4c1;
+                text-shadow:
+                    3px 3px 0px #8b4513,
+                    4px 4px 8px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(139, 69, 19, 0.5);
+                letter-spacing: 2px;
+                text-transform: uppercase;
             }
 
             p {
-                font-size: 1.5em;
+                font-size: 1.3em;
                 margin-bottom: 30px;
                 text-align: center;
-                color: #ecf0f1;
+                color: #d4af37;
+                text-shadow:
+                    2px 2px 4px rgba(0, 0, 0, 0.8),
+                    0 0 20px rgba(139, 69, 19, 0.3);
+                font-family: "Bebas Neue", cursive;
+                letter-spacing: 1px;
             }
 
             .grid-container {
@@ -51,66 +64,148 @@
             .copy-button {
                 width: 100%;
                 height: 180px;
-                border: none;
+                border: 3px solid #654321;
                 padding: 0;
                 cursor: pointer;
                 position: relative;
                 overflow: hidden;
-                border-radius: 20px;
+                border-radius: 8px;
                 transition:
                     transform 0.3s ease,
                     box-shadow 0.3s ease;
-                background-color: #3498db;
+
+                /* Wood texture effect */
+                background: linear-gradient(
+                    180deg,
+                    #8b6635 0%,
+                    #a0743f 20%,
+                    #8b6635 40%,
+                    #704214 60%,
+                    #8b6635 80%,
+                    #a0743f 100%
+                );
+                background-size: 100% 200%;
+
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 5em;
+                font-size: 4.5em;
                 font-weight: bold;
-                color: white;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+                color: #f4e4c1;
+                text-shadow:
+                    3px 3px 0px #3d2914,
+                    4px 4px 6px rgba(0, 0, 0, 0.8),
+                    inset 0 0 20px rgba(0, 0, 0, 0.3);
+                font-family: "Bebas Neue", cursive;
+
+                /* Wood grain overlay effect */
+                box-shadow:
+                    inset 0 2px 4px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+                    0 4px 8px rgba(0, 0, 0, 0.5),
+                    0 8px 16px rgba(0, 0, 0, 0.3);
+            }
+
+            /* Add wood grain texture with pseudo element */
+            .copy-button::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.1) 2px,
+                    rgba(0, 0, 0, 0.1) 4px
+                );
+                pointer-events: none;
+                border-radius: 5px;
             }
 
             .copy-button:hover {
-                transform: scale(1.05);
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-                background-color: #2980b9;
+                transform: translateY(-5px) scale(1.05);
+                box-shadow:
+                    inset 0 2px 4px rgba(0, 0, 0, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+                    0 8px 16px rgba(0, 0, 0, 0.7),
+                    0 12px 24px rgba(0, 0, 0, 0.4);
+                background-position: 0 50%;
             }
 
             .copy-button:active {
-                transform: scale(0.98);
+                transform: translateY(-2px) scale(1.02);
+                box-shadow:
+                    inset 0 4px 8px rgba(0, 0, 0, 0.5),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+                    0 2px 4px rgba(0, 0, 0, 0.5);
             }
 
-            /* Different colors for each button */
+            /* Different wood tones for each button */
             .copy-button:nth-child(1) {
-                background-color: #3498db;
+                background: linear-gradient(
+                    180deg,
+                    #a0743f 0%,
+                    #8b6635 25%,
+                    #a0743f 50%,
+                    #704214 75%,
+                    #8b6635 100%
+                );
             }
 
             .copy-button:nth-child(2) {
-                background-color: #e74c3c;
+                background: linear-gradient(
+                    180deg,
+                    #8b4513 0%,
+                    #a0522d 25%,
+                    #8b4513 50%,
+                    #654321 75%,
+                    #8b4513 100%
+                );
             }
 
             .copy-button:nth-child(3) {
-                background-color: #2ecc71;
+                background: linear-gradient(
+                    180deg,
+                    #964b00 0%,
+                    #b8860b 25%,
+                    #964b00 50%,
+                    #704214 75%,
+                    #964b00 100%
+                );
             }
 
             .copy-button:nth-child(4) {
-                background-color: #f39c12;
+                background: linear-gradient(
+                    180deg,
+                    #704214 0%,
+                    #8b6635 25%,
+                    #704214 50%,
+                    #5c3317 75%,
+                    #704214 100%
+                );
             }
 
-            .copy-button:nth-child(1):hover {
-                background-color: #2980b9;
-            }
-
-            .copy-button:nth-child(2):hover {
-                background-color: #c0392b;
-            }
-
-            .copy-button:nth-child(3):hover {
-                background-color: #27ae60;
-            }
-
-            .copy-button:nth-child(4):hover {
-                background-color: #d68910;
+            /* Burn marks on edges for authenticity */
+            .copy-button::after {
+                content: "";
+                position: absolute;
+                top: -2px;
+                left: -2px;
+                right: -2px;
+                bottom: -2px;
+                background: linear-gradient(
+                    45deg,
+                    rgba(0, 0, 0, 0.3) 0%,
+                    transparent 40%,
+                    transparent 60%,
+                    rgba(0, 0, 0, 0.3) 100%
+                );
+                border-radius: 8px;
+                pointer-events: none;
+                z-index: 1;
             }
 
             .loading {
@@ -131,8 +226,8 @@
             }
 
             .spinner {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #3498db;
+                border: 4px solid #8b6635;
+                border-top: 4px solid #f4e4c1;
                 border-radius: 50%;
                 width: 50px;
                 height: 50px;
@@ -150,14 +245,63 @@
 
             .subtitle {
                 font-size: 1.2em;
-                color: #95a5a6;
+                color: #d4af37;
                 margin-bottom: 5px;
+            }
+
+            /* Responsive adjustments */
+            @media (max-height: 700px) {
+                h1 {
+                    font-size: 2.5em;
+                    margin: 15px 0 10px 0;
+                }
+                p {
+                    font-size: 1.1em;
+                    margin-bottom: 20px;
+                }
+                .grid-container {
+                    gap: 20px;
+                }
+                .copy-button {
+                    height: 150px;
+                    font-size: 3.5em;
+                }
+            }
+
+            @media (max-width: 768px) {
+                .grid-container {
+                    grid-template-columns: repeat(4, 140px);
+                    gap: 15px;
+                }
+                .copy-button {
+                    height: 140px;
+                    font-size: 3em;
+                }
+            }
+
+            @media (max-width: 600px) {
+                h1 {
+                    font-size: 2em;
+                }
+                p {
+                    font-size: 1em;
+                }
+                .grid-container {
+                    grid-template-columns: repeat(4, 120px);
+                    gap: 10px;
+                }
+                .copy-button {
+                    height: 120px;
+                    font-size: 2.5em;
+                }
             }
         </style>
     </head>
     <body>
         <h1>How Many Prints?</h1>
-        <p class="subtitle">Select the number of copies you'd like</p>
+        <p class="subtitle">
+            Almost ready, partner! How many copies y'all need?
+        </p>
 
         <div class="grid-container">
             <button class="copy-button" onclick="selectCopies(1)">1</button>
@@ -206,9 +350,9 @@
                     const data = await response.json();
 
                     if (data.ok) {
-                        // Store session ID and proceed to class selection
+                        // Store session ID and proceed to camera
                         sessionStorage.setItem("session_id", sessionId);
-                        window.location.href = `/class?session_id=${sessionId}`;
+                        window.location.href = `/camera?session_id=${sessionId}`;
                     } else {
                         alert(
                             "Error updating selection: " +

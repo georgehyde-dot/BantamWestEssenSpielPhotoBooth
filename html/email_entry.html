@@ -6,7 +6,7 @@
             name="viewport"
             content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
         />
-        <title>What is your Group or Personal Outlaw Name?</title>
+        <title>Where Should We Send Your Photo?</title>
         <style>
             * {
                 margin: 0;
@@ -101,11 +101,11 @@
                 text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
             }
 
-            .group-name-input {
+            .email-input {
                 width: 100%;
                 padding: 25px;
                 font-size: 24px;
-                border: 3px solid rgba(255, 255, 255, 0.3);
+                border: 2px solid rgba(255, 255, 255, 0.3);
                 border-radius: 20px;
                 text-align: center;
                 background: rgba(255, 255, 255, 0.95);
@@ -115,16 +115,45 @@
                 box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             }
 
-            .group-name-input::placeholder {
+            .email-input::placeholder {
                 color: #999;
                 font-style: italic;
             }
 
-            .group-name-input.active {
+            .email-input.active {
                 border-color: white;
                 background: white;
                 transform: scale(1.02);
                 box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            }
+
+            .email-input.valid {
+                border-color: #00cc66;
+            }
+
+            .email-input.invalid {
+                border-color: #cc3333;
+            }
+
+            .checkbox-wrapper {
+                margin-top: -20px;
+                margin-bottom: 30px;
+            }
+
+            .checkbox-label {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: rgba(255, 255, 255, 0.95);
+                font-size: 16px;
+                cursor: pointer;
+            }
+
+            .checkbox-label input[type="checkbox"] {
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+                cursor: pointer;
             }
 
             .submit-btn {
@@ -272,6 +301,10 @@
                 display: block;
             }
 
+            .hidden {
+                display: none !important;
+            }
+
             /* Animations */
             @keyframes fadeIn {
                 from {
@@ -330,7 +363,7 @@
                     font-size: 28px;
                 }
 
-                .group-name-input {
+                .email-input {
                     font-size: 20px;
                     padding: 20px;
                 }
@@ -366,27 +399,33 @@
     <body>
         <div class="main-content" id="mainContent">
             <div class="header">
-                <h1>What is your Group or Personal Outlaw Name?</h1>
-                <p>
-                    Make up a Wild West name, like 'Cactus Jack' or 'Moonlight
-                    Rose'
-                </p>
+                <h1>Where Should We Send Your Photo?</h1>
+                <p>Enter your email to receive your adventure photo</p>
             </div>
 
             <div class="input-container">
                 <div class="input-wrapper">
-                    <label class="input-label" for="groupName"
-                        >Pick a fun nickname you'd want on a Wanted
-                        Poster</label
+                    <label class="input-label" for="emailInput"
+                        >Your email address</label
                     >
                     <input
                         type="text"
-                        id="groupName"
-                        class="group-name-input"
-                        placeholder="Tap to enter your real or fake name"
+                        id="emailInput"
+                        class="email-input"
+                        placeholder="Tap to enter your email"
                         readonly
-                        maxlength="50"
+                        maxlength="100"
                     />
+                </div>
+
+                <div class="checkbox-wrapper">
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            id="mailingListCheckbox"
+                        />
+                        <span>Join our mailing list for event updates and special offers</span>
+                    </label>
                 </div>
 
                 <button
@@ -395,7 +434,7 @@
                     type="button"
                     disabled
                 >
-                    Continue to Photo Booth
+                    Send My Photo
                 </button>
             </div>
         </div>
@@ -413,13 +452,6 @@
                 <button
                     type="button"
                     class="keyboard-tab"
-                    data-layout="special"
-                >
-                    ÄÖÜ
-                </button>
-                <button
-                    type="button"
-                    class="keyboard-tab"
                     data-layout="symbols"
                 >
                     123
@@ -429,43 +461,36 @@
             <!-- Main ABC Layout -->
             <div class="keyboard-layout active" id="abc-layout">
                 <div class="keyboard-row">
-                    <button type="button" class="key" data-key="Q">Q</button>
-                    <button type="button" class="key" data-key="W">W</button>
-                    <button type="button" class="key" data-key="E">E</button>
-                    <button type="button" class="key" data-key="R">R</button>
-                    <button type="button" class="key" data-key="T">T</button>
-                    <button type="button" class="key" data-key="Y">Y</button>
-                    <button type="button" class="key" data-key="U">U</button>
-                    <button type="button" class="key" data-key="I">I</button>
-                    <button type="button" class="key" data-key="O">O</button>
-                    <button type="button" class="key" data-key="P">P</button>
+                    <button type="button" class="key" data-key="q">q</button>
+                    <button type="button" class="key" data-key="w">w</button>
+                    <button type="button" class="key" data-key="e">e</button>
+                    <button type="button" class="key" data-key="r">r</button>
+                    <button type="button" class="key" data-key="t">t</button>
+                    <button type="button" class="key" data-key="y">y</button>
+                    <button type="button" class="key" data-key="u">u</button>
+                    <button type="button" class="key" data-key="i">i</button>
+                    <button type="button" class="key" data-key="o">o</button>
+                    <button type="button" class="key" data-key="p">p</button>
                 </div>
                 <div class="keyboard-row">
-                    <button type="button" class="key" data-key="A">A</button>
-                    <button type="button" class="key" data-key="S">S</button>
-                    <button type="button" class="key" data-key="D">D</button>
-                    <button type="button" class="key" data-key="F">F</button>
-                    <button type="button" class="key" data-key="G">G</button>
-                    <button type="button" class="key" data-key="H">H</button>
-                    <button type="button" class="key" data-key="J">J</button>
-                    <button type="button" class="key" data-key="K">K</button>
-                    <button type="button" class="key" data-key="L">L</button>
+                    <button type="button" class="key" data-key="a">a</button>
+                    <button type="button" class="key" data-key="s">s</button>
+                    <button type="button" class="key" data-key="d">d</button>
+                    <button type="button" class="key" data-key="f">f</button>
+                    <button type="button" class="key" data-key="g">g</button>
+                    <button type="button" class="key" data-key="h">h</button>
+                    <button type="button" class="key" data-key="j">j</button>
+                    <button type="button" class="key" data-key="k">k</button>
+                    <button type="button" class="key" data-key="l">l</button>
                 </div>
                 <div class="keyboard-row">
-                    <button
-                        type="button"
-                        class="key special wide"
-                        data-key="shift"
-                    >
-                        ⇧
-                    </button>
-                    <button type="button" class="key" data-key="Z">Z</button>
-                    <button type="button" class="key" data-key="X">X</button>
-                    <button type="button" class="key" data-key="C">C</button>
-                    <button type="button" class="key" data-key="V">V</button>
-                    <button type="button" class="key" data-key="B">B</button>
-                    <button type="button" class="key" data-key="N">N</button>
-                    <button type="button" class="key" data-key="M">M</button>
+                    <button type="button" class="key" data-key="z">z</button>
+                    <button type="button" class="key" data-key="x">x</button>
+                    <button type="button" class="key" data-key="c">c</button>
+                    <button type="button" class="key" data-key="v">v</button>
+                    <button type="button" class="key" data-key="b">b</button>
+                    <button type="button" class="key" data-key="n">n</button>
+                    <button type="button" class="key" data-key="m">m</button>
                     <button
                         type="button"
                         class="key special wide"
@@ -480,71 +505,6 @@
                     </button>
                     <button type="button" class="key special" data-key=".">
                         .
-                    </button>
-                    <button
-                        type="button"
-                        class="key special space"
-                        data-key=" "
-                    >
-                        Space
-                    </button>
-                    <button type="button" class="key special" data-key="clear">
-                        Clear
-                    </button>
-                    <button
-                        type="button"
-                        class="key special wider"
-                        data-key="done"
-                    >
-                        Done
-                    </button>
-                </div>
-            </div>
-
-            <!-- Special Characters Layout (German, etc.) -->
-            <div class="keyboard-layout" id="special-layout">
-                <div class="keyboard-row">
-                    <button type="button" class="key" data-key="Ä">Ä</button>
-                    <button type="button" class="key" data-key="Ö">Ö</button>
-                    <button type="button" class="key" data-key="Ü">Ü</button>
-                    <button type="button" class="key" data-key="ä">ä</button>
-                    <button type="button" class="key" data-key="ö">ö</button>
-                    <button type="button" class="key" data-key="ü">ü</button>
-                    <button type="button" class="key" data-key="ß">ß</button>
-                    <button type="button" class="key" data-key="€">€</button>
-                </div>
-                <div class="keyboard-row">
-                    <button type="button" class="key" data-key="À">À</button>
-                    <button type="button" class="key" data-key="È">È</button>
-                    <button type="button" class="key" data-key="É">É</button>
-                    <button type="button" class="key" data-key="Ç">Ç</button>
-                    <button type="button" class="key" data-key="Ñ">Ñ</button>
-                    <button type="button" class="key" data-key="à">à</button>
-                    <button type="button" class="key" data-key="è">è</button>
-                    <button type="button" class="key" data-key="é">é</button>
-                    <button type="button" class="key" data-key="ç">ç</button>
-                    <button type="button" class="key" data-key="ñ">ñ</button>
-                </div>
-                <div class="keyboard-row">
-                    <button type="button" class="key" data-key="Á">Á</button>
-                    <button type="button" class="key" data-key="Í">Í</button>
-                    <button type="button" class="key" data-key="Ó">Ó</button>
-                    <button type="button" class="key" data-key="Ú">Ú</button>
-                    <button type="button" class="key" data-key="á">á</button>
-                    <button type="button" class="key" data-key="í">í</button>
-                    <button type="button" class="key" data-key="ó">ó</button>
-                    <button type="button" class="key" data-key="ú">ú</button>
-                    <button
-                        type="button"
-                        class="key special wide"
-                        data-key="backspace"
-                    >
-                        ⌫
-                    </button>
-                </div>
-                <div class="keyboard-row">
-                    <button type="button" class="key special" data-key="'">
-                        '
                     </button>
                     <button
                         type="button"
@@ -636,8 +596,6 @@
 
         <script>
             let activeInput = null;
-            let isShiftPressed = false;
-            let currentLayout = "abc";
             const sessionId = sessionStorage.getItem("session_id");
 
             // Redirect to start if no session
@@ -645,13 +603,13 @@
                 window.location.href = "/";
             }
 
-            const groupNameInput = document.getElementById("groupName");
+            const emailInput = document.getElementById("emailInput");
             const submitBtn = document.getElementById("submitBtn");
             const keyboard = document.getElementById("customKeyboard");
             const mainContent = document.getElementById("mainContent");
 
             // Handle input clicks
-            groupNameInput.addEventListener("click", function () {
+            emailInput.addEventListener("click", function () {
                 this.classList.add("active");
                 activeInput = this;
 
@@ -689,8 +647,6 @@
                 document
                     .getElementById(`${layoutName}-layout`)
                     .classList.add("active");
-
-                currentLayout = layoutName;
             }
 
             // Handle keyboard keys
@@ -709,62 +665,17 @@
                             activeInput.value = "";
                             break;
 
-                        case "shift":
-                            isShiftPressed = !isShiftPressed;
-                            this.classList.toggle("shift-active");
-                            updateKeyboardCase();
-                            return;
-
                         case "done":
                             closeKeyboard();
                             break;
 
                         default:
-                            let char = keyValue;
-
-                            // Handle shift for letters in ABC layout
-                            if (
-                                currentLayout === "abc" &&
-                                keyValue.match(/[A-Z]/) &&
-                                !isShiftPressed
-                            ) {
-                                char = char.toLowerCase();
-                            }
-
-                            // Handle first character capitalization for ABC layout
-                            if (
-                                currentLayout === "abc" &&
-                                (activeInput.value.length === 0 ||
-                                    activeInput.value[
-                                        activeInput.value.length - 1
-                                    ] === " ")
-                            ) {
-                                if (keyValue.match(/[A-Z]/)) {
-                                    char = char.toUpperCase();
-                                }
-                            }
-
-                            activeInput.value += char;
-
-                            // Auto-disable shift after typing a letter in ABC layout
-                            if (
-                                currentLayout === "abc" &&
-                                isShiftPressed &&
-                                keyValue.match(/[A-Z]/)
-                            ) {
-                                isShiftPressed = false;
-                                const shiftKey = document.querySelector(
-                                    '#abc-layout [data-key="shift"]',
-                                );
-                                if (shiftKey) {
-                                    shiftKey.classList.remove("shift-active");
-                                }
-                                updateKeyboardCase();
-                            }
+                            activeInput.value += keyValue;
                             break;
                     }
 
-                    updateSubmitButton();
+                    validateEmail();
+                    activeInput.focus();
                 });
             });
 
@@ -777,52 +688,69 @@
                 }
             }
 
-            function updateKeyboardCase() {
-                if (currentLayout !== "abc") return;
+            function validateEmail() {
+                const email = emailInput.value.trim();
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const isValid = emailRegex.test(email);
 
-                document.querySelectorAll("#abc-layout .key").forEach((key) => {
-                    const keyValue = key.dataset.key;
-                    if (keyValue && keyValue.match(/[A-Z]/)) {
-                        key.textContent = isShiftPressed
-                            ? keyValue
-                            : keyValue.toLowerCase();
-                    }
-                });
-            }
+                emailInput.classList.remove("valid", "invalid");
+                if (email.length > 0) {
+                    emailInput.classList.add(isValid ? "valid" : "invalid");
+                }
 
-            function updateSubmitButton() {
-                const groupName = groupNameInput.value.trim();
-                submitBtn.disabled = groupName.length === 0;
+                submitBtn.disabled = !isValid;
             }
 
             // Handle submit
             submitBtn.addEventListener("click", async function () {
-                const groupName = groupNameInput.value.trim();
+                const email = emailInput.value.trim();
+                const mailingListCheckbox = document.getElementById(
+                    "mailingListCheckbox",
+                );
+                const mailingListValue = mailingListCheckbox.checked ? 1 : 0;
 
-                if (!groupName) return;
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    alert("Please enter a valid email address");
+                    return;
+                }
 
                 this.disabled = true;
                 this.textContent = "Saving...";
 
                 try {
-                    // Update session with group name
+                    // Update session with email and mailing list preference
                     const response = await fetch(`/session/${sessionId}`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ group_name: groupName }),
+                        body: JSON.stringify({
+                            email: email,
+                            mailing_list: mailingListValue,
+                        }),
                     });
 
                     if (response.ok) {
-                        // Navigate to class selection
-                        window.location.href = `/class?session_id=${sessionId}`;
+                        // Save session to database
+                        await fetch(`/session/${sessionId}/save`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                        });
+
+                        // Navigate back to start page
+                        sessionStorage.removeItem("session_id");
+                        sessionStorage.removeItem("captured_image");
+                        sessionStorage.removeItem("should_print");
+                        window.location.href = `/`;
                     } else {
-                        throw new Error("Failed to save group name");
+                        throw new Error("Failed to save email");
                     }
                 } catch (error) {
                     console.error("Error:", error);
                     this.disabled = false;
-                    this.textContent = "Continue to Photo Booth";
-                    alert("Error saving group name. Please try again.");
+                    this.textContent = "Send My Photo";
+                    alert("Error saving email. Please try again.");
                 }
             });
 
@@ -830,7 +758,7 @@
             document.addEventListener("click", function (e) {
                 if (
                     !e.target.closest(".custom-keyboard") &&
-                    !e.target.closest(".group-name-input") &&
+                    !e.target.closest(".email-input") &&
                     activeInput
                 ) {
                     closeKeyboard();
@@ -838,8 +766,7 @@
             });
 
             // Initialize
-            updateSubmitButton();
-            updateKeyboardCase();
+            validateEmail();
         </script>
     </body>
 </html>

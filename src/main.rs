@@ -19,8 +19,9 @@ use config::Config;
 use printers::new_printer;
 use routes::{
     camera_page, capture_image, choice_page, class_page, copies_page, create_session,
-    generate_story, get_session, land_page, name_entry_page, photo_page, preview_print,
-    preview_stream, print_photo, save_session_final, start_page, test_stream, update_session,
+    email_entry_page, generate_story, get_session, land_page, name_entry_page, photo_page,
+    preview_print, preview_stream, print_photo, save_session_final, start_page, test_stream,
+    update_session,
 };
 use tracing::{error, info, warn};
 
@@ -174,6 +175,7 @@ async fn main() -> std::io::Result<()> {
         app = app
             .service(start_page)
             .service(name_entry_page)
+            .service(email_entry_page)
             .service(copies_page)
             .service(camera_page)
             .service(preview_stream)

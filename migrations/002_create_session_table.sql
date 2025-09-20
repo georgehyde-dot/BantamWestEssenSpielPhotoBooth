@@ -10,7 +10,9 @@ CREATE TABLE IF NOT EXISTS session (
     photo_path TEXT NULL,
     copies_printed INTEGER NOT NULL DEFAULT 0,
     story_text TEXT NULL,
-    headline TEXT NULL
+    headline TEXT NULL,
+    mailing_list INTEGER NOT NULL DEFAULT 0
+
 );
 
 -- Create index on created_at for chronological queries

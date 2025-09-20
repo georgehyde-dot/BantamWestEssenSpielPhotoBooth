@@ -200,8 +200,8 @@ impl Printer for EpsonPrinter {
         raw_properties.push(("PageSize", paper_size_str.to_string()));
 
         if matches!(job.paper_size, PaperSize::Photo4x6 | PaperSize::Photo5x7) {
-            raw_properties.push(("MediaType", "EpsonPremiumGlossy_6".to_string()));
-            raw_properties.push(("zedoBorderlessExpand", "4".to_string()));
+            raw_properties.push(("MediaType", "Plainpaper_6".to_string()));
+            // raw_properties.push(("zedoBorderlessExpand", "4".to_string()));
         }
 
         raw_properties.push(("copies", job.copies.to_string()));
@@ -209,6 +209,8 @@ impl Printer for EpsonPrinter {
             "Print settings: {} copies, Paper: {:?}, Quality: {:?}",
             job.copies, job.paper_size, job.quality
         );
+
+        raw_properties.push(("Resolution", "360x360dpi".to_string()));
 
         let job_name = format!("PhotoBooth-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
         raw_properties.push(("job-name", job_name.clone()));

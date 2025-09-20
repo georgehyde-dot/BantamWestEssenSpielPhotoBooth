@@ -3,18 +3,20 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Choose Your class</title>
+        <title>Choose Your Class</title>
         <style>
+            @import url("https://fonts.googleapis.com/css2?family=Rye&family=Bebas+Neue&display=swap");
+
             body {
                 margin: 0;
                 padding: 0;
-                font-family: Arial, sans-serif;
+                font-family: "Rye", cursive;
                 background-image: url("/static/interface_background.jpg");
                 background-size: cover;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
-                color: white;
+                color: #f4e4c1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -27,7 +29,13 @@
                 font-size: 2.5em;
                 margin: 20px 0;
                 text-align: center;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+                color: #f4e4c1;
+                text-shadow:
+                    3px 3px 0px #8b4513,
+                    4px 4px 8px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(139, 69, 19, 0.5);
+                letter-spacing: 2px;
+                text-transform: uppercase;
             }
 
             .grid-container {
@@ -39,7 +47,7 @@
             }
 
             .class-button {
-                border: none;
+                border: 4px solid #3d2914;
                 padding: 0;
                 cursor: pointer;
                 position: relative;
@@ -47,19 +55,29 @@
                 border-radius: 10px;
                 transition:
                     transform 0.3s ease,
-                    box-shadow 0.3s ease;
-                background-color: #34495e;
+                    box-shadow 0.3s ease,
+                    border-color 0.3s ease;
+                background-color: #2a1810;
                 width: 100%;
                 height: 100%;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
+                box-shadow:
+                    0 4px 8px rgba(0, 0, 0, 0.6),
+                    0 8px 16px rgba(0, 0, 0, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
             }
 
             .class-button:hover {
                 transform: scale(1.05);
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                box-shadow:
+                    0 8px 16px rgba(0, 0, 0, 0.8),
+                    0 12px 24px rgba(0, 0, 0, 0.5),
+                    0 0 40px rgba(212, 175, 55, 0.2),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+                border-color: #d4af37;
             }
 
             .class-button img {
@@ -67,6 +85,12 @@
                 height: 100%;
                 object-fit: cover;
                 display: block;
+                filter: sepia(20%) saturate(0.9);
+                transition: filter 0.3s ease;
+            }
+
+            .class-button:hover img {
+                filter: sepia(10%) saturate(1.1) brightness(1.1);
             }
 
             .class-button:active {
@@ -78,15 +102,61 @@
                 bottom: 0;
                 left: 0;
                 right: 0;
-                background: rgba(0, 0, 0, 0.7);
-                color: white;
-                padding: 10px;
-                font-size: 1.2em;
+                background: linear-gradient(
+                    to top,
+                    rgba(26, 14, 5, 0.95) 0%,
+                    rgba(26, 14, 5, 0.85) 60%,
+                    rgba(26, 14, 5, 0.7) 100%
+                );
+                color: #f4e4c1;
+                padding: 12px 10px;
+                font-size: 1.3em;
                 font-weight: bold;
                 text-align: center;
-                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+                text-shadow:
+                    2px 2px 0px #8b4513,
+                    3px 3px 6px rgba(0, 0, 0, 0.9),
+                    0 0 20px rgba(0, 0, 0, 0.5);
                 text-transform: uppercase;
-                letter-spacing: 1px;
+                letter-spacing: 2px;
+                font-family: "Bebas Neue", cursive;
+                border-bottom-left-radius: 6px;
+                border-bottom-right-radius: 6px;
+                border-top: 2px solid #d4af37;
+            }
+
+            .class-button:hover .class-label {
+                background: linear-gradient(
+                    to top,
+                    rgba(26, 14, 5, 0.98) 0%,
+                    rgba(26, 14, 5, 0.9) 60%,
+                    rgba(26, 14, 5, 0.8) 100%
+                );
+                color: #fff8dc;
+                text-shadow:
+                    2px 2px 0px #8b4513,
+                    3px 3px 6px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(212, 175, 55, 0.4);
+            }
+
+            /* Add a decorative star badge for each class */
+            .class-button::before {
+                content: "★";
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                font-size: 2em;
+                color: #d4af37;
+                text-shadow:
+                    2px 2px 4px rgba(0, 0, 0, 0.8),
+                    0 0 10px rgba(212, 175, 55, 0.5);
+                z-index: 1;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            .class-button:hover::before {
+                opacity: 1;
             }
 
             .loading {
@@ -107,8 +177,8 @@
             }
 
             .spinner {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #3498db;
+                border: 4px solid #8b6635;
+                border-top: 4px solid #f4e4c1;
                 border-radius: 50%;
                 width: 50px;
                 height: 50px;
@@ -137,6 +207,39 @@
                 .class-button {
                     width: min(180px, 20vw);
                     height: min(180px, 20vw);
+                }
+                .class-label {
+                    font-size: 1.1em;
+                    padding: 8px 6px;
+                }
+            }
+
+            @media (max-width: 768px) {
+                h1 {
+                    font-size: 2.2em;
+                }
+                .grid-container {
+                    grid-template-columns: repeat(4, min(200px, 20vw));
+                }
+                .class-label {
+                    font-size: 1.1em;
+                    letter-spacing: 1px;
+                }
+            }
+
+            @media (max-width: 600px) {
+                h1 {
+                    font-size: 1.8em;
+                    letter-spacing: 1px;
+                }
+                .class-label {
+                    font-size: 1em;
+                    padding: 8px 5px;
+                }
+                .class-button::before {
+                    font-size: 1.5em;
+                    top: 5px;
+                    right: 5px;
                 }
             }
         </style>

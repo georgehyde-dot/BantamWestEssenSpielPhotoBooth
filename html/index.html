@@ -80,23 +80,62 @@
                 text-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
                 z-index: 10;
             }
-            #startBtn {
-                font-size: 1.2em;
-                padding: 12px 30px;
+            #scowl {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: min(100px, 18vw);
+                font-weight: bold;
+                color: #f4e4c1;
+                text-shadow:
+                    3px 3px 0px #8b4513,
+                    4px 4px 8px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(139, 69, 19, 0.5);
+                z-index: 11;
+                display: none;
+                font-family: "Rye", cursive;
+                letter-spacing: 8px;
+            }
+            .preview-container.capturing #preview {
+                opacity: 0.2;
+                transition: opacity 0.5s ease;
+            }
+            .preview-container.capturing #scowl {
+                display: block;
+            }
+            .button-container {
+                display: flex;
+                gap: 15px;
+                justify-content: center;
                 margin-top: 10px;
-                background: #0066cc;
+            }
+            .countdown-btn {
+                font-size: 1.2em;
+                padding: 12px 25px;
                 color: white;
                 border: none;
                 border-radius: 8px;
                 cursor: pointer;
                 transition: all 0.3s ease;
             }
-            #startBtn:hover:not(:disabled) {
+            .print-btn {
+                background: #28a745;
+            }
+            .print-btn:hover:not(:disabled) {
+                background: #218838;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+            }
+            .no-print-btn {
+                background: #0066cc;
+            }
+            .no-print-btn:hover:not(:disabled) {
                 background: #0052a3;
                 transform: translateY(-2px);
                 box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
             }
-            #startBtn:disabled {
+            .countdown-btn:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
             }
@@ -122,8 +161,8 @@
                 #preview {
                     max-height: 45vh;
                 }
-                #startBtn {
-                    padding: 10px 25px;
+                .countdown-btn {
+                    padding: 10px 20px;
                     font-size: 1.1em;
                 }
             }
@@ -145,9 +184,12 @@
                 #preview {
                     max-height: 40vh;
                 }
-                #startBtn {
-                    padding: 8px 20px;
+                .countdown-btn {
+                    padding: 8px 15px;
                     font-size: 1em;
+                }
+                .button-container {
+                    gap: 10px;
                     margin-top: 8px;
                 }
             }
@@ -162,56 +204,53 @@
                 }
             }
         </style>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Rye&display=swap"
+            rel="stylesheet"
+        />
     </head>
     <body>
         <div id="wrap">
             <h1>Photo Booth Camera</h1>
-            <h2 id="groupName"></h2>
             <p id="instructions">Get ready for your photo!</p>
             <div class="preview-container">
                 <img id="preview" src="/preview" alt="Camera Preview" />
                 <div id="countdown"></div>
+                <div id="scowl">SCOWL!</div>
             </div>
-            <button id="startBtn" onclick="startCountdown()">
-                Start Countdown
-            </button>
+            <div class="button-container">
+                <button
+                    class="countdown-btn print-btn"
+                    onclick="startCountdown(true)"
+                >
+                    📸 Capture & Print
+                </button>
+                <button
+                    class="countdown-btn no-print-btn"
+                    onclick="startCountdown(false)"
+                >
+                    📸 Capture Only
+                </button>
+            </div>
         </div>
 
         <script>
             let countdownRunning = false;
             const sessionId = sessionStorage.getItem("session_id");
 
-            // Load and display group name
-            async function loadGroupName() {
-                if (!sessionId) return;
-
-                try {
-                    const response = await fetch(`/session/${sessionId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (
-                            data.ok &&
-                            data.session &&
-                            data.session.group_name
-                        ) {
-                            document.getElementById("groupName").textContent =
-                                data.session.group_name;
-                        }
-                    }
-                } catch (error) {
-                    console.error("Failed to load group name:", error);
-                }
-            }
-
-            // Load group name on page load
-            loadGroupName();
-
-            function startCountdown() {
+            function startCountdown(shouldPrint) {
                 if (countdownRunning) return;
                 countdownRunning = true;
 
-                const btn = document.getElementById("startBtn");
-                if (btn) btn.disabled = true;
+                // Store print preference
+                sessionStorage.setItem(
+                    "should_print",
+                    shouldPrint ? "yes" : "no",
+                );
+
+                // Disable both buttons
+                const buttons = document.querySelectorAll(".countdown-btn");
+                buttons.forEach((btn) => (btn.disabled = true));
 
                 let t = 3;
                 const countdown = document.getElementById("countdown");
@@ -225,6 +264,11 @@
                         clearInterval(interval);
                         countdown.textContent = "";
 
+                        // Show SCOWL and fade preview
+                        const previewContainer =
+                            document.querySelector(".preview-container");
+                        previewContainer.classList.add("capturing");
+
                         const sessionId = sessionStorage.getItem("session_id");
                         fetch("/capture", {
                             method: "POST",
@@ -232,25 +276,94 @@
                             body: JSON.stringify({ session_id: sessionId }),
                         })
                             .then((r) => r.json())
-                            .then((d) => {
+                            .then(async (d) => {
                                 if (d && d.ok) {
-                                    // Prefer server-provided redirect; fall back to photo.html
-                                    if (d.redirect) {
-                                        window.location.href = d.redirect;
-                                    } else if (d.file) {
-                                        window.location.href =
-                                            "/photo?file=" +
-                                            encodeURIComponent(d.file);
+                                    // Store the captured image file name
+                                    let capturedFile = null;
+                                    if (d.file) {
+                                        capturedFile = d.file;
+                                        sessionStorage.setItem(
+                                            "captured_image",
+                                            d.file,
+                                        );
                                     } else if (d.path) {
-                                        // Accept path form; photo.html can parse ?path=/images/<name></name>
-                                        window.location.href =
-                                            "/photo?path=" +
-                                            encodeURIComponent(d.path);
-                                    } else {
-                                        resetWithError(
-                                            "Capture failed: missing redirect or path",
+                                        const file = d.path.startsWith(
+                                            "/images/",
+                                        )
+                                            ? d.path.slice("/images/".length)
+                                            : d.path;
+                                        capturedFile = file;
+                                        sessionStorage.setItem(
+                                            "captured_image",
+                                            file,
                                         );
                                     }
+
+                                    // Check if we should print
+                                    const shouldPrint =
+                                        sessionStorage.getItem(
+                                            "should_print",
+                                        ) === "yes";
+
+                                    if (shouldPrint && capturedFile) {
+                                        // First, generate the story for the template
+                                        try {
+                                            const storyResponse = await fetch(
+                                                `/session/${sessionId}/generate-story`,
+                                                {
+                                                    method: "POST",
+                                                    headers: {
+                                                        "Content-Type":
+                                                            "application/json",
+                                                    },
+                                                },
+                                            );
+
+                                            if (!storyResponse.ok) {
+                                                console.warn(
+                                                    "Story generation failed, continuing anyway",
+                                                );
+                                            }
+                                        } catch (error) {
+                                            console.warn(
+                                                "Story generation error:",
+                                                error,
+                                            );
+                                        }
+
+                                        // Trigger print in the background
+                                        fetch("/print", {
+                                            method: "POST",
+                                            headers: {
+                                                "Content-Type":
+                                                    "application/json",
+                                            },
+                                            body: JSON.stringify({
+                                                filename: capturedFile,
+                                                session_id: sessionId,
+                                            }),
+                                        })
+                                            .then((printResponse) => {
+                                                if (printResponse.ok) {
+                                                    console.log(
+                                                        "Print job started successfully",
+                                                    );
+                                                } else {
+                                                    console.error(
+                                                        "Print job failed",
+                                                    );
+                                                }
+                                            })
+                                            .catch((printError) => {
+                                                console.error(
+                                                    "Error starting print:",
+                                                    printError,
+                                                );
+                                            });
+                                    }
+
+                                    // Navigate to email entry page
+                                    window.location.href = `/email-entry?session_id=${sessionId}`;
                                 } else {
                                     resetWithError("Capture failed");
                                 }
@@ -263,8 +376,15 @@
             }
 
             function resetWithError(msg) {
-                const btn = document.getElementById("startBtn");
-                if (btn) btn.disabled = false;
+                // Re-enable both buttons
+                const buttons = document.querySelectorAll(".countdown-btn");
+                buttons.forEach((btn) => (btn.disabled = false));
+
+                // Remove capturing state
+                const previewContainer =
+                    document.querySelector(".preview-container");
+                previewContainer.classList.remove("capturing");
+
                 countdownRunning = false;
                 alert(msg);
             }

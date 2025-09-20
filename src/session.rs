@@ -18,6 +18,7 @@ pub struct Session {
     pub copies_printed: i32,
     pub story_text: Option<String>,
     pub headline: Option<String>,
+    pub mailing_list: i32,
 }
 
 impl Session {
@@ -34,6 +35,7 @@ impl Session {
             copies_printed: 0,
             story_text: None,
             headline: None,
+            mailing_list: 0,
         }
     }
 
@@ -42,9 +44,9 @@ impl Session {
             r#"
             INSERT INTO session (
                 id, group_name, created_at, class, choice, land,
-                email, photo_path, copies_printed, story_text, headline
+                email, photo_path, copies_printed, story_text, headline, mailing_list
             ) VALUES (
-                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12
             )
             "#,
         )
@@ -59,6 +61,7 @@ impl Session {
         .bind(self.copies_printed)
         .bind(&self.story_text)
         .bind(&self.headline)
+        .bind(&self.mailing_list)
         .execute(pool)
         .await
         .map_err(|e| DatabaseError::QueryFailed(format!("Failed to save session: {}", e)))?;
@@ -78,7 +81,8 @@ impl Session {
                 photo_path = ?7,
                 copies_printed = ?8,
                 story_text = ?9,
-                headline = ?10
+                headline = ?10,
+                mailing_list = ?11
             WHERE id = ?1
             "#,
         )
@@ -92,6 +96,7 @@ impl Session {
         .bind(self.copies_printed)
         .bind(&self.story_text)
         .bind(&self.headline)
+        .bind(&self.mailing_list)
         .execute(pool)
         .await
         .map_err(|e| DatabaseError::QueryFailed(format!("Failed to update session: {}", e)))?;
@@ -104,7 +109,7 @@ impl Session {
             r#"
             SELECT
                 id, group_name, created_at, class, choice, land,
-                email, photo_path, copies_printed, story_text, headline
+                email, photo_path, copies_printed, story_text, headline, mailing_list
             FROM session
             WHERE id = ?1
             "#,
