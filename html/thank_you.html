@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Thanks for Visiting!</title>
+        <style>
+            @import url("https://fonts.googleapis.com/css2?family=Rye&family=Bebas+Neue&display=swap");
+
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: "Rye", cursive;
+                background-image: url("/static/interface_background.jpg");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed;
+                color: #f4e4c1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100vh;
+                padding: 20px;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
+
+            .container {
+                animation: fadeIn 0.8s ease-out;
+                width: 100%;
+                max-width: 1400px;
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 40px;
+                height: 90vh;
+            }
+
+            h1 {
+                font-size: 3em;
+                margin: 20px 0;
+                text-align: center;
+                color: #f4e4c1;
+                text-shadow:
+                    3px 3px 0px #8b4513,
+                    4px 4px 8px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(139, 69, 19, 0.5);
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                animation: fadeInDown 0.8s ease-out;
+            }
+
+            .subtitle {
+                font-size: 1.5em;
+                color: #d4af37;
+                margin-bottom: 30px;
+                text-shadow:
+                    2px 2px 4px rgba(0, 0, 0, 0.8),
+                    0 0 20px rgba(139, 69, 19, 0.3);
+                font-family: "Bebas Neue", cursive;
+                letter-spacing: 1px;
+                animation: fadeIn 0.8s ease-out 0.2s both;
+            }
+
+            .left-side {
+                flex: 1 1 60%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                animation: fadeInLeft 0.8s ease-out 0.2s both;
+            }
+
+            .right-side {
+                flex: 1 1 40%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                padding: 20px;
+                animation: fadeInRight 0.8s ease-out 0.4s both;
+            }
+
+            .photo-container {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .final-photo {
+                width: auto;
+                height: auto;
+                max-width: 100%;
+                max-height: 85vh;
+                object-fit: contain;
+                border-radius: 10px;
+                box-shadow:
+                    0 8px 32px rgba(0, 0, 0, 0.8),
+                    0 16px 64px rgba(0, 0, 0, 0.5);
+                border: 4px solid #3d2914;
+                background: #2a1810;
+            }
+
+            .photo-frame {
+                position: absolute;
+                top: -10px;
+                right: -10px;
+                bottom: -10px;
+                left: -10px;
+                border: 2px solid #d4af37;
+                border-radius: 12px;
+                pointer-events: none;
+                opacity: 0.6;
+            }
+
+            .countdown-container {
+                margin: 20px 0;
+                font-family: "Bebas Neue", cursive;
+                animation: fadeIn 0.8s ease-out 0.6s both;
+                flex: 0 0 auto;
+            }
+
+            .countdown-text {
+                font-size: 1.2em;
+                color: #aaa;
+                margin-bottom: 10px;
+            }
+
+            .countdown-timer {
+                font-size: 2em;
+                color: #d4af37;
+                font-weight: bold;
+                text-shadow:
+                    2px 2px 4px rgba(0, 0, 0, 0.8),
+                    0 0 15px rgba(212, 175, 55, 0.3);
+            }
+
+            .home-button {
+                display: inline-block;
+                padding: 15px 40px;
+                font-size: 1.3em;
+                background: linear-gradient(
+                    135deg,
+                    #3d2914 0%,
+                    #5c3d28 50%,
+                    #3d2914 100%
+                );
+                color: #f4e4c1;
+                border: 3px solid #d4af37;
+                border-radius: 10px;
+                text-decoration: none;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-shadow:
+                    2px 2px 0px #000,
+                    3px 3px 6px rgba(0, 0, 0, 0.8);
+                font-family: "Bebas Neue", cursive;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                box-shadow:
+                    0 4px 8px rgba(0, 0, 0, 0.6),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+                animation: fadeInUp 0.8s ease-out 0.8s both;
+            }
+
+            .home-button:hover {
+                transform: translateY(-3px) scale(1.05);
+                box-shadow:
+                    0 8px 16px rgba(0, 0, 0, 0.8),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.5),
+                    0 0 30px rgba(212, 175, 55, 0.3);
+                background: linear-gradient(
+                    135deg,
+                    #4a3222 0%,
+                    #6b4930 50%,
+                    #4a3222 100%
+                );
+            }
+
+            .home-button:active {
+                transform: translateY(-1px) scale(1.02);
+            }
+
+            /* Western decorations */
+            .star {
+                position: absolute;
+                font-size: 2em;
+                color: #d4af37;
+                opacity: 0.3;
+                animation: twinkle 3s ease-in-out infinite;
+            }
+
+            .star-1 {
+                top: 10%;
+                left: 10%;
+                animation-delay: 0s;
+            }
+
+            .star-2 {
+                top: 15%;
+                right: 15%;
+                animation-delay: 1s;
+            }
+
+            .star-3 {
+                bottom: 20%;
+                left: 12%;
+                animation-delay: 2s;
+            }
+
+            .star-4 {
+                bottom: 15%;
+                right: 10%;
+                animation-delay: 0.5s;
+            }
+
+            @keyframes twinkle {
+                0%,
+                100% {
+                    opacity: 0.3;
+                    transform: scale(1);
+                }
+                50% {
+                    opacity: 0.8;
+                    transform: scale(1.2);
+                }
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+
+            @keyframes fadeInDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes fadeInLeft {
+                from {
+                    opacity: 0;
+                    transform: translateX(-30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+
+            @keyframes fadeInRight {
+                from {
+                    opacity: 0;
+                    transform: translateX(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+
+            .loading-spinner {
+                border: 4px solid #8b6635;
+                border-top: 4px solid #f4e4c1;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+                margin: 50px auto;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            /* Responsive adjustments */
+            @media (max-width: 1024px) {
+                .container {
+                    flex-direction: column;
+                    max-width: 800px;
+                    gap: 20px;
+                }
+                .left-side {
+                    flex: 0 1 auto;
+                    height: 50vh;
+                    width: 100%;
+                }
+                .right-side {
+                    flex: 0 1 auto;
+                    width: 100%;
+                }
+                .final-photo {
+                    max-height: 45vh;
+                }
+            }
+
+            @media (max-height: 700px) {
+                h1 {
+                    font-size: 2em;
+                    margin: 10px 0;
+                }
+                .subtitle {
+                    font-size: 1.2em;
+                    margin-bottom: 15px;
+                }
+                .final-photo {
+                    max-height: 70vh;
+                }
+                .countdown-container {
+                    margin: 15px 0;
+                }
+                .countdown-timer {
+                    font-size: 1.5em;
+                }
+                .home-button {
+                    padding: 12px 30px;
+                    font-size: 1.1em;
+                }
+            }
+
+            @media (max-width: 600px) {
+                h1 {
+                    font-size: 2em;
+                    letter-spacing: 1px;
+                }
+                .subtitle {
+                    font-size: 1.2em;
+                }
+                .countdown-timer {
+                    font-size: 1.8em;
+                }
+                .home-button {
+                    font-size: 1.1em;
+                    padding: 12px 30px;
+                }
+            }
+
+            @media (max-width: 480px) {
+                h1 {
+                    font-size: 1.8em;
+                }
+                .subtitle {
+                    font-size: 1.1em;
+                }
+                .photo-container {
+                    max-width: 90vw;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Western star decorations -->
+        <div class="star star-1">★</div>
+        <div class="star star-2">★</div>
+        <div class="star star-3">★</div>
+        <div class="star star-4">★</div>
+
+        <div class="container">
+            <div class="left-side">
+                <div class="photo-container">
+                    <div class="photo-frame"></div>
+                    <img
+                        id="finalPhoto"
+                        class="final-photo"
+                        alt="Your Adventure"
+                        style="display: none"
+                    />
+                    <div
+                        id="loadingSpinner"
+                        class="loading-spinner"
+                        style="display: block"
+                    ></div>
+                </div>
+            </div>
+
+            <div class="right-side">
+                <h1>Thanks for Visitin', Partner!</h1>
+                <p class="subtitle">
+                    Your adventure has been captured for eternity
+                </p>
+
+                <div class="countdown-container">
+                    <div class="countdown-text">Returning to the trail in</div>
+                    <div class="countdown-timer" id="countdown">60</div>
+                </div>
+
+                <button class="home-button" onclick="goHome()">
+                    Start New Adventure
+                </button>
+            </div>
+        </div>
+
+        <script>
+            let countdownValue = 60;
+            let countdownInterval;
+            const sessionId = sessionStorage.getItem("session_id");
+
+            // Function to go back to start
+            function goHome() {
+                clearInterval(countdownInterval);
+                sessionStorage.removeItem("session_id");
+                sessionStorage.removeItem("captured_image");
+                sessionStorage.removeItem("should_print");
+                window.location.href = "/";
+            }
+
+            // Load and display the final templated image
+            async function loadFinalImage() {
+                const loadingSpinner =
+                    document.getElementById("loadingSpinner");
+                const finalPhoto = document.getElementById("finalPhoto");
+
+                if (!sessionId) {
+                    // If no session, go home immediately
+                    goHome();
+                    return;
+                }
+
+                // Get the session data to load the templated image
+                try {
+                    const sessionResponse = await fetch(
+                        `/session/${sessionId}`,
+                    );
+
+                    if (sessionResponse.ok) {
+                        const sessionData = await sessionResponse.json();
+
+                        if (
+                            sessionData.ok &&
+                            sessionData.session &&
+                            sessionData.session.photo_path
+                        ) {
+                            // Display the templated image from session
+                            console.log(
+                                "Loading templated image:",
+                                sessionData.session.photo_path,
+                            );
+                            finalPhoto.src = `/images/${sessionData.session.photo_path}`;
+                            finalPhoto.style.display = "block";
+                            loadingSpinner.style.display = "none";
+                        } else {
+                            // No templated image available
+                            console.error(
+                                "No templated image found in session",
+                            );
+                            loadingSpinner.style.display = "none";
+                            const container =
+                                document.querySelector(".photo-container");
+                            container.innerHTML =
+                                '<p style="color: #d4af37; font-size: 1.2em;">Your adventure is complete!</p>';
+                        }
+                    } else {
+                        console.error("Failed to load session");
+                        loadingSpinner.style.display = "none";
+                        const container =
+                            document.querySelector(".photo-container");
+                        container.innerHTML =
+                            '<p style="color: #d4af37; font-size: 1.2em;">Your adventure is complete!</p>';
+                    }
+                } catch (error) {
+                    console.error("Error loading session:", error);
+                    loadingSpinner.style.display = "none";
+                    const container =
+                        document.querySelector(".photo-container");
+                    container.innerHTML =
+                        '<p style="color: #d4af37; font-size: 1.2em;">Your adventure is complete!</p>';
+                }
+
+                // Handle image load error
+                finalPhoto.onerror = function () {
+                    console.error("Failed to load templated image");
+                    loadingSpinner.style.display = "none";
+                    const container =
+                        document.querySelector(".photo-container");
+                    container.innerHTML =
+                        '<p style="color: #d4af37; font-size: 1.2em;">Your photo is being processed...</p>';
+                };
+            }
+
+            // Start countdown
+            function startCountdown() {
+                countdownInterval = setInterval(() => {
+                    countdownValue--;
+                    document.getElementById("countdown").textContent =
+                        countdownValue;
+
+                    if (countdownValue <= 0) {
+                        goHome();
+                    }
+                }, 1000);
+            }
+
+            // Initialize page
+            window.addEventListener("DOMContentLoaded", () => {
+                loadFinalImage();
+                startCountdown();
+            });
+        </script>
+    </body>
+</html>

@@ -4,6 +4,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 const START_HTML: &str = include_str!("../../html/start.html");
 const ENTER_NAMES_HTML: &str = include_str!("../../html/enter_names.html");
 const EMAIL_ENTRY_HTML: &str = include_str!("../../html/email_entry.html");
+const THANK_YOU_HTML: &str = include_str!("../../html/thank_you.html");
 const COPIES_HTML: &str = include_str!("../../html/copies.html");
 const INDEX_HTML: &str = include_str!("../../html/index.html");
 const PHOTO_HTML: &str = include_str!("../../html/photo.html");
@@ -28,6 +29,13 @@ pub async fn email_entry_page() -> impl Responder {
     HttpResponse::Ok()
         .content_type("text/html")
         .body(EMAIL_ENTRY_HTML)
+}
+
+#[get("/thank-you")]
+pub async fn thank_you_page() -> impl Responder {
+    HttpResponse::Ok()
+        .content_type("text/html")
+        .body(THANK_YOU_HTML)
 }
 
 #[get("/copies")]

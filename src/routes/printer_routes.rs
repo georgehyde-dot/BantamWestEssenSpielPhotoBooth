@@ -82,8 +82,19 @@ pub async fn print_photo(
     if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
         info!("Loading session {} for print job", session_id);
         match Session::load(session_id, &db_pool).await {
-            Ok(Some(session)) => {
+            Ok(Some(mut session)) => {
                 info!("Session loaded successfully");
+
+                // Generate story if missing
+                if session.story_text.is_none() || session.headline.is_none() {
+                    info!("Generating story for session {}", session_id);
+                    session.generate_story();
+                    // Save the generated story back to the session immediately
+                    if let Err(e) = session.update(&db_pool).await {
+                        warn!("Failed to update session with generated story: {}", e);
+                    }
+                }
+
                 info!("Session data - group_name: {:?}, headline: {:?}, story_text length: {:?}, copies: {:?}",
                     session.group_name,
                     session.headline,
@@ -111,7 +122,7 @@ pub async fn print_photo(
                     copies = session.copies_printed as u32;
                     info!("Using copies from session: {}", copies);
                 }
-                // Store session for later update
+                // Store session for later update with templated path
                 session_to_update = Some(session);
             }
             Ok(None) => {
@@ -156,15 +167,32 @@ pub async fn print_photo(
         config.background_path().to_str().unwrap(),
     ) {
         Ok(_) => {
-            info!("Template created successfully");
-            // Update session with templated print path if we have a session
+            info!(
+                "Template created successfully at: {}",
+                templated_filename_only
+            );
+
+            // IMPORTANT: Update session with templated print path BEFORE printing
+            // This ensures the thank you page shows the correct templated image
             if let Some(mut session) = session_to_update {
+                info!(
+                    "Updating session {} with templated photo path: {}",
+                    session.id, templated_filename_only
+                );
                 session.photo_path = Some(templated_filename_only.clone());
 
-                // Save the updated session
-                if let Err(e) = session.update(&db_pool).await {
-                    warn!("Failed to update session with templated print path: {}", e);
+                // Save the updated session immediately
+                match session.update(&db_pool).await {
+                    Ok(_) => {
+                        info!("Successfully updated session with templated print path");
+                    }
+                    Err(e) => {
+                        error!("Failed to update session with templated print path: {}", e);
+                        // Continue with print even if session update fails
+                    }
                 }
+            } else {
+                warn!("No session to update with templated path");
             }
 
             // Use the templated file for printing

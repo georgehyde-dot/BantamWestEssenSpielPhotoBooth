@@ -420,11 +420,11 @@
 
                 <div class="checkbox-wrapper">
                     <label class="checkbox-label">
-                        <input
-                            type="checkbox"
-                            id="mailingListCheckbox"
-                        />
-                        <span>Join our mailing list for event updates and special offers</span>
+                        <input type="checkbox" id="mailingListCheckbox" />
+                        <span
+                            >Join our mailing list for event updates and special
+                            offers</span
+                        >
                     </label>
                 </div>
 
@@ -738,11 +738,8 @@
                             },
                         });
 
-                        // Navigate back to start page
-                        sessionStorage.removeItem("session_id");
-                        sessionStorage.removeItem("captured_image");
-                        sessionStorage.removeItem("should_print");
-                        window.location.href = `/`;
+                        // Navigate to thank you page (session items will be cleared there)
+                        window.location.href = `/thank-you?session_id=${sessionId}`;
                     } else {
                         throw new Error("Failed to save email");
                     }

@@ -200,7 +200,7 @@ impl Printer for EpsonPrinter {
         raw_properties.push(("PageSize", paper_size_str.to_string()));
 
         if matches!(job.paper_size, PaperSize::Photo4x6 | PaperSize::Photo5x7) {
-            raw_properties.push(("MediaType", "Plainpaper_6".to_string()));
+            raw_properties.push(("MediaType", "ZedonetPhotoGlossy200g_6".to_string()));
             // raw_properties.push(("zedoBorderlessExpand", "4".to_string()));
         }
 
