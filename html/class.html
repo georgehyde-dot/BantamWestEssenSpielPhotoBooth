@@ -40,44 +40,32 @@
 
             .grid-container {
                 display: grid;
-                grid-template-columns: repeat(4, min(300px, 22vw));
+                grid-template-columns: repeat(4, min(400px, 24vw));
                 gap: 20px;
                 padding: 10px;
                 justify-content: center;
             }
 
             .class-button {
-                border: 4px solid #3d2914;
+                border: none;
                 padding: 0;
                 cursor: pointer;
                 position: relative;
                 overflow: hidden;
-                border-radius: 10px;
-                transition:
-                    transform 0.3s ease,
-                    box-shadow 0.3s ease,
-                    border-color 0.3s ease;
-                background-color: #2a1810;
+                border-radius: 0;
+                transition: transform 0.3s ease;
+                background: transparent;
                 width: 100%;
                 height: 100%;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                box-shadow:
-                    0 4px 8px rgba(0, 0, 0, 0.6),
-                    0 8px 16px rgba(0, 0, 0, 0.4),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+                box-shadow: none;
             }
 
             .class-button:hover {
                 transform: scale(1.05);
-                box-shadow:
-                    0 8px 16px rgba(0, 0, 0, 0.8),
-                    0 12px 24px rgba(0, 0, 0, 0.5),
-                    0 0 40px rgba(212, 175, 55, 0.2),
-                    inset 0 -2px 4px rgba(0, 0, 0, 0.5);
-                border-color: #d4af37;
             }
 
             .class-button img {
@@ -201,12 +189,8 @@
                     margin: 10px 0;
                 }
                 .grid-container {
-                    grid-template-columns: repeat(4, min(180px, 20vw));
+                    grid-template-columns: repeat(4, min(250px, 22vw));
                     gap: 10px;
-                }
-                .class-button {
-                    width: min(180px, 20vw);
-                    height: min(180px, 20vw);
                 }
                 .class-label {
                     font-size: 1.1em;
@@ -219,7 +203,7 @@
                     font-size: 2.2em;
                 }
                 .grid-container {
-                    grid-template-columns: repeat(4, min(200px, 20vw));
+                    grid-template-columns: repeat(4, min(280px, 22vw));
                 }
                 .class-label {
                     font-size: 1.1em;
@@ -249,20 +233,32 @@
 
         <div class="grid-container">
             <button class="class-button" onclick="selectclass(0)">
-                <img src="/static/resized_output/sword.jpg" alt="Sword" />
-                <span class="class-label">Gunslinger</span>
+                <img
+                    src="/static/resized_output/gunslinger_button.png"
+                    alt="Sword"
+                />
+                <!--<span class="class-label">Gunslinger</span>-->
             </button>
             <button class="class-button" onclick="selectclass(1)">
-                <img src="/static/resized_output/hammer.jpg" alt="Hammer" />
-                <span class="class-label">Merchant</span>
+                <img
+                    src="/static/resized_output/merchant_button.png"
+                    alt="Hammer"
+                />
+                <!--<span class="class-label">Merchant</span>-->
             </button>
             <button class="class-button" onclick="selectclass(2)">
-                <img src="/static/resized_output/pistol.jpg" alt="Pistol" />
-                <span class="class-label">Thief</span>
+                <img
+                    src="/static/resized_output/thief_button.png"
+                    alt="Pistol"
+                />
+                <!--<span class="class-label">Thief</span>-->
             </button>
             <button class="class-button" onclick="selectclass(3)">
-                <img src="/static/resized_output/fie.jpg" alt="Fie" />
-                <span class="class-label">Arsonist</span>
+                <img
+                    src="/static/resized_output/arsonist_button.png"
+                    alt="Fie"
+                />
+                <!--<span class="class-label">Arsonist</span>-->
             </button>
         </div>
 

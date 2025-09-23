@@ -5,3 +5,4 @@ static/resized_output/
 /.vscode
 /.git
 /dist
+static/
