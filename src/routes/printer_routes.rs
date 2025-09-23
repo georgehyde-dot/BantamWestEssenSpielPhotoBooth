@@ -74,8 +74,6 @@ pub async fn print_photo(
     info!("File found successfully at: {:?}", file_path);
 
     // Get session data if session_id is provided
-    let mut name_text = config.template.name_placeholder.clone();
-    let mut headline_text = config.template.headline_placeholder.clone();
     let mut story_text = config.template.story_placeholder.clone();
     let mut session_to_update = None;
 
@@ -102,16 +100,6 @@ pub async fn print_photo(
                     session.copies_printed
                 );
 
-                // Use group_name for the name field
-                if let Some(group_name) = &session.group_name {
-                    name_text = group_name.clone();
-                    info!("Using group_name: {}", name_text);
-                }
-                // Use session's headline if available
-                if let Some(headline) = &session.headline {
-                    headline_text = headline.clone();
-                    info!("Using headline: {}", headline_text);
-                }
                 // Use session's story text if available
                 if let Some(story) = &session.story_text {
                     story_text = story.clone();
@@ -144,8 +132,6 @@ pub async fn print_photo(
     info!("  Source: {:?}", file_path);
     info!("  Destination: {:?}", templated_filename);
     info!("  Background: {:?}", config.background_path());
-    info!("  Name text: '{}'", name_text);
-    info!("  Headline: '{}'", headline_text);
     info!(
         "  Story text: '{}' (length: {})",
         if story_text.len() > 50 {
@@ -155,16 +141,15 @@ pub async fn print_photo(
         },
         story_text.len()
     );
-    info!("  Header text: '{}'", config.template.header_text);
 
     match templates::create_templated_print_with_background(
         file_path.to_str().unwrap(),
         templated_filename.to_str().unwrap(),
-        &config.template.header_text,
-        &name_text,
-        &headline_text,
         &story_text,
         config.background_path().to_str().unwrap(),
+        "", // header_path placeholder
+        "", // footer_path placeholder
+        "", // break_path placeholder
     ) {
         Ok(_) => {
             info!(
@@ -267,21 +252,11 @@ pub async fn preview_print(
     }
 
     // Get session data if session_id is provided
-    let mut name_text = config.template.name_placeholder.clone();
-    let mut headline_text = config.template.headline_placeholder.clone();
     let mut story_text = config.template.story_placeholder.clone();
 
     if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
         match Session::load(session_id, &db_pool).await {
             Ok(Some(session)) => {
-                // Use group_name for the name field
-                if let Some(group_name) = &session.group_name {
-                    name_text = group_name.clone();
-                }
-                // Use session's headline if available
-                if let Some(headline) = &session.headline {
-                    headline_text = headline.clone();
-                }
                 // Use session's story text if available
                 if let Some(story) = &session.story_text {
                     story_text = story.clone();
@@ -303,11 +278,11 @@ pub async fn preview_print(
     match templates::create_templated_print_with_background(
         file_path.to_str().unwrap(),
         preview_path.to_str().unwrap(),
-        &config.template.header_text,
-        &name_text,
-        &headline_text,
         &story_text,
         config.background_path().to_str().unwrap(),
+        "", // header_path placeholder
+        "", // footer_path placeholder
+        "", // break_path placeholder
     ) {
         Ok(()) => {
             // Update session with templated preview path if we have a session

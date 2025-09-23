@@ -62,9 +62,7 @@ pub async fn update_session(
             if let Some(class) = body.get("class").and_then(|v| v.as_i64()) {
                 session.class = Some(class as i32);
             }
-            if let Some(land) = body.get("land").and_then(|v| v.as_i64()) {
-                session.land = Some(land as i32);
-            }
+
             if let Some(choice) = body.get("choice").and_then(|v| v.as_i64()) {
                 session.choice = Some(choice as i32);
             }

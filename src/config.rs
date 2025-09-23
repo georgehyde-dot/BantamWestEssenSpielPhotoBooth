@@ -38,9 +38,6 @@ pub struct PrinterConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct TemplateConfig {
-    pub header_text: String,
-    pub name_placeholder: String,
-    pub headline_placeholder: String,
     pub story_placeholder: String,
     pub background_filename: String,
 }
@@ -93,12 +90,6 @@ impl Config {
         };
 
         let template = TemplateConfig {
-            header_text: std::env::var("TEMPLATE_HEADER")
-                .unwrap_or_else(|_| "Essen Spiel '25".to_string()),
-            name_placeholder: std::env::var("TEMPLATE_NAME")
-                .unwrap_or_else(|_| "NAME HERE".to_string()),
-            headline_placeholder: std::env::var("TEMPLATE_HEADLINE")
-                .unwrap_or_else(|_| "HEADLINE".to_string()),
             story_placeholder: std::env::var("TEMPLATE_STORY")
                 .unwrap_or_else(|_| "STORY HERE".to_string()),
             background_filename: std::env::var("TEMPLATE_BACKGROUND")

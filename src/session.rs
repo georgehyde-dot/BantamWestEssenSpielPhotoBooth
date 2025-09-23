@@ -12,7 +12,6 @@ pub struct Session {
     pub created_at: String,
     pub class: Option<i32>,
     pub choice: Option<i32>,
-    pub land: Option<i32>,
     pub email: Option<String>,
     pub photo_path: Option<String>,
     pub copies_printed: i32,
@@ -29,7 +28,6 @@ impl Session {
             created_at: Utc::now().to_rfc3339(),
             class: None,
             choice: None,
-            land: None,
             email: None,
             photo_path: None,
             copies_printed: 0,
@@ -43,10 +41,10 @@ impl Session {
         sqlx::query(
             r#"
             INSERT INTO session (
-                id, group_name, created_at, class, choice, land,
+                id, group_name, created_at, class, choice,
                 email, photo_path, copies_printed, story_text, headline, mailing_list
             ) VALUES (
-                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11
             )
             "#,
         )
@@ -55,7 +53,6 @@ impl Session {
         .bind(&self.created_at)
         .bind(self.class)
         .bind(self.choice)
-        .bind(self.land)
         .bind(&self.email)
         .bind(&self.photo_path)
         .bind(self.copies_printed)
@@ -76,13 +73,12 @@ impl Session {
                 group_name = ?2,
                 class = ?3,
                 choice = ?4,
-                land = ?5,
-                email = ?6,
-                photo_path = ?7,
-                copies_printed = ?8,
-                story_text = ?9,
-                headline = ?10,
-                mailing_list = ?11
+                email = ?5,
+                photo_path = ?6,
+                copies_printed = ?7,
+                story_text = ?8,
+                headline = ?9,
+                mailing_list = ?10
             WHERE id = ?1
             "#,
         )
@@ -90,7 +86,6 @@ impl Session {
         .bind(&self.group_name)
         .bind(self.class)
         .bind(self.choice)
-        .bind(self.land)
         .bind(&self.email)
         .bind(&self.photo_path)
         .bind(self.copies_printed)
@@ -108,7 +103,7 @@ impl Session {
         let session = sqlx::query_as::<_, Session>(
             r#"
             SELECT
-                id, group_name, created_at, class, choice, land,
+                id, group_name, created_at, class, choice,
                 email, photo_path, copies_printed, story_text, headline, mailing_list
             FROM session
             WHERE id = ?1
@@ -126,7 +121,6 @@ impl Session {
         self.group_name.is_some()
             && self.class.is_some()
             && self.choice.is_some()
-            && self.land.is_some()
             && self.email.is_some()
             && self.photo_path.is_some()
             && self.story_text.is_some()
@@ -134,11 +128,10 @@ impl Session {
     }
 
     pub fn generate_story(&mut self) {
-        if let (Some(class_idx), Some(choice_idx), Some(land_idx)) =
-            (self.class, self.choice, self.land)
-        {
-            // Define the names for classes, lands, and choices
+        if let (Some(class_idx), Some(choice_idx)) = (self.class, self.choice) {
+            // Define the names for classes and choices
             let classes = ["Gunslinger", "Merchant", "Thief", "Arsonist"];
+            // Random lands for story generation
             let lands = [
                 "a broken wagon at a fork in the road",
                 "a mine shaft entrance",
@@ -170,9 +163,11 @@ impl Session {
             let choice = choices
                 .get(choice_idx as usize)
                 .unwrap_or(&"No Options Left");
+            // Pick a random land for the story
+            let land_idx = (class_idx + choice_idx) % lands.len() as i32;
             let land = lands
                 .get(land_idx as usize)
-                .unwrap_or(&"off into the sunset");
+                .unwrap_or(&"the empty wilderness");
 
             // --- UPDATED STORIES ---
             // The stories now directly reflect the chosen class and action.
@@ -259,7 +254,6 @@ mod tests {
         session.group_name = Some("Test Group".to_string());
         session.class = Some(1);
         session.choice = Some(2);
-        session.land = Some(3);
         session.email = Some("test@example.com".to_string());
         session.photo_path = Some("/path/to/photo.png".to_string());
         session.story_text = Some("Test story".to_string());
@@ -273,7 +267,6 @@ mod tests {
         let mut session = Session::new();
         session.class = Some(1);
         session.choice = Some(2);
-        session.land = Some(3);
 
         session.generate_story();
 

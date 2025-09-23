@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS session (
     created_at TEXT NOT NULL,
     class INTEGER NULL,
     choice INTEGER NULL,
-    land INTEGER NULL,
     email TEXT NULL,
     photo_path TEXT NULL,
     copies_printed INTEGER NOT NULL DEFAULT 0,

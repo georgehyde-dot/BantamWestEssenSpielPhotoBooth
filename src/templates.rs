@@ -13,9 +13,7 @@ const PRINT_HEIGHT: u32 = 1800; // 6 inches * 300 DPI
 // Define the area for the photo within the template
 const PHOTO_WIDTH: u32 = 1000; // Leave room for borders
 const PHOTO_HEIGHT: u32 = 667; // Maintain 3:2 aspect ratio
-const PHOTO_Y_POSITION: u32 = 400; // Moved up 1/3 closer to top
-const STORY_SECTION_TOP: u32 = 1350; // Start story section
-const STORY_SECTION_BOTTOM: u32 = 1700; // End story section
+const PHOTO_Y_POSITION: u32 = 400; // Position for photo
 
 #[derive(Debug)]
 pub enum TemplateError {
@@ -37,9 +35,6 @@ impl fmt::Display for TemplateError {
 impl Error for TemplateError {}
 
 pub struct PrintTemplate {
-    header_text: String,
-    name_text: String,
-    headline_text: String,
     story_text: String,
     background_color: Rgb<u8>,
     text_color: Rgb<u8>,
@@ -49,9 +44,6 @@ pub struct PrintTemplate {
 impl Default for PrintTemplate {
     fn default() -> Self {
         PrintTemplate {
-            header_text: "Essen Spiel '25".to_string(),
-            name_text: "NAME HERE".to_string(),
-            headline_text: "HEADLINE".to_string(),
             story_text: "STORY HERE".to_string(),
             background_color: Rgb([255, 255, 255]), // White background
             text_color: Rgb([50, 50, 50]),          // Dark gray text
@@ -61,11 +53,8 @@ impl Default for PrintTemplate {
 }
 
 impl PrintTemplate {
-    pub fn new(header: &str, name: &str, headline: &str, story: &str) -> Self {
+    pub fn new(story: &str) -> Self {
         PrintTemplate {
-            header_text: header.to_string(),
-            name_text: name.to_string(),
-            headline_text: headline.to_string(),
             story_text: story.to_string(),
             ..Default::default()
         }
@@ -119,32 +108,16 @@ impl PrintTemplate {
             ImageBuffer::from_pixel(PRINT_WIDTH, PRINT_HEIGHT, self.background_color)
         };
 
-        // 2. Add story section overlay (semi-transparent)
-        self.add_story_section_overlay(&mut canvas);
-
-        // 4. Scale the photo to fit its designated area
+        // 2. Scale the photo to fit its designated area
         let scaled_photo = self.scale_photo_to_fit(photo)?;
 
-        // 5. Place the scaled photo onto the canvas
+        // 3. Place the scaled photo onto the canvas
         self.place_photo(&mut canvas, &scaled_photo);
 
-        // 6. Add text on top of everything
-        self.add_text(&mut canvas)?;
+        // 4. Add story text
+        self.add_story_text(&mut canvas)?;
 
         Ok(canvas)
-    }
-
-    fn add_story_section_overlay(&self, canvas: &mut RgbImage) {
-        // Add a semi-transparent overlay for the story section
-        for y in STORY_SECTION_TOP..STORY_SECTION_BOTTOM {
-            for x in 0..PRINT_WIDTH {
-                let pixel = canvas.get_pixel_mut(x, y);
-                // Blend with a light color overlay (20% opacity)
-                pixel[0] = ((pixel[0] as u16 * 4 + 255 * 1) / 5) as u8;
-                pixel[1] = ((pixel[1] as u16 * 4 + 240 * 1) / 5) as u8;
-                pixel[2] = ((pixel[2] as u16 * 4 + 240 * 1) / 5) as u8;
-            }
-        }
     }
 
     fn scale_photo_to_fit(&self, photo: DynamicImage) -> Result<RgbImage, TemplateError> {
@@ -169,7 +142,7 @@ impl PrintTemplate {
         image::imageops::overlay(canvas, photo, photo_x as i64, photo_y as i64);
     }
 
-    fn add_text(&self, canvas: &mut RgbImage) -> Result<(), TemplateError> {
+    fn add_story_text(&self, canvas: &mut RgbImage) -> Result<(), TemplateError> {
         let font_data = match std::fs::read("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf") {
             Ok(data) => data,
             Err(_) => {
@@ -185,63 +158,24 @@ impl PrintTemplate {
             }
         };
 
-        let header_scale = Scale { x: 80.0, y: 80.0 };
-        let name_scale = Scale { x: 100.0, y: 100.0 };
-        let headline_scale = Scale { x: 70.0, y: 70.0 };
-        let story_scale = Scale { x: 65.0, y: 65.0 };
+        let story_scale = Scale { x: 40.0, y: 40.0 };
 
-        // Header
-        let header_width = self.measure_text_width(&font, &self.header_text, header_scale);
-        draw_text_mut(
-            canvas,
-            self.text_color,
-            ((PRINT_WIDTH - header_width) / 2) as i32,
-            80,
-            header_scale,
-            &font,
-            &self.header_text,
-        );
-
-        // Name (directly below photo)
-        let name_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 40;
-        let name_width = self.measure_text_width(&font, &self.name_text, name_scale);
-        draw_text_mut(
-            canvas,
-            self.text_color,
-            ((PRINT_WIDTH - name_width) / 2) as i32,
-            name_y as i32,
-            name_scale,
-            &font,
-            &self.name_text,
-        );
-
-        // Headline (below name)
-        let headline_y = name_y + 110;
-        let headline_width = self.measure_text_width(&font, &self.headline_text, headline_scale);
-        draw_text_mut(
-            canvas,
-            self.text_color,
-            ((PRINT_WIDTH - headline_width) / 2) as i32,
-            headline_y as i32,
-            headline_scale,
-            &font,
-            &self.headline_text,
-        );
-
-        // Story (in story section) - wrap text to fit
+        // Story text positioned below the photo
         let story_lines = self.wrap_text(&font, &self.story_text, story_scale, PRINT_WIDTH - 100);
-        let line_height = 60; // Space between lines
-        let story_start_y = STORY_SECTION_TOP + 30;
+        let line_height = 35; // Space between lines
+
+        // Position story text below the photo with some padding
+        let story_start_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 150;
 
         for (i, line) in story_lines.iter().enumerate() {
             let line_width = self.measure_text_width(&font, line, story_scale);
             let line_y = story_start_y + (i as u32 * line_height);
 
-            // Make sure we don't draw below the story section
-            if line_y < STORY_SECTION_BOTTOM - 50 {
+            // Make sure we don't draw below the bottom of the canvas
+            if line_y < PRINT_HEIGHT - 200 {
                 draw_text_mut(
                     canvas,
-                    Rgb([20, 20, 20]), // Darker color for story text
+                    self.text_color,
                     ((PRINT_WIDTH - line_width) / 2) as i32,
                     line_y as i32,
                     story_scale,
@@ -297,13 +231,13 @@ impl PrintTemplate {
 pub fn create_templated_print_with_background(
     photo_path: &str,
     output_path: &str,
-    header: &str,
-    name: &str,
-    headline: &str,
     story: &str,
     background_path: &str,
+    _header_path: &str,
+    _footer_path: &str,
+    _break_path: &str,
 ) -> Result<(), TemplateError> {
-    let template =
-        PrintTemplate::new(header, name, headline, story).with_background(background_path);
+    // Ignoring header, footer, and break paths - just use background
+    let template = PrintTemplate::new(story).with_background(background_path);
     template.apply_to_photo(photo_path, output_path)
 }

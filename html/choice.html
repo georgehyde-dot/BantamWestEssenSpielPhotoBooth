@@ -304,28 +304,28 @@
             const allChoices = [
                 "At high noon, face to face, pistol steady.",
                 "By standing between the good folks and the bad ones.",
-                "With my fist and a shot of whiskey",
+                "With my fist and a shot of whiskey.",
                 "Through a shooting challenge — fair, no hard feelings.",
                 "Won the town from the mayor in a single poker hand.",
-                "Gave away half my fortune to the townsfolk.",
-                "Sold snake oil to a snake.",
-                "Controlled the entire gunpowder supply",
+                "Gave away half my fortune to the townsfolk in need.",
+                "Sold snake oil to a snake. Ha!",
+                "Controlled the entire gunpowder supply just to make one firework on my birthday.",
                 "Snatched the prized treasure from a crooked tycoon.",
-                "Stole the Marshal's keys and freed my friends in jail.",
+                "Stole the jail keys and freed my friends.",
                 "Returned a stolen jewel to its rightful owner.",
                 "Stole a wagonload of candy from a bunch of babies",
-                "The corrupt mayor's mansion, lit up like judgment day",
-                "The saloon's piano, mid-song, while I kept playing",
-                "A gun powder factory",
-                "The gambling hall—luck burned faster than the cards",
+                "The corrupt ranchers mansion, lit up like judgment day.",
+                "The saloon's piano, mid-song, while I kept playing.",
+                "Drew a flaming arrow on the murder’s wall, right to the secret door the Marshal’s ‘missed.’",
+                "Set decoy campfires in the hills to draw the bandits off the main road away from a group of orphans.",
             ];
 
             // Questions for each class
             const classQuestions = [
-                "How do you settle a dispute?", // Gunslinger
-                "What's your greatest business achievement?", // Merchant
-                "What's your most daring heist?", // Thief
-                "What burned brightest?", // Arsonist
+                "How do you settle conflict?", // Gunslinger
+                "What's your most notorious deal?", // Merchant
+                "What's your most biggest score?", // Thief
+                "What's your most famous fire?", // Arsonist
             ];
 
             // Get session ID from URL or sessionStorage
@@ -431,9 +431,9 @@
                     const data = await response.json();
 
                     if (data.ok) {
-                        // Store session ID and proceed to land selection
+                        // Store session ID and proceed to copies selection
                         sessionStorage.setItem("session_id", sessionId);
-                        window.location.href = `/land?session_id=${sessionId}`;
+                        window.location.href = `/copies?session_id=${sessionId}`;
                     } else {
                         alert(
                             "Error updating selection: " +
