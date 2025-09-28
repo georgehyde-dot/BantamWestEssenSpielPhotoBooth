@@ -93,7 +93,7 @@ impl Config {
             story_placeholder: std::env::var("TEMPLATE_STORY")
                 .unwrap_or_else(|_| "STORY HERE".to_string()),
             background_filename: std::env::var("TEMPLATE_BACKGROUND")
-                .unwrap_or_else(|_| "background.png".to_string()),
+                .unwrap_or_else(|_| "combined_background.png".to_string()),
         };
 
         let database = DatabaseConfig {

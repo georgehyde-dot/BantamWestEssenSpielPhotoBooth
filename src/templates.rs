@@ -13,7 +13,7 @@ const PRINT_HEIGHT: u32 = 1800; // 6 inches * 300 DPI
 // Define the area for the photo within the template
 const PHOTO_WIDTH: u32 = 1000; // Leave room for borders
 const PHOTO_HEIGHT: u32 = 667; // Maintain 3:2 aspect ratio
-const PHOTO_Y_POSITION: u32 = 400; // Position for photo
+const PHOTO_Y_POSITION: u32 = 300; // Position for photo
 
 #[derive(Debug)]
 pub enum TemplateError {
@@ -143,7 +143,7 @@ impl PrintTemplate {
     }
 
     fn add_story_text(&self, canvas: &mut RgbImage) -> Result<(), TemplateError> {
-        let font_data = match std::fs::read("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf") {
+        let font_data = match std::fs::read("/usr/local/share/fonts/IMFellEnglish-Italic.ttf") {
             Ok(data) => data,
             Err(_) => {
                 println!("Warning: Font not found. Skipping text.");
@@ -158,14 +158,14 @@ impl PrintTemplate {
             }
         };
 
-        let story_scale = Scale { x: 40.0, y: 40.0 };
+        let story_scale = Scale { x: 60.0, y: 60.0 };
 
         // Story text positioned below the photo
         let story_lines = self.wrap_text(&font, &self.story_text, story_scale, PRINT_WIDTH - 100);
         let line_height = 35; // Space between lines
 
         // Position story text below the photo with some padding
-        let story_start_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 150;
+        let story_start_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 350;
 
         for (i, line) in story_lines.iter().enumerate() {
             let line_width = self.measure_text_width(&font, line, story_scale);
