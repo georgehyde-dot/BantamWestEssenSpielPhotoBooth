@@ -36,6 +36,8 @@ impl Error for TemplateError {}
 
 pub struct PrintTemplate {
     story_text: String,
+    group_name: String,
+    headline: String,
     background_color: Rgb<u8>,
     text_color: Rgb<u8>,
     background_path: Option<String>,
@@ -45,6 +47,8 @@ impl Default for PrintTemplate {
     fn default() -> Self {
         PrintTemplate {
             story_text: "STORY HERE".to_string(),
+            group_name: String::new(),
+            headline: String::new(),
             background_color: Rgb([255, 255, 255]), // White background
             text_color: Rgb([50, 50, 50]),          // Dark gray text
             background_path: None,
@@ -62,6 +66,16 @@ impl PrintTemplate {
 
     pub fn with_background(mut self, path: &str) -> Self {
         self.background_path = Some(path.to_string());
+        self
+    }
+
+    pub fn add_headline(mut self, headline: &str) -> Self {
+        self.headline = headline.to_string();
+        self
+    }
+
+    pub fn add_group_name(mut self, group_name: &str) -> Self {
+        self.group_name = group_name.to_string();
         self
     }
 
@@ -114,7 +128,13 @@ impl PrintTemplate {
         // 3. Place the scaled photo onto the canvas
         self.place_photo(&mut canvas, &scaled_photo);
 
-        // 4. Add story text
+        // 4. Add group name below the photo
+        self.add_group_name_text(&mut canvas)?;
+
+        // 5. Add headline above the story
+        self.add_headline_text(&mut canvas)?;
+
+        // 6. Add story text
         self.add_story_text(&mut canvas)?;
 
         Ok(canvas)
@@ -162,7 +182,7 @@ impl PrintTemplate {
 
         // Story text positioned below the photo
         let story_lines = self.wrap_text(&font, &self.story_text, story_scale, PRINT_WIDTH - 100);
-        let line_height = 35; // Space between lines
+        let line_height = 40; // Space between lines
 
         // Position story text below the photo with some padding
         let story_start_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 350;
@@ -184,6 +204,72 @@ impl PrintTemplate {
                 );
             }
         }
+
+        Ok(())
+    }
+
+    fn add_group_name_text(&self, canvas: &mut RgbImage) -> Result<(), TemplateError> {
+        if self.group_name.is_empty() {
+            return Ok(());
+        }
+
+        let font_data = match std::fs::read("/usr/local/share/fonts/IMFellEnglish-Regular.ttf") {
+            Ok(data) => data,
+            Err(_) => return Ok(()),
+        };
+        let font = match Font::try_from_bytes(&font_data) {
+            Some(f) => f,
+            None => return Ok(()),
+        };
+
+        let group_scale = Scale { x: 80.0, y: 80.0 };
+
+        // Position group name below the photo
+        let group_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 80;
+        let group_width = self.measure_text_width(&font, &self.group_name, group_scale);
+
+        draw_text_mut(
+            canvas,
+            self.text_color,
+            ((PRINT_WIDTH - group_width) / 2) as i32,
+            group_y as i32,
+            group_scale,
+            &font,
+            &self.group_name,
+        );
+
+        Ok(())
+    }
+
+    fn add_headline_text(&self, canvas: &mut RgbImage) -> Result<(), TemplateError> {
+        if self.headline.is_empty() {
+            return Ok(());
+        }
+
+        let font_data = match std::fs::read("/usr/local/share/fonts/IMFellEnglish-Regular.ttf") {
+            Ok(data) => data,
+            Err(_) => return Ok(()),
+        };
+        let font = match Font::try_from_bytes(&font_data) {
+            Some(f) => f,
+            None => return Ok(()),
+        };
+
+        let headline_scale = Scale { x: 70.0, y: 70.0 };
+
+        // Position headline above the story
+        let headline_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 225;
+        let headline_width = self.measure_text_width(&font, &self.headline, headline_scale);
+
+        draw_text_mut(
+            canvas,
+            self.text_color,
+            ((PRINT_WIDTH - headline_width) / 2) as i32,
+            headline_y as i32,
+            headline_scale,
+            &font,
+            &self.headline,
+        );
 
         Ok(())
     }
@@ -232,12 +318,17 @@ pub fn create_templated_print_with_background(
     photo_path: &str,
     output_path: &str,
     story: &str,
+    group_name: &str,
+    headline: &str,
     background_path: &str,
     _header_path: &str,
     _footer_path: &str,
     _break_path: &str,
 ) -> Result<(), TemplateError> {
     // Ignoring header, footer, and break paths - just use background
-    let template = PrintTemplate::new(story).with_background(background_path);
+    let template = PrintTemplate::new(story)
+        .with_background(background_path)
+        .add_group_name(group_name)
+        .add_headline(headline);
     template.apply_to_photo(photo_path, output_path)
 }

@@ -75,6 +75,8 @@ pub async fn print_photo(
 
     // Get session data if session_id is provided
     let mut story_text = config.template.story_placeholder.clone();
+    let mut group_name = String::new();
+    let mut headline = String::new();
     let mut session_to_update = None;
 
     if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
@@ -104,6 +106,18 @@ pub async fn print_photo(
                 if let Some(story) = &session.story_text {
                     story_text = story.clone();
                     info!("Using story text: {} chars", story_text.len());
+                }
+
+                // Extract group name
+                if let Some(name) = &session.group_name {
+                    group_name = name.clone();
+                    info!("Using group name: {}", group_name);
+                }
+
+                // Extract headline
+                if let Some(head) = &session.headline {
+                    headline = head.clone();
+                    info!("Using headline: {}", headline);
                 }
                 // Get copies from session if not provided in request
                 if body.get("copies").is_none() && session.copies_printed > 0 {
@@ -146,6 +160,8 @@ pub async fn print_photo(
         file_path.to_str().unwrap(),
         templated_filename.to_str().unwrap(),
         &story_text,
+        &group_name,
+        &headline,
         config.background_path().to_str().unwrap(),
         "", // header_path placeholder
         "", // footer_path placeholder
@@ -253,6 +269,8 @@ pub async fn preview_print(
 
     // Get session data if session_id is provided
     let mut story_text = config.template.story_placeholder.clone();
+    let mut group_name = String::new();
+    let mut headline = String::new();
 
     if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
         match Session::load(session_id, &db_pool).await {
@@ -260,6 +278,14 @@ pub async fn preview_print(
                 // Use session's story text if available
                 if let Some(story) = &session.story_text {
                     story_text = story.clone();
+                }
+                // Use session's group name if available
+                if let Some(name) = &session.group_name {
+                    group_name = name.clone();
+                }
+                // Use session's headline if available
+                if let Some(head) = &session.headline {
+                    headline = head.clone();
                 }
             }
             Ok(None) => {
@@ -279,6 +305,8 @@ pub async fn preview_print(
         file_path.to_str().unwrap(),
         preview_path.to_str().unwrap(),
         &story_text,
+        &group_name,
+        &headline,
         config.background_path().to_str().unwrap(),
         "", // header_path placeholder
         "", // footer_path placeholder
