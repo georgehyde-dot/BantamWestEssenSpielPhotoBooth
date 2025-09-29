@@ -5,6 +5,13 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Photo Booth - Camera</title>
         <style>
+            @font-face {
+                font-family: "IMFellEnglish";
+                src: url("/usr/local/share/fonts/IMFellEnglish-Regular.ttf")
+                    format("truetype");
+                font-weight: normal;
+                font-style: normal;
+            }
             :root {
                 color-scheme: dark;
             }
@@ -24,8 +31,8 @@
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
-                color: white;
-                font-family: sans-serif;
+                color: #2c1810;
+                font-family: "IMFellEnglish", Georgia, serif;
                 text-align: center;
                 display: flex;
                 flex-direction: column;
@@ -42,17 +49,24 @@
             h1 {
                 font-size: 1.8em;
                 margin: 0;
+                text-shadow:
+                    2px 2px 4px rgba(255, 255, 255, 0.3),
+                    -1px -1px 2px rgba(255, 255, 255, 0.2);
             }
             h2#groupName {
-                color: #ccc;
+                color: #3d2817;
                 font-size: 1.3em;
                 margin: 0;
                 min-height: 1.5em;
+                text-shadow:
+                    1px 1px 2px rgba(255, 255, 255, 0.3),
+                    -1px -1px 1px rgba(255, 255, 255, 0.2);
             }
             #instructions {
                 font-size: 1em;
-                color: #aaa;
+                color: #3d2817;
                 margin: 0;
+                text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.2);
             }
             .preview-container {
                 position: relative;
@@ -111,33 +125,83 @@
                 margin-top: 10px;
             }
             .countdown-btn {
-                font-size: 1.2em;
-                padding: 12px 25px;
-                color: white;
-                border: none;
+                font-size: 1.4em;
+                padding: 15px 35px;
+                font-family: "IMFellEnglish", Georgia, serif;
+                font-weight: bold;
+                color: #2c1810;
+                background: linear-gradient(
+                    135deg,
+                    #8b6914 0%,
+                    #d4a574 50%,
+                    #8b6914 100%
+                );
+                border: 3px solid #5c4033;
                 border-radius: 8px;
                 cursor: pointer;
+                box-shadow:
+                    inset 0 2px 4px rgba(255, 255, 255, 0.3),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+                    0 5px 20px rgba(0, 0, 0, 0.5);
+                text-transform: uppercase;
+                letter-spacing: 1px;
                 transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
             }
             .print-btn {
-                background: #28a745;
+                background: linear-gradient(
+                    135deg,
+                    #8b6914 0%,
+                    #d4a574 50%,
+                    #8b6914 100%
+                );
             }
             .print-btn:hover:not(:disabled) {
-                background: #218838;
+                background: linear-gradient(
+                    135deg,
+                    #a17c1a 0%,
+                    #e5b885 50%,
+                    #a17c1a 100%
+                );
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+                box-shadow:
+                    inset 0 2px 4px rgba(255, 255, 255, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+                    0 8px 25px rgba(0, 0, 0, 0.6);
             }
             .no-print-btn {
-                background: #0066cc;
+                background: linear-gradient(
+                    135deg,
+                    #704214 0%,
+                    #b48454 50%,
+                    #704214 100%
+                );
             }
             .no-print-btn:hover:not(:disabled) {
-                background: #0052a3;
+                background: linear-gradient(
+                    135deg,
+                    #8b5a1a 0%,
+                    #c59565 50%,
+                    #8b5a1a 100%
+                );
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(0, 102, 204, 0.4);
+                box-shadow:
+                    inset 0 2px 4px rgba(255, 255, 255, 0.4),
+                    inset 0 -2px 4px rgba(0, 0, 0, 0.4),
+                    0 8px 25px rgba(0, 0, 0, 0.6);
             }
             .countdown-btn:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
+                background: linear-gradient(
+                    135deg,
+                    rgba(139, 105, 20, 0.3),
+                    rgba(212, 165, 116, 0.3),
+                    rgba(139, 105, 20, 0.3)
+                );
+                color: rgba(44, 24, 16, 0.4);
+                border-color: rgba(92, 64, 51, 0.4);
             }
 
             /* Responsive adjustments */
@@ -223,13 +287,7 @@
                     class="countdown-btn print-btn"
                     onclick="startCountdown(true)"
                 >
-                    📸 Capture & Print
-                </button>
-                <button
-                    class="countdown-btn no-print-btn"
-                    onclick="startCountdown(false)"
-                >
-                    📸 Capture Only
+                    Capture Your Mugshot
                 </button>
             </div>
         </div>

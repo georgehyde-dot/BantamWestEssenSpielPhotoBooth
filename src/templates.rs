@@ -321,9 +321,6 @@ pub fn create_templated_print_with_background(
     group_name: &str,
     headline: &str,
     background_path: &str,
-    _header_path: &str,
-    _footer_path: &str,
-    _break_path: &str,
 ) -> Result<(), TemplateError> {
     // Ignoring header, footer, and break paths - just use background
     let template = PrintTemplate::new(story)

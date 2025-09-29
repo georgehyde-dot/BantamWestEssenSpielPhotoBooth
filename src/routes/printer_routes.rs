@@ -163,9 +163,6 @@ pub async fn print_photo(
         &group_name,
         &headline,
         config.background_path().to_str().unwrap(),
-        "", // header_path placeholder
-        "", // footer_path placeholder
-        "", // break_path placeholder
     ) {
         Ok(_) => {
             info!(
@@ -308,9 +305,6 @@ pub async fn preview_print(
         &group_name,
         &headline,
         config.background_path().to_str().unwrap(),
-        "", // header_path placeholder
-        "", // footer_path placeholder
-        "", // break_path placeholder
     ) {
         Ok(()) => {
             // Update session with templated preview path if we have a session
