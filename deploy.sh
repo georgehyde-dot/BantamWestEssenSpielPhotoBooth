@@ -99,6 +99,27 @@ if [ -f "${SCRIPT_DIR}/fix_db_permissions.sh" ]; then
     ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/fix_db_permissions.sh'"
 fi
 
+# Copy v4l2 loopback test script if it exists
+if [ -f "${SCRIPT_DIR}/test_v4l2_loopback.sh" ]; then
+    echo ">> Copying test_v4l2_loopback.sh..."
+    scp "${SCRIPT_DIR}/test_v4l2_loopback.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_v4l2_loopback.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_v4l2_loopback.sh'"
+fi
+
+# Copy v4l2 device fix script if it exists
+if [ -f "${SCRIPT_DIR}/fix_v4l2_device.sh" ]; then
+    echo ">> Copying fix_v4l2_device.sh..."
+    scp "${SCRIPT_DIR}/fix_v4l2_device.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/fix_v4l2_device.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/fix_v4l2_device.sh'"
+fi
+
+# Copy quick v4l2 fix script if it exists
+if [ -f "${SCRIPT_DIR}/quick_fix_v4l2.sh" ]; then
+    echo ">> Copying quick_fix_v4l2.sh..."
+    scp "${SCRIPT_DIR}/quick_fix_v4l2.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/quick_fix_v4l2.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/quick_fix_v4l2.sh'"
+fi
+
 # Copy scripts directory if it exists
 if [ -d "${SCRIPT_DIR}/scripts" ]; then
     echo ">> Copying scripts directory..."

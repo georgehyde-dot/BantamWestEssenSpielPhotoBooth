@@ -5,7 +5,7 @@ use serde_json;
 use sqlx::SqlitePool;
 use std::sync::{Arc, Mutex};
 
-use tracing::{info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
 
@@ -28,18 +28,35 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
         ])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null());
+        .stderr(std::process::Stdio::piped());
 
+        info!("Spawning ffmpeg process for MJPEG stream from {}", v4l2_device);
         let mut process = match cmd.spawn() {
-            Ok(p) => p,
+            Ok(p) => {
+                info!("FFmpeg process started successfully, PID: {:?}", p.id());
+                p
+            },
             Err(e) => {
-                warn!("Failed to start ffmpeg for preview stream: {}", e);
+                error!("Failed to start ffmpeg for preview stream: {}", e);
+                error!("Command was: ffmpeg -f v4l2 -video_size 1920x1080 -i {} -f mjpeg -q:v 5 -r 30 -", v4l2_device);
                 return;
             }
         };
 
         let stdout = process.stdout.take().expect("Failed to get stdout");
+        let stderr = process.stderr.take().expect("Failed to get stderr");
+
+        // Spawn a task to log stderr output
+        tokio::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let mut stderr_reader = BufReader::new(stderr).lines();
+            while let Ok(Some(line)) = stderr_reader.next_line().await {
+                warn!("FFmpeg stderr: {}", line);
+            }
+        });
+
         let mut reader = tokio::io::BufReader::new(stdout);
+        info!("Starting MJPEG stream parsing");
 
         // MJPEG stream parsing
         const JPEG_START: &[u8] = &[0xFF, 0xD8];
@@ -49,6 +66,9 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
         let mut buffer = Vec::with_capacity(1024 * 1024); // 1MB buffer
         let mut jpeg_buffer = Vec::new();
         let mut in_jpeg = false;
+        let mut total_bytes = 0usize;
+        let mut frame_count = 0u32;
+        let start_time = std::time::Instant::now();
 
         use tokio::io::AsyncReadExt;
 
@@ -60,6 +80,10 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
                     break;
                 }
                 Ok(n) => {
+                    total_bytes += n;
+                    if total_bytes < 1000 {
+                        debug!("Read {} bytes from stream (total: {})", n, total_bytes);
+                    }
                     buffer.extend_from_slice(&chunk[..n]);
 
                     // Look for JPEG markers
@@ -83,6 +107,14 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
                                 jpeg_buffer.push(buffer[i+1]);
 
                                 // We have a complete JPEG frame
+                                frame_count += 1;
+                                if frame_count % 30 == 1 {  // Log every 30th frame
+                                    let elapsed = start_time.elapsed();
+                                    info!("Streaming: {} frames, {} bytes, {:.1} FPS",
+                                         frame_count, total_bytes,
+                                         frame_count as f32 / elapsed.as_secs_f32());
+                                }
+
                                 let boundary_prefix = format!("--{}\r\n", BOUNDARY).into_bytes();
                                 let header = b"Content-Type: image/jpeg\r\n\r\n";
                                 let tail = b"\r\n";
@@ -114,7 +146,8 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
                     }
                 }
                 Err(e) => {
-                    warn!("Error reading preview stream: {}", e);
+                    error!("Error reading preview stream: {}", e);
+                    error!("Read {} bytes total before error", total_bytes);
                     break;
                 }
             }
@@ -131,7 +164,7 @@ pub async fn preview_stream(config: web::Data<Config>) -> impl Responder {
 #[post("/capture")]
 pub async fn capture_image(
     config: web::Data<Config>,
-    db_pool: web::Data<SqlitePool>,
+    _db_pool: web::Data<SqlitePool>,
     body: Option<web::Json<serde_json::Value>>,
     gphoto_camera: web::Data<Arc<Mutex<Option<Arc<crate::gphoto_camera::GPhotoCamera>>>>>,
 ) -> impl Responder {
