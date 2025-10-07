@@ -113,13 +113,6 @@ if [ -f "${SCRIPT_DIR}/fix_v4l2_device.sh" ]; then
     ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/fix_v4l2_device.sh'"
 fi
 
-# Copy quick v4l2 fix script if it exists
-if [ -f "${SCRIPT_DIR}/quick_fix_v4l2.sh" ]; then
-    echo ">> Copying quick_fix_v4l2.sh..."
-    scp "${SCRIPT_DIR}/quick_fix_v4l2.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/quick_fix_v4l2.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/quick_fix_v4l2.sh'"
-fi
-
 # Copy scripts directory if it exists
 if [ -d "${SCRIPT_DIR}/scripts" ]; then
     echo ">> Copying scripts directory..."
