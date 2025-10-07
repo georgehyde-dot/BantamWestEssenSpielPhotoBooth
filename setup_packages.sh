@@ -66,6 +66,14 @@ $SUDO apt-get install -y \
 # Display and kiosk mode packages
 echo ""
 echo "Installing display and kiosk mode packages..."
+# Try to install chromium (Debian 13+) or chromium-browser (older versions)
+if apt-cache show chromium &>/dev/null; then
+    echo "Installing chromium package (Debian 13+)..."
+    $SUDO apt-get install -y chromium
+else
+    echo "Installing chromium-browser package..."
+    $SUDO apt-get install -y chromium-browser
+fi
 $SUDO apt-get install -y \
     xorg \
     xinit \

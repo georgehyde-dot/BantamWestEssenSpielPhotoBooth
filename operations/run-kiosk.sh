@@ -4,7 +4,7 @@
 # Cleanup function
 cleanup() {
     echo "Stopping photo booth and browser..."
-    pkill -f chromium-browser || true
+    pkill -f chromium || true
     pkill -f cam_test || true
     exit 0
 }
@@ -27,9 +27,21 @@ for i in {1..30}; do
     sleep 1
 done
 
+# Detect chromium command (Debian 13+ uses 'chromium', older versions use 'chromium-browser')
+if command -v chromium &> /dev/null; then
+    CHROMIUM_CMD="chromium"
+elif command -v chromium-browser &> /dev/null; then
+    CHROMIUM_CMD="chromium-browser"
+else
+    echo "Error: Chromium browser not found!"
+    echo "Install with: sudo apt-get install chromium"
+    cleanup
+    exit 1
+fi
+
 # Start Chromium in kiosk mode
-echo "Starting Chromium in kiosk mode..."
-chromium-browser \
+echo "Starting Chromium in kiosk mode (using $CHROMIUM_CMD)..."
+$CHROMIUM_CMD \
     --kiosk \
     --no-sandbox \
     --disable-setuid-sandbox \

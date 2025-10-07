@@ -92,6 +92,13 @@ if [ -f "${SCRIPT_DIR}/check_setup.sh" ]; then
     ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/check_setup.sh'"
 fi
 
+# Copy database permissions fix script if it exists
+if [ -f "${SCRIPT_DIR}/fix_db_permissions.sh" ]; then
+    echo ">> Copying fix_db_permissions.sh..."
+    scp "${SCRIPT_DIR}/fix_db_permissions.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/fix_db_permissions.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/fix_db_permissions.sh'"
+fi
+
 # Copy scripts directory if it exists
 if [ -d "${SCRIPT_DIR}/scripts" ]; then
     echo ">> Copying scripts directory..."
@@ -119,21 +126,18 @@ fi
 echo ">> Ensuring database file exists with proper permissions..."
 ssh "${PI_USER}@${PI_HOST}" "
     sudo mkdir -p '${REMOTE_ASSETS_DIR}'
-    sudo touch '${REMOTE_ASSETS_DIR}/photo_booth.db'
-    sudo chown ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/photo_booth.db'
-    sudo chmod 664 '${REMOTE_ASSETS_DIR}/photo_booth.db'
+    sudo chown ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}'
+    sudo chmod 755 '${REMOTE_ASSETS_DIR}'
+    touch '${REMOTE_ASSETS_DIR}/photo_booth.db'
+    chmod 664 '${REMOTE_ASSETS_DIR}/photo_booth.db'
     echo 'Database file created at ${REMOTE_ASSETS_DIR}/photo_booth.db'
+    echo 'Directory permissions: \$(ls -ld ${REMOTE_ASSETS_DIR})'
+    echo 'Database permissions: \$(ls -l ${REMOTE_ASSETS_DIR}/photo_booth.db)'
 "
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
 echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
-echo
-echo "Initial setup (first deployment only):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/setup_packages.sh\""
-echo
-echo "Check system setup and connected devices:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/check_setup.sh\""
 echo
 echo "Run on the Pi with Canon EOS camera:"
 echo "  ssh  ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/run.sh\""
