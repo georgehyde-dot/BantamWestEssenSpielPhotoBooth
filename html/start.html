@@ -8,22 +8,19 @@
         />
         <title>Photo Booth - Start</title>
         <style>
+            @import url("https://fonts.googleapis.com/css2?family=Rye&family=Bebas+Neue&display=swap");
+
+            :root {
+                color-scheme: dark;
+            }
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
 
-            @font-face {
-                font-family: "IMFellEnglish";
-                src: url("/usr/local/share/fonts/IMFellEnglish-Regular.ttf")
-                    format("truetype");
-                font-weight: normal;
-                font-style: normal;
-            }
-
             body {
-                font-family: "IMFellEnglish", Georgia, serif;
+                font-family: "Rye", cursive;
                 background-image: url("/static/interface_background.jpg");
                 background-size: cover;
                 background-position: center;
@@ -44,23 +41,28 @@
             }
 
             .title {
-                color: #2c1810;
+                color: #f4e4c1;
                 font-size: 48px;
                 font-weight: bold;
                 margin-bottom: 20px;
                 text-shadow:
-                    2px 2px 4px rgba(255, 255, 255, 0.3),
-                    -1px -1px 2px rgba(255, 255, 255, 0.2);
+                    3px 3px 0px #8b4513,
+                    4px 4px 8px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(139, 69, 19, 0.5);
+                letter-spacing: 2px;
+                text-transform: uppercase;
                 animation: fadeIn 1s ease-out;
             }
 
             .subtitle {
-                color: #3d2817;
+                color: #f4e4c1;
                 font-size: 24px;
                 margin-bottom: 60px;
                 text-shadow:
-                    1px 1px 2px rgba(255, 255, 255, 0.3),
-                    -1px -1px 1px rgba(255, 255, 255, 0.2);
+                    2px 2px 0px #8b4513,
+                    3px 3px 6px rgba(0, 0, 0, 0.9),
+                    0 0 20px rgba(139, 69, 19, 0.4);
+                letter-spacing: 1px;
                 animation: fadeIn 1s ease-out 0.3s both;
             }
 
@@ -71,12 +73,12 @@
                     #d4a574 50%,
                     #8b6914 100%
                 );
-                color: #2c1810;
+                color: #f4e4c1;
                 border: 3px solid #5c4033;
                 padding: 30px 60px;
                 font-size: 32px;
                 font-weight: bold;
-                font-family: "IMFellEnglish", Georgia, serif;
+                font-family: "Rye", cursive;
                 border-radius: 8px;
                 cursor: pointer;
                 box-shadow:
@@ -229,7 +231,7 @@
         <div class="decoration decoration-4"></div>
 
         <div class="container">
-            <h1 class="title">Photo Booth</h1>
+            <h1 class="title">Bantam West Photo Booth</h1>
             <p class="subtitle">Create your memorable adventure</p>
             <button class="start-button" onclick="startAdventure()">
                 What makes you WANTED?

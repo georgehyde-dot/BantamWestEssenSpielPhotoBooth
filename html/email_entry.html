@@ -6,24 +6,21 @@
             name="viewport"
             content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
         />
-        <title>Where Should We Send Your Photo?</title>
+        <title>Photo Booth - Email Entry</title>
         <style>
+            @import url("https://fonts.googleapis.com/css2?family=Rye&family=Bebas+Neue&display=swap");
+
+            :root {
+                color-scheme: dark;
+            }
             * {
                 margin: 0;
                 padding: 0;
                 box-sizing: border-box;
             }
 
-            @font-face {
-                font-family: "IMFellEnglish";
-                src: url("/usr/local/share/fonts/IMFellEnglish-Regular.ttf")
-                    format("truetype");
-                font-weight: normal;
-                font-style: normal;
-            }
-
             body {
-                font-family: "IMFellEnglish", Georgia, serif;
+                font-family: "Rye", cursive;
                 background-image: url("/static/interface_background.jpg");
                 background-size: cover;
                 background-position: center;
@@ -54,12 +51,15 @@
             }
 
             .header h1 {
-                color: #2c1810;
+                color: #f4e4c1;
                 font-size: 42px;
                 font-weight: bold;
                 text-shadow:
-                    2px 2px 4px rgba(255, 255, 255, 0.3),
-                    -1px -1px 2px rgba(255, 255, 255, 0.2);
+                    3px 3px 0px #8b4513,
+                    4px 4px 8px rgba(0, 0, 0, 0.9),
+                    0 0 30px rgba(139, 69, 19, 0.5);
+                letter-spacing: 2px;
+                text-transform: uppercase;
                 margin-bottom: 10px;
                 transition: font-size 0.3s ease;
             }
@@ -69,12 +69,14 @@
             }
 
             .header p {
-                color: #3d2817;
+                color: #f4e4c1;
                 font-size: 20px;
                 font-weight: 500;
                 text-shadow:
-                    1px 1px 2px rgba(255, 255, 255, 0.3),
-                    -1px -1px 1px rgba(255, 255, 255, 0.2);
+                    2px 2px 0px #8b4513,
+                    3px 3px 6px rgba(0, 0, 0, 0.9),
+                    0 0 20px rgba(139, 69, 19, 0.4);
+                letter-spacing: 1px;
                 transition: opacity 0.3s ease;
             }
 
@@ -104,14 +106,15 @@
 
             .input-label {
                 display: block;
-                color: #2c1810;
+                color: #f4e4c1;
                 font-size: 20px;
                 font-weight: 500;
                 margin-bottom: 12px;
                 text-align: center;
                 text-shadow:
-                    1px 1px 2px rgba(255, 255, 255, 0.3),
-                    -1px -1px 1px rgba(255, 255, 255, 0.2);
+                    2px 2px 0px #8b4513,
+                    3px 3px 6px rgba(0, 0, 0, 0.9),
+                    0 0 20px rgba(139, 69, 19, 0.4);
             }
 
             .email-input {
@@ -157,13 +160,14 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: #2c1810;
+                color: #f4e4c1;
                 font-size: 18px;
                 font-weight: 500;
                 cursor: pointer;
                 text-shadow:
-                    1px 1px 2px rgba(255, 255, 255, 0.3),
-                    -1px -1px 1px rgba(255, 255, 255, 0.2);
+                    2px 2px 0px #8b4513,
+                    3px 3px 6px rgba(0, 0, 0, 0.9),
+                    0 0 20px rgba(139, 69, 19, 0.4);
             }
 
             .checkbox-label input[type="checkbox"] {
@@ -179,14 +183,14 @@
                 padding: 20px;
                 font-size: 22px;
                 font-weight: bold;
-                font-family: "IMFellEnglish", Georgia, serif;
+                font-family: "Rye", cursive;
                 background: linear-gradient(
                     135deg,
                     #8b6914 0%,
                     #d4a574 50%,
                     #8b6914 100%
                 );
-                color: #2c1810;
+                color: #f4e4c1;
                 border: 3px solid #5c4033;
                 border-radius: 8px;
                 cursor: pointer;
@@ -287,7 +291,7 @@
 
             .key.special {
                 background: linear-gradient(135deg, #d4a574, #c89454);
-                color: #2c1810;
+                color: #f4e4c1;
                 font-weight: 600;
             }
 

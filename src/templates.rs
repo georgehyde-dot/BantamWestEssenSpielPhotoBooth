@@ -178,11 +178,11 @@ impl PrintTemplate {
             }
         };
 
-        let story_scale = Scale { x: 60.0, y: 60.0 };
+        let story_scale = Scale { x: 65.0, y: 65.0 };
 
         // Story text positioned below the photo
         let story_lines = self.wrap_text(&font, &self.story_text, story_scale, PRINT_WIDTH - 100);
-        let line_height = 40; // Space between lines
+        let line_height = 45; // Space between lines
 
         // Position story text below the photo with some padding
         let story_start_y = PHOTO_Y_POSITION + PHOTO_HEIGHT + 350;

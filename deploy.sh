@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Defaults (can be overridden via env)
 PI_USER="${PI_USER:-prospero}"
-PI_HOST="${PI_HOST:-BantamPhotoShop.local}"
+PI_HOST="${PI_HOST:-100.90.132.44}"
 BINARY_NAME="${BINARY_NAME:-cam_test}"
 REMOTE_DEST_PATH="${REMOTE_DEST_PATH:-/home/${PI_USER}/cam_test}"
 DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-cam-test-pi-builder}"
@@ -62,67 +62,97 @@ echo ">> Binary extracted to ${LOCAL_BIN}"
 # Ensure remote directory exists, then copy binary
 REMOTE_DIR="$(dirname "${REMOTE_DEST_PATH}")"
 echo ">> Ensuring remote directory exists: ${PI_USER}@${PI_HOST}:${REMOTE_DIR}"
-ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "mkdir -p '${REMOTE_DIR}'"
+ssh "${PI_USER}@${PI_HOST}" "mkdir -p '${REMOTE_DIR}'"
 
 echo ">> Copying '${LOCAL_BIN}' to '${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}'..."
-scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${LOCAL_BIN}" "${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
+scp "${LOCAL_BIN}" "${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
 
 # Optionally set executable bit on remote
 echo ">> Marking remote binary as executable..."
-ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DEST_PATH}'"
+ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DEST_PATH}'"
 
 # Copy test scripts if they exist
 if [ -f "${SCRIPT_DIR}/test_endpoints.sh" ]; then
     echo ">> Copying test_endpoints.sh..."
-    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${SCRIPT_DIR}/test_endpoints.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_endpoints.sh"
-    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
+    scp "${SCRIPT_DIR}/test_endpoints.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_endpoints.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
+fi
+
+# Copy setup script if it exists
+if [ -f "${SCRIPT_DIR}/setup_packages.sh" ]; then
+    echo ">> Copying setup_packages.sh..."
+    scp "${SCRIPT_DIR}/setup_packages.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/setup_packages.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/setup_packages.sh'"
+fi
+
+# Copy diagnostic script if it exists
+if [ -f "${SCRIPT_DIR}/check_setup.sh" ]; then
+    echo ">> Copying check_setup.sh..."
+    scp "${SCRIPT_DIR}/check_setup.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/check_setup.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/check_setup.sh'"
 fi
 
 # Copy scripts directory if it exists
 if [ -d "${SCRIPT_DIR}/scripts" ]; then
     echo ">> Copying scripts directory..."
-    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new -r "${SCRIPT_DIR}/scripts" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
-    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/scripts/'*.sh 2>/dev/null || true"
+    scp -r "${SCRIPT_DIR}/scripts" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/scripts/'*.sh 2>/dev/null || true"
 fi
 
 # Copy operations directory if it exists
 if [ -d "${SCRIPT_DIR}/operations" ]; then
     echo ">> Copying operations directory..."
-    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new -r "${SCRIPT_DIR}/operations" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
-    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/operations/'*.sh 2>/dev/null || true"
+    scp -r "${SCRIPT_DIR}/operations" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/operations/'*.sh 2>/dev/null || true"
 fi
 
 # Copy static directory if it exists (contains background images, etc.)
 if [ -d "${SCRIPT_DIR}/static" ]; then
     echo ">> Ensuring remote assets directory exists: ${REMOTE_ASSETS_DIR}"
-    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "sudo mkdir -p '${REMOTE_ASSETS_DIR}'"
+    ssh "${PI_USER}@${PI_HOST}" "sudo mkdir -p '${REMOTE_ASSETS_DIR}'"
     echo ">> Copying static directory..."
-    scp -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new -r "${SCRIPT_DIR}/static" "${PI_USER}@${PI_HOST}:/tmp/"
-    ssh -i "${SSH_KEY_PATH}" -o StrictHostKeyChecking=accept-new "${PI_USER}@${PI_HOST}" "sudo rm -rf '${REMOTE_ASSETS_DIR}/static' && sudo mv /tmp/static '${REMOTE_ASSETS_DIR}/' && sudo chown -R ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/static'"
+    scp -r "${SCRIPT_DIR}/static" "${PI_USER}@${PI_HOST}:/tmp/"
+    ssh "${PI_USER}@${PI_HOST}" "sudo rm -rf '${REMOTE_ASSETS_DIR}/static' && sudo mv /tmp/static '${REMOTE_ASSETS_DIR}/' && sudo chown -R ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/static'"
 fi
+
+# Create database file with proper permissions
+echo ">> Ensuring database file exists with proper permissions..."
+ssh "${PI_USER}@${PI_HOST}" "
+    sudo mkdir -p '${REMOTE_ASSETS_DIR}'
+    sudo touch '${REMOTE_ASSETS_DIR}/photo_booth.db'
+    sudo chown ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/photo_booth.db'
+    sudo chmod 664 '${REMOTE_ASSETS_DIR}/photo_booth.db'
+    echo 'Database file created at ${REMOTE_ASSETS_DIR}/photo_booth.db'
+"
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
 echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
 echo
+echo "Initial setup (first deployment only):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/setup_packages.sh\""
+echo
+echo "Check system setup and connected devices:"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/check_setup.sh\""
+echo
 echo "Run on the Pi with Canon EOS camera:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/run.sh\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/run.sh\""
 echo
 echo "Test GPhoto2 functionality:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/test_gphoto.sh\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/test_gphoto.sh\""
 echo
 echo "Run directly (without startup script):"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"'${REMOTE_DEST_PATH}'\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"'${REMOTE_DEST_PATH}'\""
 echo
 echo "Setup kiosk mode (first time only):"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo /home/${PI_USER}/operations/setup-kiosk.sh\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo /home/${PI_USER}/operations/setup-kiosk.sh\""
 echo
 echo "Start kiosk mode:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo systemctl start photobooth-kiosk.service\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo systemctl start photobooth-kiosk.service\""
 echo
 echo "Stop kiosk mode:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo systemctl stop photobooth-kiosk.service\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo systemctl stop photobooth-kiosk.service\""
 echo
 echo "Check kiosk status:"
-echo "  ssh -i '${SSH_KEY_PATH}' ${PI_USER}@${PI_HOST} \"sudo systemctl status photobooth-kiosk.service\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo systemctl status photobooth-kiosk.service\""
 echo
