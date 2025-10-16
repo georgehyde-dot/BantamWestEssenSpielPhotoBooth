@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Defaults (can be overridden via env)
 PI_USER="${PI_USER:-prospero}"
-PI_HOST="${PI_HOST:-100.90.132.44}"
+PI_HOST="${PI_HOST:-100.95.14.25}"
 BINARY_NAME="${BINARY_NAME:-cam_test}"
 REMOTE_DEST_PATH="${REMOTE_DEST_PATH:-/home/${PI_USER}/cam_test}"
 DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-cam-test-pi-builder}"
@@ -134,6 +134,33 @@ if [ -d "${SCRIPT_DIR}/static" ]; then
     echo ">> Copying static directory..."
     scp -r "${SCRIPT_DIR}/static" "${PI_USER}@${PI_HOST}:/tmp/"
     ssh "${PI_USER}@${PI_HOST}" "sudo rm -rf '${REMOTE_ASSETS_DIR}/static' && sudo mv /tmp/static '${REMOTE_ASSETS_DIR}/' && sudo chown -R ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/static'"
+
+    # Copy font files to system fonts directory
+    echo ">> Installing font files..."
+    ssh "${PI_USER}@${PI_HOST}" "
+        sudo mkdir -p /usr/local/share/fonts
+        if ls '${REMOTE_ASSETS_DIR}/static/'*.ttf 1> /dev/null 2>&1; then
+            sudo cp '${REMOTE_ASSETS_DIR}/static/'*.ttf /usr/local/share/fonts/
+            sudo fc-cache -f -v /usr/local/share/fonts/
+            echo 'Fonts installed successfully'
+        else
+            echo 'No font files found in static directory'
+        fi
+    "
+fi
+
+# Copy printer configuration script if it exists
+if [ -f "${SCRIPT_DIR}/configure_printer_4x6.sh" ]; then
+    echo ">> Copying configure_printer_4x6.sh..."
+    scp "${SCRIPT_DIR}/configure_printer_4x6.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/configure_printer_4x6.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/configure_printer_4x6.sh'"
+fi
+
+# Copy font installation script if it exists
+if [ -f "${SCRIPT_DIR}/install_fonts.sh" ]; then
+    echo ">> Copying install_fonts.sh..."
+    scp "${SCRIPT_DIR}/install_fonts.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/install_fonts.sh"
+    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/install_fonts.sh'"
 fi
 
 # Create database file with proper permissions
@@ -152,6 +179,21 @@ ssh "${PI_USER}@${PI_HOST}" "
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
 echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
+echo
+echo "Initial setup (first deployment only):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/setup_packages.sh\""
+echo
+echo "Check system setup and connected devices:"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/check_setup.sh\""
+echo
+echo "Fix v4l2 loopback device (if preview not working):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/fix_v4l2_device.sh\""
+echo
+echo "Configure printer for 4x6 photos:"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/configure_printer_4x6.sh\""
+echo
+echo "Install fonts (if using custom fonts):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/install_fonts.sh\""
 echo
 echo "Run on the Pi with Canon EOS camera:"
 echo "  ssh  ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/run.sh\""

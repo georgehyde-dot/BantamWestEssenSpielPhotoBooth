@@ -34,7 +34,7 @@ fn spawn_gphoto_camera(
         // Override device to use v4l2loopback device for GPhoto preview
         let mut gphoto_config = config.clone();
         gphoto_config.v4l2_loopback_device =
-            std::env::var("V4L2_LOOPBACK_DEVICE").unwrap_or_else(|_| "/dev/video2".to_string());
+            std::env::var("V4L2_LOOPBACK_DEVICE").unwrap_or_else(|_| "/dev/video0".to_string());
         info!(
             "GPhoto2 will stream preview to: {}",
             gphoto_config.v4l2_loopback_device

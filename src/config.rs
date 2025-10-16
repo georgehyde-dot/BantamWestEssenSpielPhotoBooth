@@ -65,7 +65,7 @@ impl Config {
 
         let camera = CameraConfig {
             v4l2_loopback_device: std::env::var("V4L2_LOOPBACK_DEVICE")
-                .unwrap_or_else(|_| "/dev/video2".to_string()),
+                .unwrap_or_else(|_| "/dev/video0".to_string()),
         };
 
         let base_path = std::env::var("STORAGE_PATH")
@@ -158,7 +158,7 @@ mod tests {
 
         let config = Config::from_env().expect("Failed to create config");
         assert_eq!(config.server.port, 8080);
-        assert_eq!(config.camera.v4l2_loopback_device, "/dev/video2");
+        assert_eq!(config.camera.v4l2_loopback_device, "/dev/video0");
     }
 
     #[test]

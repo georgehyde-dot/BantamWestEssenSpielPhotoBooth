@@ -94,7 +94,7 @@ impl GPhotoCamera {
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         // Start gphoto2 preview stream to v4l2loopback device
-        let v4l2_device = self.config.v4l2_loopback_device.clone(); // e.g., "/dev/video2"
+        let v4l2_device = self.config.v4l2_loopback_device.clone(); // e.g., "/dev/video0"
 
         info!("Starting gphoto2 preview stream to {}", v4l2_device);
 
