@@ -189,8 +189,9 @@ pub async fn capture_image(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    // Use GPhoto2 for high-resolution capture
-    info!("Using GPhoto2 for high-resolution capture");
+    // Check camera device type
+    let camera_device_type =
+        std::env::var("CAMERA_DEVICE_TYPE").unwrap_or_else(|_| "loopback".to_string());
 
     let filename = config
         .storage
@@ -199,50 +200,104 @@ pub async fn capture_image(
 
     let save_path = filename.clone();
 
-    // Use the shared GPhoto2 camera instance
-    let camera_opt = gphoto_camera.lock().unwrap().clone();
-    let capture_result = if let Some(camera) = camera_opt.clone() {
-        match camera.capture_photo(save_path.to_str().unwrap_or("")).await {
-            Ok(jpeg_data) => {
-                // Save the JPEG directly
-                let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
-                    std::fs::write(&save_path, &jpeg_data)
-                        .map_err(|e| format!("save JPEG: {e}"))?;
-                    Ok(())
-                });
+    // Handle capture based on device type
+    let capture_result = if camera_device_type == "webcam" {
+        // Capture directly from webcam
+        info!("Using webcam for direct capture");
+        let v4l2_device = config.camera.v4l2_loopback_device.clone();
 
-                // Restart the preview stream after capture
-                info!("Restarting preview stream after capture");
+        // Use ffmpeg to capture a frame from the webcam
+        let output = tokio::process::Command::new("ffmpeg")
+            .args(&[
+                "-f",
+                "v4l2",
+                "-i",
+                &v4l2_device,
+                "-frames:v",
+                "1",
+                "-q:v",
+                "2",  // High quality JPEG
+                "-y", // Overwrite output
+                save_path.to_str().unwrap_or(""),
+            ])
+            .output()
+            .await;
 
-                // Start preview in background (simplified - no frame buffer needed)
-                let camera_clone = camera.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = camera_clone.start_preview_stream().await {
-                        warn!("Failed to restart preview stream: {}", e);
+        match output {
+            Ok(output) if output.status.success() => {
+                info!("Webcam capture successful");
+                // Read the saved file
+                match tokio::fs::read(&save_path).await {
+                    Ok(jpeg_data) => {
+                        let res =
+                            tokio::task::spawn_blocking(move || -> Result<(), String> { Ok(()) });
+                        Some((res, filename))
                     }
-                });
-
-                Some((res, filename))
+                    Err(e) => {
+                        warn!("Failed to read captured image: {}", e);
+                        None
+                    }
+                }
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                warn!("Webcam capture failed: {}", stderr);
+                None
             }
             Err(e) => {
-                warn!("GPhoto2 capture failed: {}", e);
-
-                // Try to restart preview even after failure
-                info!("Attempting to restart preview stream after failed capture");
-
-                let camera_clone = camera.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = camera_clone.start_preview_stream().await {
-                        warn!("Failed to restart preview stream: {}", e);
-                    }
-                });
-
+                warn!("Failed to run webcam capture command: {}", e);
                 None
             }
         }
     } else {
-        warn!("GPhoto2 camera not available - camera not initialized");
-        None
+        // Use GPhoto2 for high-resolution capture
+        info!("Using GPhoto2 for high-resolution capture");
+
+        // Use the shared GPhoto2 camera instance
+        let camera_opt = gphoto_camera.lock().unwrap().clone();
+        if let Some(camera) = camera_opt.clone() {
+            match camera.capture_photo(save_path.to_str().unwrap_or("")).await {
+                Ok(jpeg_data) => {
+                    // Save the JPEG directly
+                    let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
+                        std::fs::write(&save_path, &jpeg_data)
+                            .map_err(|e| format!("save JPEG: {e}"))?;
+                        Ok(())
+                    });
+
+                    // Restart the preview stream after capture
+                    info!("Restarting preview stream after capture");
+
+                    // Start preview in background (simplified - no frame buffer needed)
+                    let camera_clone = camera.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = camera_clone.start_preview_stream().await {
+                            warn!("Failed to restart preview stream: {}", e);
+                        }
+                    });
+
+                    Some((res, filename))
+                }
+                Err(e) => {
+                    warn!("GPhoto2 capture failed: {}", e);
+
+                    // Try to restart preview even after failure
+                    info!("Attempting to restart preview stream after failed capture");
+
+                    let camera_clone = camera.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = camera_clone.start_preview_stream().await {
+                            warn!("Failed to restart preview stream: {}", e);
+                        }
+                    });
+
+                    None
+                }
+            }
+        } else {
+            warn!("GPhoto2 camera not available - camera not initialized");
+            None
+        }
     };
 
     // Handle the capture result

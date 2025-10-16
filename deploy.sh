@@ -9,7 +9,7 @@ set -euo pipefail
 
 # Defaults (can be overridden via env)
 PI_USER="${PI_USER:-prospero}"
-PI_HOST="${PI_HOST:-100.95.14.25}"
+PI_HOST="${PI_HOST:-100.90.132.44}"
 BINARY_NAME="${BINARY_NAME:-cam_test}"
 REMOTE_DEST_PATH="${REMOTE_DEST_PATH:-/home/${PI_USER}/cam_test}"
 DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-cam-test-pi-builder}"
