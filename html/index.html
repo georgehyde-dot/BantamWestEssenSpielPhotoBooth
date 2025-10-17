@@ -279,8 +279,7 @@
     </head>
     <body>
         <div id="wrap">
-            <h1>Hold still for your mugshot</h1>
-            <p id="instructions">Get ready for your photo!</p>
+            <h1>Take Your MugShot Picture</h1>
             <div class="preview-container">
                 <img id="preview" src="/preview" alt="Camera Preview" />
                 <div id="countdown"></div>
@@ -291,7 +290,7 @@
                     class="countdown-btn print-btn"
                     onclick="startCountdown(true)"
                 >
-                    Capture Your Mugshot
+                    Capture Picture
                 </button>
             </div>
         </div>
@@ -299,6 +298,119 @@
         <script>
             let countdownRunning = false;
             const sessionId = sessionStorage.getItem("session_id");
+
+            // Handle preview stream errors
+            document.addEventListener("DOMContentLoaded", function () {
+                const previewImg = document.getElementById("preview");
+                let retryCount = 0;
+                const maxRetries = 3;
+
+                previewImg.onerror = function () {
+                    console.warn(
+                        "Preview stream failed, retry count:",
+                        retryCount,
+                    );
+
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        // Try to reload the preview after a short delay
+                        setTimeout(() => {
+                            previewImg.src = "/preview?t=" + Date.now();
+                        }, 1000);
+                    } else {
+                        // Show placeholder when camera is not available
+                        console.error(
+                            "Preview stream unavailable - showing placeholder",
+                        );
+
+                        // Create a canvas placeholder
+                        const canvas = document.createElement("canvas");
+                        canvas.width = 640;
+                        canvas.height = 480;
+                        canvas.id = "preview";
+                        canvas.style.cssText = previewImg.style.cssText;
+
+                        const ctx = canvas.getContext("2d");
+                        // Dark background
+                        ctx.fillStyle = "#2C1810";
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        // Draw camera icon and text
+                        ctx.fillStyle = "#8B6914";
+                        ctx.font = "48px Arial";
+                        ctx.textAlign = "center";
+                        ctx.fillText(
+                            "📷",
+                            canvas.width / 2,
+                            canvas.height / 2 - 30,
+                        );
+
+                        ctx.fillStyle = "#D4A574";
+                        ctx.font = "20px Arial";
+                        ctx.fillText(
+                            "Camera Preview Offline",
+                            canvas.width / 2,
+                            canvas.height / 2 + 20,
+                        );
+                        ctx.font = "16px Arial";
+                        ctx.fillText(
+                            "(Click Capture to continue)",
+                            canvas.width / 2,
+                            canvas.height / 2 + 45,
+                        );
+
+                        // Replace image with canvas
+                        previewImg.parentNode.replaceChild(canvas, previewImg);
+
+                        // Show a notification
+                        const noticeDiv = document.createElement("div");
+                        noticeDiv.style.cssText = `
+                            position: fixed;
+                            top: 20px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: rgba(139, 105, 20, 0.9);
+                            color: white;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            font-size: 1em;
+                            z-index: 1000;
+                            animation: slideDown 0.3s ease;
+                        `;
+                        noticeDiv.innerHTML =
+                            "Camera preview unavailable - click Capture Picture to continue";
+                        document.body.appendChild(noticeDiv);
+
+                        // Remove notice after 5 seconds
+                        setTimeout(() => {
+                            noticeDiv.style.animation = "slideUp 0.3s ease";
+                            setTimeout(() => noticeDiv.remove(), 300);
+                        }, 5000);
+                    }
+                };
+
+                // Also handle successful load to reset retry count
+                previewImg.onload = function () {
+                    if (retryCount > 0) {
+                        console.log("Preview stream recovered");
+                        retryCount = 0;
+                    }
+                };
+            });
+
+            // Add animation styles
+            const style = document.createElement("style");
+            style.textContent = `
+                @keyframes slideDown {
+                    from { transform: translate(-50%, -100%); opacity: 0; }
+                    to { transform: translate(-50%, 0); opacity: 1; }
+                }
+                @keyframes slideUp {
+                    from { transform: translate(-50%, 0); opacity: 1; }
+                    to { transform: translate(-50%, -100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
 
             function startCountdown(shouldPrint) {
                 if (countdownRunning) return;
@@ -339,7 +451,16 @@
                         })
                             .then((r) => r.json())
                             .then(async (d) => {
+                                console.log("Capture response:", d);
+
                                 if (d && d.ok) {
+                                    // Check if this is a placeholder
+                                    if (d.is_placeholder) {
+                                        console.log(
+                                            "Using placeholder image - no camera available",
+                                        );
+                                    }
+
                                     // Store the captured image file name
                                     let capturedFile = null;
                                     if (d.file) {
@@ -425,13 +546,27 @@
                                     }
 
                                     // Navigate to email entry page
+                                    console.log(
+                                        "Navigating to email entry page",
+                                    );
                                     window.location.href = `/email-entry?session_id=${sessionId}`;
                                 } else {
-                                    resetWithError("Capture failed");
+                                    // Only show error if capture actually failed
+                                    console.error(
+                                        "Capture failed - response not ok:",
+                                        d,
+                                    );
+                                    resetWithError(
+                                        "Capture failed. Please try again.",
+                                    );
                                 }
                             })
                             .catch((e) => {
-                                resetWithError("Capture failed: " + e);
+                                console.error("Capture fetch error:", e);
+                                // Network or other fetch error - show error
+                                resetWithError(
+                                    "Unable to connect to server. Please try again.",
+                                );
                             });
                     }
                 }, 1000);
@@ -448,7 +583,37 @@
                 previewContainer.classList.remove("capturing");
 
                 countdownRunning = false;
-                alert(msg);
+
+                // Show a more user-friendly error message
+                const errorDiv = document.createElement("div");
+                errorDiv.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(139, 105, 20, 0.95);
+                    color: white;
+                    padding: 20px 30px;
+                    border-radius: 10px;
+                    font-size: 1.2em;
+                    z-index: 1000;
+                    max-width: 80%;
+                    text-align: center;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                `;
+                errorDiv.innerHTML = `
+                    <div style="margin-bottom: 15px;">${msg}</div>
+                    <button onclick="this.parentElement.remove()" style="
+                        background: white;
+                        color: #8B6914;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 5px;
+                        font-size: 1em;
+                        cursor: pointer;
+                    ">OK</button>
+                `;
+                document.body.appendChild(errorDiv);
             }
         </script>
     </body>

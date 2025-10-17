@@ -151,22 +151,45 @@ async fn main() -> std::io::Result<()> {
         Arc::new(Mutex::new(None));
 
     // Check if we need to use GPhoto2 streaming (for Canon) or direct V4L2 (for webcam)
-    let camera_device_type =
-        std::env::var("CAMERA_DEVICE_TYPE").unwrap_or_else(|_| "loopback".to_string());
+    let camera_device_type = std::env::var("CAMERA_DEVICE_TYPE").unwrap_or_else(|_| {
+        warn!("CAMERA_DEVICE_TYPE not set, defaulting to 'none' (no camera)");
+        "none".to_string()
+    });
 
-    let _camera = if camera_device_type == "webcam" {
-        info!("Using webcam directly via V4L2, no GPhoto2 streaming needed");
-        info!("Video device: {}", config.camera.v4l2_loopback_device);
-        None
-    } else {
-        info!(
-            "Initializing GPhoto2 camera with config: {:?}",
-            config.camera
-        );
-        Some(spawn_gphoto_camera(
-            config.camera.clone(),
-            gphoto_camera.clone(),
-        ))
+    info!("Starting with camera device type: {}", camera_device_type);
+
+    let _camera = match camera_device_type.as_str() {
+        "loopback" => {
+            info!(
+                "Canon camera mode - initializing GPhoto2 with config: {:?}",
+                config.camera
+            );
+            Some(spawn_gphoto_camera(
+                config.camera.clone(),
+                gphoto_camera.clone(),
+            ))
+        }
+        "webcam" => {
+            info!("Using webcam directly via V4L2, no GPhoto2 streaming needed");
+            info!("Video device: {}", config.camera.v4l2_loopback_device);
+            None
+        }
+        "unknown" => {
+            warn!("Unknown camera type detected, will attempt basic V4L2 capture");
+            info!("Video device: {}", config.camera.v4l2_loopback_device);
+            None
+        }
+        "none" => {
+            warn!("No camera detected, application will use placeholder images");
+            None
+        }
+        _ => {
+            warn!(
+                "Unrecognized camera device type: '{}', treating as no camera",
+                camera_device_type
+            );
+            None
+        }
     };
 
     let server_config = config.clone();
