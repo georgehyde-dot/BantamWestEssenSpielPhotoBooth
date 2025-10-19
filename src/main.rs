@@ -33,9 +33,8 @@ fn spawn_gphoto_camera(
     tokio::spawn(async move {
         // Override device to use v4l2loopback device for GPhoto preview
         let mut gphoto_config = config.clone();
-        gphoto_config.v4l2_loopback_device = std::env::var("VIDEO_DEVICE")
-            .or_else(|_| std::env::var("V4L2_LOOPBACK_DEVICE"))
-            .unwrap_or_else(|_| "/dev/video0".to_string());
+        gphoto_config.v4l2_loopback_device =
+            std::env::var("V4L2_LOOPBACK_DEVICE").unwrap_or_else(|_| "/dev/video0".to_string());
         info!(
             "GPhoto2 will stream preview to: {}",
             gphoto_config.v4l2_loopback_device
@@ -150,46 +149,15 @@ async fn main() -> std::io::Result<()> {
     let gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>> =
         Arc::new(Mutex::new(None));
 
-    // Check if we need to use GPhoto2 streaming (for Canon) or direct V4L2 (for webcam)
-    let camera_device_type = std::env::var("CAMERA_DEVICE_TYPE").unwrap_or_else(|_| {
-        warn!("CAMERA_DEVICE_TYPE not set, defaulting to 'none' (no camera)");
-        "none".to_string()
-    });
-
-    info!("Starting with camera device type: {}", camera_device_type);
-
-    let _camera = match camera_device_type.as_str() {
-        "loopback" => {
-            info!(
-                "Canon camera mode - initializing GPhoto2 with config: {:?}",
-                config.camera
-            );
-            Some(spawn_gphoto_camera(
-                config.camera.clone(),
-                gphoto_camera.clone(),
-            ))
-        }
-        "webcam" => {
-            info!("Using webcam directly via V4L2, no GPhoto2 streaming needed");
-            info!("Video device: {}", config.camera.v4l2_loopback_device);
-            None
-        }
-        "unknown" => {
-            warn!("Unknown camera type detected, will attempt basic V4L2 capture");
-            info!("Video device: {}", config.camera.v4l2_loopback_device);
-            None
-        }
-        "none" => {
-            warn!("No camera detected, application will use placeholder images");
-            None
-        }
-        _ => {
-            warn!(
-                "Unrecognized camera device type: '{}', treating as no camera",
-                camera_device_type
-            );
-            None
-        }
+    let _camera = {
+        info!(
+            "Initializing GPhoto2 camera with config: {:?}",
+            config.camera
+        );
+        Some(spawn_gphoto_camera(
+            config.camera.clone(),
+            gphoto_camera.clone(),
+        ))
     };
 
     let server_config = config.clone();

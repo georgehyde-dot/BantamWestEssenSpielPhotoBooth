@@ -64,8 +64,7 @@ impl Config {
         };
 
         let camera = CameraConfig {
-            v4l2_loopback_device: std::env::var("VIDEO_DEVICE")
-                .or_else(|_| std::env::var("V4L2_LOOPBACK_DEVICE"))
+            v4l2_loopback_device: std::env::var("V4L2_LOOPBACK_DEVICE")
                 .unwrap_or_else(|_| "/dev/video0".to_string()),
         };
 

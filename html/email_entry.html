@@ -537,7 +537,7 @@
                     Send My Digital Photo
                 </button>
 
-                <button id="skipBtn" class="skip-btn" type="button">
+                <button id="skipBtn" class="skip-btn" type="button" disabled>
                     Skip Email (No Digital Copy)
                 </button>
             </div>
@@ -713,6 +713,21 @@
             const keyboard = document.getElementById("customKeyboard");
             const mainContent = document.getElementById("mainContent");
 
+            // Add 3-second countdown on skip button
+            let skipCountdown = 3;
+            const skipButtonOriginalText = "Skip Email (No Digital Copy)";
+
+            const countdownInterval = setInterval(() => {
+                if (skipCountdown > 0) {
+                    skipBtn.textContent = `Skip Email (${skipCountdown}s)`;
+                    skipCountdown--;
+                } else {
+                    clearInterval(countdownInterval);
+                    skipBtn.textContent = skipButtonOriginalText;
+                    skipBtn.disabled = false;
+                }
+            }, 1000);
+
             // Handle input clicks
             emailInput.addEventListener("click", function () {
                 this.classList.add("active");
@@ -858,6 +873,9 @@
 
             // Handle skip button
             skipBtn.addEventListener("click", async function () {
+                // Only proceed if button is enabled (after countdown)
+                if (this.disabled) return;
+
                 this.disabled = true;
                 this.textContent = "Processing...";
 

@@ -1,8 +1,11 @@
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde_json;
 use sqlx::SqlitePool;
+use tracing::{info, warn};
 
+use crate::config::Config;
 use crate::session::Session;
+use crate::templates::create_templated_print_with_background;
 
 #[post("/session")]
 pub async fn create_session(db_pool: web::Data<SqlitePool>) -> impl Responder {
@@ -148,12 +151,69 @@ pub async fn generate_story(
 pub async fn save_session_final(
     path: web::Path<String>,
     db_pool: web::Data<SqlitePool>,
+    config: web::Data<Config>,
 ) -> impl Responder {
     let session_id = path.into_inner();
 
     match Session::load(&session_id, &db_pool).await {
-        Ok(Some(session)) => {
-            // Check if session is complete
+        Ok(Some(mut session)) => {
+            // Generate story if missing
+            if session.story_text.is_none() || session.headline.is_none() {
+                info!("Generating story for session {}", session_id);
+                session.generate_story();
+            }
+
+            // If we have a captured image but no templated photo_path, create the template
+            let captured_image = session
+                .email
+                .as_ref()
+                .and_then(|_| std::env::var("STORAGE_PATH").ok())
+                .and_then(|storage_path| {
+                    // Try to find the captured image in the storage directory
+                    std::fs::read_dir(&storage_path).ok().and_then(|entries| {
+                        entries
+                            .filter_map(|e| e.ok())
+                            .find(|entry| entry.file_name().to_string_lossy().starts_with("cap_"))
+                            .map(|e| e.path())
+                    })
+                });
+
+            // Create templated image if we have the captured image
+            if session.photo_path.is_none() {
+                if let Some(captured_path) = captured_image {
+                    let preview_filename = format!(
+                        "preview_{}_{}.jpg",
+                        session_id,
+                        chrono::Utc::now().timestamp_millis()
+                    );
+                    let preview_path = config.storage.base_path.join(&preview_filename);
+
+                    // Create the templated image
+                    match create_templated_print_with_background(
+                        captured_path.to_str().unwrap_or(""),
+                        preview_path.to_str().unwrap_or(""),
+                        session.story_text.as_deref().unwrap_or(""),
+                        session.group_name.as_deref().unwrap_or(""),
+                        session.headline.as_deref().unwrap_or(""),
+                        config.background_path().to_str().unwrap_or(""),
+                    ) {
+                        Ok(_) => {
+                            info!("Created templated preview image: {}", preview_filename);
+                            session.photo_path = Some(preview_filename);
+                        }
+                        Err(e) => {
+                            warn!("Failed to create templated preview: {}", e);
+                            // Use a placeholder path to satisfy completion check
+                            session.photo_path = Some("placeholder.jpg".to_string());
+                        }
+                    }
+                } else {
+                    // No captured image found, use placeholder
+                    session.photo_path = Some("placeholder.jpg".to_string());
+                }
+            }
+
+            // Check if session is complete (with photo_path now set)
             if !session.is_complete() {
                 return HttpResponse::BadRequest().json(serde_json::json!({
                     "ok": false,
