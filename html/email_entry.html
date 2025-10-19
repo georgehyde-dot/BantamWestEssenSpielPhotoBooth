@@ -151,8 +151,8 @@
             }
 
             .checkbox-wrapper {
-                margin-top: -20px;
-                margin-bottom: 30px;
+                margin: 20px 0;
+                animation: fadeIn 0.8s ease-out 0.2s both;
             }
 
             .checkbox-label {
@@ -166,20 +166,33 @@
                 text-shadow:
                     1px 1px 0px rgba(255, 255, 255, 0.3),
                     2px 2px 3px rgba(0, 0, 0, 0.2);
+                margin-bottom: 20px;
             }
 
             .checkbox-label input[type="checkbox"] {
-                width: 20px;
-                height: 20px;
+                width: 22px;
+                height: 22px;
                 cursor: pointer;
                 accent-color: #8b6914;
                 border: 2px solid #5c4033;
+                margin-right: 10px;
+            }
+
+            .option-info {
+                text-align: center;
+                color: #2c1810;
+                font-size: 14px;
+                margin: 10px 0;
+                text-shadow:
+                    1px 1px 0px rgba(255, 255, 255, 0.3),
+                    2px 2px 3px rgba(0, 0, 0, 0.2);
+                font-style: italic;
             }
 
             .submit-btn {
                 width: 100%;
-                padding: 20px;
-                font-size: 22px;
+                padding: 18px;
+                font-size: 20px;
                 font-weight: bold;
                 font-family: "Rye", cursive;
                 background: linear-gradient(
@@ -237,9 +250,8 @@
 
             .skip-btn {
                 width: 100%;
-                padding: 15px;
-                margin-top: 15px;
-                font-size: 18px;
+                padding: 14px;
+                font-size: 17px;
                 font-weight: bold;
                 font-family: "Rye", cursive;
                 background: transparent;
@@ -254,6 +266,7 @@
                 text-shadow:
                     1px 1px 0px rgba(255, 255, 255, 0.3),
                     2px 2px 3px rgba(0, 0, 0, 0.2);
+                margin-top: 20px;
             }
 
             .skip-btn:hover {
@@ -480,7 +493,7 @@
         <div class="main-content" id="mainContent">
             <div class="header">
                 <h1>Where Should We Send Your Photo?</h1>
-                <p>Enter your email</p>
+                <p>Enter your email to receive a digital copy</p>
             </div>
 
             <div class="input-container">
@@ -506,10 +519,13 @@
                             checked
                         />
                         <span
-                            >Want a digital copy later? Join the mailing list
-                            and we’ll send it after the show.</span
+                            >Also join our mailing list for event updates</span
                         >
                     </label>
+                    <p class="option-info">
+                        ✓ Checked = Digital copy + mailing list<br />
+                        ☐ Unchecked = Digital copy only
+                    </p>
                 </div>
 
                 <button
@@ -518,7 +534,7 @@
                     type="button"
                     disabled
                 >
-                    Send My Photo
+                    Send My Digital Photo
                 </button>
 
                 <button id="skipBtn" class="skip-btn" type="button">
@@ -835,7 +851,7 @@
                 } catch (error) {
                     console.error("Error:", error);
                     this.disabled = false;
-                    this.textContent = "Send My Photo";
+                    this.textContent = "Send My Digital Photo";
                     alert("Error saving email. Please try again.");
                 }
             });
