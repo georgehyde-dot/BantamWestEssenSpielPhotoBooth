@@ -22,7 +22,7 @@
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
-                color: #fff;
+                color: #2c1810;
                 font-family:
                     system-ui,
                     -apple-system,
@@ -53,8 +53,13 @@
                 padding-bottom: 280px; /* Space for keyboard */
             }
             h1 {
-                font-size: 2em;
+                font-size: 2.8em;
                 margin-bottom: 10px;
+                color: #2c1810;
+                text-shadow:
+                    2px 2px 0px rgba(255, 255, 255, 0.3),
+                    3px 3px 4px rgba(0, 0, 0, 0.2),
+                    0 0 10px rgba(255, 255, 255, 0.2);
             }
             .photo-container {
                 margin: 15px 0;
@@ -76,19 +81,23 @@
                 max-width: 500px;
             }
             .email-label {
-                color: #aaa;
-                font-size: 1em;
+                color: #2c1810;
+                font-size: 1.4em;
                 margin-bottom: 10px;
                 display: block;
+                font-weight: 500;
+                text-shadow:
+                    1px 1px 0px rgba(255, 255, 255, 0.3),
+                    2px 2px 3px rgba(0, 0, 0, 0.2);
             }
             .email-input {
                 width: 100%;
-                padding: 12px 18px;
-                font-size: 18px;
-                border: 2px solid #444;
+                padding: 15px 20px;
+                font-size: 22px;
+                border: 3px solid #5c4033;
                 border-radius: 10px;
-                background: #1a1a1a;
-                color: #fff;
+                background: rgba(255, 255, 255, 0.95);
+                color: #2c1810;
                 text-align: center;
                 cursor: pointer;
                 transition: all 0.3s ease;
@@ -96,12 +105,12 @@
             .email-input:focus,
             .email-input.active {
                 outline: none;
-                border-color: #0066cc;
-                background: #222;
+                border-color: #8b6914;
+                background: white;
                 transform: scale(1.02);
             }
             .email-input::placeholder {
-                color: #666;
+                color: #8b6914;
                 font-style: italic;
             }
             .email-input.valid {
@@ -119,12 +128,18 @@
             }
             button,
             a.button {
-                font-size: 16px;
-                padding: 10px 20px;
+                font-size: 20px;
+                padding: 15px 30px;
                 border-radius: 8px;
-                border: 1px solid #666;
-                background: #1f1f1f;
-                color: #fff;
+                border: 3px solid #5c4033;
+                background: linear-gradient(
+                    135deg,
+                    #8b6914 0%,
+                    #d4a574 50%,
+                    #8b6914 100%
+                );
+                color: #2c1810;
+                font-weight: 600;
                 cursor: pointer;
                 text-decoration: none;
                 display: inline-block;
@@ -132,20 +147,36 @@
             }
             button:hover:not(:disabled),
             a.button:hover {
-                background: #2a2a2a;
-                transform: translateY(-1px);
+                background: linear-gradient(
+                    135deg,
+                    #a17c1a 0%,
+                    #e5b885 50%,
+                    #a17c1a 100%
+                );
+                transform: translateY(-2px);
             }
             button:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
             }
             button.primary {
-                background: #0066cc;
-                border-color: #0066cc;
+                background: linear-gradient(
+                    135deg,
+                    #8b6914 0%,
+                    #d4a574 50%,
+                    #8b6914 100%
+                );
+                border-color: #5c4033;
                 font-weight: bold;
+                color: #2c1810;
             }
             button.primary:hover:not(:disabled) {
-                background: #0052a3;
+                background: linear-gradient(
+                    135deg,
+                    #a17c1a 0%,
+                    #e5b885 50%,
+                    #a17c1a 100%
+                );
             }
             button.success {
                 background: #28a745;
@@ -156,12 +187,13 @@
                 background: #218838;
             }
             .error {
-                color: #ff8080;
+                color: #8b2c1c;
                 margin: 16px 0;
+                font-weight: bold;
             }
             .filename {
-                color: #aaa;
-                font-size: 0.8rem;
+                color: #5c4033;
+                font-size: 1rem;
                 margin: 5px 0;
                 word-break: break-all;
             }
@@ -212,7 +244,7 @@
                 align-items: center;
                 justify-content: center;
                 transition: all 0.1s ease;
-                color: #fff;
+                color: #2c1810;
                 flex: 1;
                 max-width: 45px;
             }

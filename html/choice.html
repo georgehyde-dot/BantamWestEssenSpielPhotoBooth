@@ -27,14 +27,14 @@
             }
 
             h1 {
-                font-size: 2.5em;
+                font-size: 3.2em;
                 margin: 20px 0;
                 text-align: center;
-                color: #f4e4c1;
+                color: #2c1810;
                 text-shadow:
-                    3px 3px 0px #8b4513,
-                    4px 4px 8px rgba(0, 0, 0, 0.9),
-                    0 0 30px rgba(139, 69, 19, 0.5);
+                    2px 2px 0px rgba(255, 255, 255, 0.3),
+                    3px 3px 4px rgba(0, 0, 0, 0.2),
+                    0 0 10px rgba(255, 255, 255, 0.2);
                 letter-spacing: 2px;
                 text-transform: uppercase;
             }
@@ -71,7 +71,7 @@
                 background-size: 400% 400%;
 
                 width: 100%;
-                font-size: 1.3em;
+                font-size: 48px;
                 color: #f4e4c1;
                 text-align: left;
                 font-family: "Bebas Neue", cursive;
@@ -80,10 +80,9 @@
 
                 /* Strong text shadow for readability */
                 text-shadow:
-                    2px 2px 0px #000,
-                    3px 3px 0px #1a0e05,
-                    4px 4px 8px rgba(0, 0, 0, 0.9),
-                    0 0 20px rgba(0, 0, 0, 0.5);
+                    1px 1px 2px rgba(0, 0, 0, 0.8),
+                    2px 2px 4px rgba(0, 0, 0, 0.6),
+                    0 0 8px rgba(0, 0, 0, 0.4);
 
                 /* Box shadow for depth */
                 box-shadow:
@@ -177,21 +176,21 @@
             /* Number bullet for each choice */
             .choice-number {
                 display: inline-block;
-                width: 40px;
-                height: 40px;
+                width: 50px;
+                height: 50px;
                 background: radial-gradient(circle, #d4af37 0%, #b8860b 100%);
                 border-radius: 50%;
                 text-align: center;
-                line-height: 40px;
-                margin-right: 15px;
+                line-height: 50px;
+                margin-right: 20px;
                 font-weight: bold;
-                font-size: 1.2em;
+                font-size: 1.5em;
                 box-shadow:
                     inset 0 2px 4px rgba(255, 255, 255, 0.3),
                     inset 0 -2px 4px rgba(0, 0, 0, 0.5),
                     0 2px 4px rgba(0, 0, 0, 0.5);
-                color: #1a0e05;
-                text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+                color: #2c1810;
+                text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.4);
                 float: left;
                 position: relative;
                 top: -3px;
@@ -235,21 +234,21 @@
             /* Responsive adjustments */
             @media (max-height: 700px) {
                 h1 {
-                    font-size: 2em;
-                    margin: 15px 0;
+                    font-size: 2.4em;
+                    margin: 10px 0;
                 }
                 .choice-button {
-                    padding: 20px 30px;
-                    font-size: 1.2em;
+                    padding: 15px 20px;
+                    font-size: 36px;
                 }
                 .choices-container {
                     gap: 20px;
                 }
                 .choice-number {
-                    width: 35px;
-                    height: 35px;
-                    line-height: 35px;
-                    font-size: 1.1em;
+                    width: 42px;
+                    height: 42px;
+                    line-height: 42px;
+                    font-size: 1.2em;
                 }
             }
 
@@ -259,15 +258,15 @@
                     letter-spacing: 1px;
                 }
                 .choice-button {
-                    font-size: 1.1em;
+                    font-size: 32px;
                     padding: 18px 25px;
                 }
                 .choice-number {
-                    width: 32px;
-                    height: 32px;
-                    line-height: 32px;
-                    font-size: 1em;
-                    margin-right: 10px;
+                    width: 38px;
+                    height: 38px;
+                    line-height: 38px;
+                    font-size: 1.1em;
+                    margin-right: 12px;
                 }
                 .choices-container {
                     gap: 18px;
@@ -276,11 +275,11 @@
 
             @media (max-width: 480px) {
                 h1 {
-                    font-size: 1.5em;
+                    font-size: 2em;
                 }
                 .choice-button {
-                    font-size: 1em;
-                    padding: 15px 20px;
+                    font-size: 36px;
+                    padding: 20px 30px;
                 }
                 .choice-button:hover {
                     transform: translateX(8px) scale(1.01);
@@ -302,29 +301,29 @@
         <script>
             // All possible choice texts
             const allChoices = [
-                "At high noon, face to face, pistol steady.",
+                "At high noon, face to face, no hard feelings.",
                 "By standing between the good folks and the bad ones.",
                 "With my fist and a shot of whiskey.",
-                "Through a shooting challenge — fair, no hard feelings.",
+                "Shoot them all. No one is innocent.",
                 "Won the town from the mayor in a single poker hand.",
                 "Gave away half my fortune to the townsfolk in need.",
                 "Sold snake oil to a snake. Ha!",
-                "Controlled the entire gunpowder supply just to make one firework on my birthday.",
+                "Acquired the entire gunpowder supply to make one firework on my birthday.",
                 "Snatched the prized treasure from a crooked tycoon.",
                 "Stole the jail keys and freed my friends.",
                 "Returned a stolen jewel to its rightful owner.",
                 "Stole a wagonload of candy from a bunch of babies",
                 "The corrupt ranchers mansion, lit up like judgment day.",
                 "The saloon's piano, mid-song, while I kept playing.",
-                "Drew a flaming arrow on the murder’s wall, right to the secret door the Marshal’s ‘missed.’",
-                "Set decoy campfires in the hills to draw the bandits off the main road away from a group of orphans.",
+                "Burned my rival gang to the ground.",
+                "Set the town’s Christmas tree on fire.",
             ];
 
             // Questions for each class
             const classQuestions = [
                 "How do you settle conflict?", // Gunslinger
                 "What's your most notorious deal?", // Merchant
-                "What's your most biggest score?", // Thief
+                "What's your most famous gig?", // Thief
                 "What's your most famous fire?", // Arsonist
             ];
 
