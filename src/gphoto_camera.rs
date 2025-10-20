@@ -6,7 +6,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 // Use the camera config from the config module
 use crate::config::CameraConfig;
@@ -29,19 +29,32 @@ impl GPhotoCamera {
 
     /// Kill any existing gphoto2 and related processes
     fn kill_gphoto_processes() {
+        debug!("Killing gphoto2 processes with SIGTERM...");
         // Kill gphoto2 processes
         let _ = Command::new("pkill").args(&["-f", "gphoto2"]).output();
         // Kill any ffmpeg processes that might be connected to v4l2 devices
         let _ = Command::new("pkill").args(&["-f", "ffmpeg.*v4l2"]).output();
         // Give processes time to die
+        debug!("Waiting 200ms for graceful termination...");
         std::thread::sleep(Duration::from_millis(200));
         // Force kill if still running
+        debug!("Force killing any remaining processes with SIGKILL...");
         let _ = Command::new("pkill")
             .args(&["-9", "-f", "gphoto2"])
             .output();
         let _ = Command::new("pkill")
             .args(&["-9", "-f", "ffmpeg.*v4l2"])
             .output();
+
+        // Verify processes are dead
+        let check = Command::new("pgrep").args(&["-f", "gphoto2"]).output();
+        if let Ok(output) = check {
+            if !output.stdout.is_empty() {
+                warn!("Some gphoto2 processes still running after kill attempt!");
+            } else {
+                debug!("All gphoto2 processes successfully terminated");
+            }
+        }
     }
 
     /// Initialize and connect to the camera
@@ -139,30 +152,42 @@ impl GPhotoCamera {
 
     /// Internal method to stop preview without async
     async fn stop_preview_internal(&self) {
+        let stop_start = std::time::Instant::now();
+
         // Kill the preview process if it exists
         if let Some(mut process) = self.preview_process.lock().unwrap().take() {
-            info!("Killing preview process and its children");
+            let pid = process.id();
+            info!("Killing preview process PID {} and its children", pid);
 
             // Try to get the process ID
-            let pid = process.id();
             // Kill the entire process group (negative PID kills the group)
+            debug!("Sending SIGTERM to process group -{}", pid);
             unsafe {
                 libc::kill(-(pid as i32), libc::SIGTERM);
             }
             // Give it a moment to terminate gracefully
+            debug!("Waiting 100ms for graceful termination...");
             std::thread::sleep(Duration::from_millis(100));
             // Force kill if still running
+            debug!("Sending SIGKILL to process group -{}", pid);
             unsafe {
                 libc::kill(-(pid as i32), libc::SIGKILL);
             }
 
             // Also try the standard kill
             let _ = process.kill();
-            let _ = process.wait();
+            let wait_result = process.wait();
+            debug!("Process wait result: {:?}", wait_result);
+
+            info!("Preview process killed in {:?}", stop_start.elapsed());
+        } else {
+            debug!("No preview process to kill");
         }
 
         // Kill any remaining gphoto2/ffmpeg processes
+        debug!("Cleaning up any remaining processes...");
         Self::kill_gphoto_processes();
+        info!("Preview stop completed in {:?}", stop_start.elapsed());
     }
 
     /// Stop the camera preview stream
@@ -181,21 +206,54 @@ impl GPhotoCamera {
 
     /// Capture a high-resolution photo using gphoto2 CLI
     pub async fn capture_photo(&self, output_path: &str) -> Result<Vec<u8>, String> {
-        info!("Capturing photo to: {}", output_path);
+        let capture_start = std::time::Instant::now();
+        info!("=== CAPTURE PHOTO START ===");
+        info!("Output path: {}", output_path);
+        info!("Capture started at: {:?}", capture_start);
 
         // Stop preview if running
-        if *self.is_streaming.lock().unwrap() {
-            info!("Stopping preview before capture");
+        let is_streaming = *self.is_streaming.lock().unwrap();
+        info!("Preview streaming status: {}", is_streaming);
+
+        if is_streaming {
+            info!("Stopping preview before capture...");
+            let stop_start = std::time::Instant::now();
             self.stop_preview().await?;
+            let stop_duration = stop_start.elapsed();
+            info!("Preview stopped in: {:?}", stop_duration);
+
             // Wait a bit for camera to be ready
+            info!("Waiting 500ms for camera state transition...");
             tokio::time::sleep(Duration::from_millis(500)).await;
+            info!(
+                "Wait complete, elapsed since capture start: {:?}",
+                capture_start.elapsed()
+            );
+        } else {
+            info!("Preview already stopped, proceeding directly to capture");
         }
 
         // Kill any lingering gphoto2 processes
+        info!("Killing any lingering gphoto2 processes...");
+        let kill_start = std::time::Instant::now();
         Self::kill_gphoto_processes();
+        info!("Process kill complete in: {:?}", kill_start.elapsed());
+
+        info!("Waiting 200ms for process cleanup...");
         tokio::time::sleep(Duration::from_millis(200)).await;
+        info!(
+            "Total elapsed since capture start: {:?}",
+            capture_start.elapsed()
+        );
 
         // Capture photo using gphoto2
+        info!("Executing gphoto2 capture command...");
+        info!(
+            "Command: gphoto2 --capture-image-and-download --filename {} --force-overwrite",
+            output_path
+        );
+        let capture_cmd_start = std::time::Instant::now();
+
         let output = tokio::process::Command::new("gphoto2")
             .args(&[
                 "--capture-image-and-download",
@@ -205,14 +263,41 @@ impl GPhotoCamera {
             ])
             .output()
             .await
-            .map_err(|e| format!("Failed to run capture command: {}", e))?;
+            .map_err(|e| {
+                let elapsed = capture_cmd_start.elapsed();
+                error!("Failed to run capture command after {:?}: {}", elapsed, e);
+                format!("Failed to run capture command: {}", e)
+            })?;
+
+        let capture_cmd_duration = capture_cmd_start.elapsed();
+        info!("Capture command completed in: {:?}", capture_cmd_duration);
+        info!(
+            "Total elapsed since capture start: {:?}",
+            capture_start.elapsed()
+        );
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            error!("Capture failed with exit code: {:?}", output.status.code());
+            error!("STDERR: {}", stderr);
+            error!("STDOUT: {}", stdout);
+            error!("Total time before failure: {:?}", capture_start.elapsed());
+
+            // Check for specific error patterns
+            if stderr.contains("Device Busy") || stderr.contains("PTP Device Busy") {
+                error!("Camera is busy - may need longer delay after stopping preview");
+            }
+            if stderr.contains("I/O in progress") {
+                error!("I/O operation in progress - camera still processing previous command");
+            }
+
             return Err(format!("Failed to capture photo: {}", stderr));
         }
 
+        info!("=== CAPTURE PHOTO SUCCESS ===");
         info!("Photo captured successfully: {}", output_path);
+        info!("Total capture time: {:?}", capture_start.elapsed());
 
         // Read the captured file
         let jpeg_data = tokio::fs::read(output_path)

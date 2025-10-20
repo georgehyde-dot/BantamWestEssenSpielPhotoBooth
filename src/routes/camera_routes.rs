@@ -168,7 +168,9 @@ pub async fn capture_image(
     body: Option<web::Json<serde_json::Value>>,
     gphoto_camera: web::Data<Arc<Mutex<Option<Arc<crate::gphoto_camera::GPhotoCamera>>>>>,
 ) -> impl Responder {
+    let capture_start = std::time::Instant::now();
     info!("=== CAPTURE IMAGE STARTED ===");
+    info!("Request received at: {:?}", capture_start);
     info!("Storage base path: {:?}", config.storage.base_path);
 
     std::fs::create_dir_all(&config.storage.base_path).ok();
@@ -214,17 +216,21 @@ pub async fn capture_image(
     // Use the shared GPhoto2 camera instance
     let camera_opt = gphoto_camera.lock().unwrap().clone();
     info!("GPhoto camera available: {}", camera_opt.is_some());
+    info!("Time since request start: {:?}", capture_start.elapsed());
 
     let capture_result = if let Some(camera) = camera_opt.clone() {
         info!("Starting photo capture via GPhoto2...");
+        let gphoto_start = std::time::Instant::now();
         match camera.capture_photo(save_path.to_str().unwrap_or("")).await {
             Ok(jpeg_data) => {
                 info!(
-                    "Photo captured successfully, size: {} bytes",
-                    jpeg_data.len()
+                    "Photo captured successfully, size: {} bytes, capture took: {:?}",
+                    jpeg_data.len(),
+                    gphoto_start.elapsed()
                 );
                 // Save the JPEG directly
                 let save_path_log = save_path.clone();
+                let save_start = std::time::Instant::now();
                 let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
                     info!("Saving JPEG to disk: {:?}", save_path);
                     std::fs::write(&save_path, &jpeg_data)
@@ -232,31 +238,58 @@ pub async fn capture_image(
                     info!("JPEG saved successfully");
                     Ok(())
                 });
-                info!("JPEG save task spawned for: {:?}", save_path_log);
+                info!(
+                    "JPEG save task spawned for: {:?}, save task spawn took: {:?}",
+                    save_path_log,
+                    save_start.elapsed()
+                );
 
                 // Restart the preview stream after capture
                 info!("Restarting preview stream after capture");
+                let preview_restart_start = std::time::Instant::now();
 
                 // Start preview in background (simplified - no frame buffer needed)
                 let camera_clone = camera.clone();
                 tokio::spawn(async move {
                     if let Err(e) = camera_clone.start_preview_stream().await {
                         warn!("Failed to restart preview stream: {}", e);
+                    } else {
+                        info!("Preview stream restarted successfully");
                     }
                 });
+                info!(
+                    "Preview restart task spawned in: {:?}",
+                    preview_restart_start.elapsed()
+                );
 
                 Some((res, filename))
             }
             Err(e) => {
-                error!("GPhoto2 capture failed: {}", e);
+                error!(
+                    "GPhoto2 capture failed after {:?}: {}",
+                    gphoto_start.elapsed(),
+                    e
+                );
+                error!("Total time since request: {:?}", capture_start.elapsed());
 
                 // Try to restart preview even after failure
                 info!("Attempting to restart preview stream after failed capture");
 
                 let camera_clone = camera.clone();
                 tokio::spawn(async move {
+                    info!("Starting preview restart after failure...");
+                    let restart_time = std::time::Instant::now();
                     if let Err(e) = camera_clone.start_preview_stream().await {
-                        warn!("Failed to restart preview stream: {}", e);
+                        warn!(
+                            "Failed to restart preview stream after {:?}: {}",
+                            restart_time.elapsed(),
+                            e
+                        );
+                    } else {
+                        info!(
+                            "Preview stream restarted successfully after failure in {:?}",
+                            restart_time.elapsed()
+                        );
                     }
                 });
 
@@ -301,15 +334,24 @@ pub async fn capture_image(
                     }
 
                     info!("=== CAPTURE IMAGE COMPLETED SUCCESSFULLY ===");
+                    info!("Total capture request time: {:?}", capture_start.elapsed());
                     HttpResponse::Ok().json(response_json)
                 }
                 Ok(Err(e)) => {
                     error!("Failed to save captured photo: {}", e);
+                    error!(
+                        "Total time before save failure: {:?}",
+                        capture_start.elapsed()
+                    );
                     HttpResponse::InternalServerError()
                         .json(serde_json::json!({ "ok": false, "error": e }))
                 }
                 Err(_e) => {
                     error!("Task join error while saving photo");
+                    error!(
+                        "Total time before join error: {:?}",
+                        capture_start.elapsed()
+                    );
                     HttpResponse::InternalServerError()
                         .json(serde_json::json!({ "ok": false, "error": "join error" }))
                 }
@@ -317,6 +359,10 @@ pub async fn capture_image(
         }
         None => {
             error!("=== CAPTURE IMAGE FAILED ===");
+            error!(
+                "No camera available, total request time: {:?}",
+                capture_start.elapsed()
+            );
             HttpResponse::InternalServerError().json(serde_json::json!({
                 "ok": false,
                 "error": "camera capture failed"
