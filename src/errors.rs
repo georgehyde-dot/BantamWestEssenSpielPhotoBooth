@@ -3,6 +3,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("Initialization error: {0}")]
+    Initialization(String),
+
     #[error("Camera error: {0}")]
     Camera(#[from] CameraError),
 
@@ -156,15 +159,16 @@ pub type AppResult<T> = Result<T, AppError>;
 impl AppError {
     pub fn status_code(&self) -> u16 {
         match self {
-            AppError::Camera(_) => 503,   // Service Unavailable
-            AppError::Printer(_) => 503,  // Service Unavailable
-            AppError::Template(_) => 500, // Internal Server Error
-            AppError::Config(_) => 500,   // Internal Server Error
+            AppError::Initialization(_) => 500, // Internal Server Error
+            AppError::Camera(_) => 503,         // Service Unavailable
+            AppError::Printer(_) => 503,        // Service Unavailable
+            AppError::Template(_) => 500,       // Internal Server Error
+            AppError::Config(_) => 500,         // Internal Server Error
             AppError::Storage(StorageError::FileNotFound { .. }) => 404, // Not Found
             AppError::Storage(StorageError::PermissionDenied { .. }) => 403, // Forbidden
-            AppError::Storage(_) => 500,  // Internal Server Error
-            AppError::Database(_) => 503, // Service Unavailable
-            AppError::Web(_) => 500,      // Internal Server Error
+            AppError::Storage(_) => 500,        // Internal Server Error
+            AppError::Database(_) => 503,       // Service Unavailable
+            AppError::Web(_) => 500,            // Internal Server Error
         }
     }
 
@@ -178,6 +182,7 @@ impl AppError {
 
     fn error_type(&self) -> &'static str {
         match self {
+            AppError::Initialization(_) => "initialization_error",
             AppError::Camera(_) => "camera_error",
             AppError::Printer(_) => "printer_error",
             AppError::Template(_) => "template_error",

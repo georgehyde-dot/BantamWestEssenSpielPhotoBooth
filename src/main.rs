@@ -1,10 +1,10 @@
 // GPhoto2-based camera control for Canon EOS DSLRs on Raspberry Pi.
 
 use actix_files as fs;
-use actix_web::{web, App, HttpServer};
+use actix_web::{middleware, web, App, HttpServer};
 use sqlx::SqlitePool;
 use std::sync::{Arc, Mutex};
-use tokio::signal;
+use tracing::{error, info, warn};
 
 // Module imports
 mod config;
@@ -16,71 +16,154 @@ mod session;
 mod templates;
 
 use config::Config;
-use printers::new_printer;
-use routes::{
-    camera_page, capture_image, choice_page, class_page, copies_page, create_session,
-    email_entry_page, generate_story, get_session, name_entry_page, photo_page, preview_print,
-    preview_stream, print_photo, save_session_final, start_page, test_stream, thank_you_page,
-    update_session,
-};
-use tracing::{error, info, warn};
+use errors::AppError;
 
-fn spawn_gphoto_camera(
-    config: config::CameraConfig,
-    gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>>,
-) -> tokio::task::JoinHandle<()> {
-    info!("Using GPhoto2 camera interface for DSLR");
-    tokio::spawn(async move {
-        // Override device to use v4l2loopback device for GPhoto preview
-        let mut gphoto_config = config.clone();
-        gphoto_config.v4l2_loopback_device =
-            std::env::var("V4L2_LOOPBACK_DEVICE").unwrap_or_else(|_| "/dev/video0".to_string());
-        info!(
-            "GPhoto2 will stream preview to: {}",
-            gphoto_config.v4l2_loopback_device
-        );
+// ============================================================================
+// Application State
+// ============================================================================
 
-        let camera_arc = match gphoto_camera::GPhotoCamera::new(gphoto_config) {
-            Ok(camera) => {
-                // Initialize the camera
-                match camera.initialize().await {
-                    Ok(_) => {
-                        info!("GPhoto2 camera initialized successfully");
-                        let arc = Arc::new(camera);
-                        // Store the camera in the shared mutex
-                        *gphoto_camera.lock().unwrap() = Some(arc.clone());
-                        arc
-                    }
-                    Err(e) => {
-                        error!("Failed to initialize GPhoto2 camera: {}", e);
-                        return;
-                    }
-                }
+/// Centralized application state container
+#[derive(Clone)]
+pub struct AppState {
+    pub config: Config,
+    pub db_pool: SqlitePool,
+    pub camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>>,
+    pub printer: Option<Arc<dyn printers::Printer + Send + Sync>>,
+}
+
+impl AppState {
+    /// Create a new application state instance
+    async fn new(config: Config) -> Result<Self, AppError> {
+        info!("Initializing application state");
+
+        // Initialize database
+        let db_pool = Self::initialize_database(&config.database).await?;
+
+        // Initialize printer (non-critical)
+        let printer = Self::initialize_printer().await;
+
+        // Camera will be initialized separately due to its async nature
+        let camera = Arc::new(Mutex::new(None));
+
+        Ok(Self {
+            config,
+            db_pool,
+            camera,
+            printer,
+        })
+    }
+
+    async fn initialize_database(
+        db_config: &config::DatabaseConfig,
+    ) -> Result<SqlitePool, AppError> {
+        info!("Initializing database at: {:?}", db_config.path);
+
+        // Ensure database directory exists
+        if let Some(parent) = db_config.path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                AppError::Initialization(format!("Failed to create database directory: {}", e))
+            })?;
+        }
+
+        // Connect to database
+        let pool = SqlitePool::connect(&db_config.connection_string())
+            .await
+            .map_err(|e| {
+                AppError::Initialization(format!("Failed to connect to database: {}", e))
+            })?;
+
+        // Run migrations
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .map_err(|e| AppError::Initialization(format!("Failed to run migrations: {}", e)))?;
+
+        info!("Database connected and migrations completed");
+        Ok(pool)
+    }
+
+    async fn initialize_printer() -> Option<Arc<dyn printers::Printer + Send + Sync>> {
+        match printers::new_printer().await {
+            Ok(printer) => {
+                info!("Printer initialized successfully");
+                Some(printer)
             }
             Err(e) => {
-                error!("Failed to create GPhoto2 camera: {}", e);
-                return;
+                warn!("Printer initialization failed (non-critical): {}", e);
+                warn!("Photo booth will operate without printing capability");
+                None
             }
-        };
+        }
+    }
+}
 
+// ============================================================================
+// Camera Initialization
+// ============================================================================
+
+async fn initialize_camera(
+    config: config::CameraConfig,
+    camera_ref: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>>,
+) -> Result<(), AppError> {
+    info!("Initializing GPhoto2 camera with config: {:?}", config);
+
+    // Override device to use v4l2loopback device if specified
+    let mut camera_config = config.clone();
+    if let Ok(device) = std::env::var("V4L2_LOOPBACK_DEVICE") {
+        info!("Overriding v4l2 device from environment: {}", device);
+        camera_config.v4l2_loopback_device = device;
+    }
+
+    info!(
+        "GPhoto2 will stream preview to: {}",
+        camera_config.v4l2_loopback_device
+    );
+
+    // Create and initialize camera
+    let camera = gphoto_camera::GPhotoCamera::new(camera_config)
+        .map_err(|e| AppError::Initialization(format!("Failed to create GPhoto2 camera: {}", e)))?;
+
+    camera.initialize().await.map_err(|e| {
+        AppError::Initialization(format!("Failed to initialize GPhoto2 camera: {}", e))
+    })?;
+
+    info!("GPhoto2 camera initialized successfully");
+
+    let camera_arc = Arc::new(camera);
+
+    // Store camera reference
+    {
+        let mut guard = camera_ref.lock().unwrap();
+        *guard = Some(camera_arc.clone());
+    }
+
+    // Start preview stream in background
+    let camera_for_stream = camera_arc.clone();
+    tokio::spawn(async move {
         info!("Starting GPhoto2 camera preview stream");
-        if let Err(e) = camera_arc.start_preview_stream().await {
+        if let Err(e) = camera_for_stream.start_preview_stream().await {
             error!("GPhoto2 camera stream error: {}", e);
         }
-    })
+    });
+
+    Ok(())
 }
+
+// ============================================================================
+// Shutdown Handling
+// ============================================================================
 
 async fn shutdown_signal() {
     let ctrl_c = async {
-        signal::ctrl_c()
+        tokio::signal::ctrl_c()
             .await
-            .expect("failed to install Ctrl+C handler");
+            .expect("Failed to install Ctrl+C handler");
     };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install signal handler")
             .recv()
             .await;
     };
@@ -96,9 +179,39 @@ async fn shutdown_signal() {
     info!("Shutdown signal received");
 }
 
+async fn cleanup_resources(state: AppState) {
+    info!("Beginning resource cleanup");
+
+    // Clean up camera
+    if let Some(camera) = state.camera.lock().unwrap().take() {
+        info!("Cleaning up GPhoto camera...");
+        // Dropping the Arc will trigger the Drop implementation
+        drop(camera);
+        // Allow time for cleanup
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    }
+
+    // Close database connections
+    state.db_pool.close().await;
+    info!("Database connections closed");
+
+    // Note: We're not using pkill anymore - resources should clean up properly via Drop
+    // If we still have issues, we should fix the root cause rather than using pkill
+
+    info!("Resource cleanup complete");
+}
+
+// ============================================================================
+// Main Entry Point
+// ============================================================================
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Initialize tracing
+    // ========================================
+    // Phase 1: Basic Initialization
+    // ========================================
+
+    // Initialize tracing/logging
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -106,101 +219,102 @@ async fn main() -> std::io::Result<()> {
         )
         .init();
 
+    info!("Starting photo booth application");
+
+    // ========================================
+    // Phase 2: Configuration & State Setup
+    // ========================================
+
     // Load configuration
-    let config = match Config::from_env() {
-        Ok(cfg) => cfg,
-        Err(e) => {
-            error!("Failed to load configuration: {}", e);
-            return Err(std::io::Error::new(
+    let config = Config::from_env().map_err(|e| {
+        error!("Configuration error: {}", e);
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to load configuration: {}", e),
+        )
+    })?;
+
+    info!("Configuration loaded successfully");
+    info!("Server will bind to: {}", config.socket_addr());
+
+    // Initialize application state
+    let app_state = AppState::new(config.clone()).await.map_err(|e| {
+        error!("Application initialization error: {}", e);
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Failed to initialize application: {}", e),
+        )
+    })?;
+
+    // ========================================
+    // Phase 3: Camera Initialization
+    // ========================================
+
+    // Initialize camera (critical component)
+    initialize_camera(config.camera.clone(), app_state.camera.clone())
+        .await
+        .map_err(|e| {
+            error!("Camera initialization failed: {}", e);
+            std::io::Error::new(
                 std::io::ErrorKind::Other,
-                format!("Configuration error: {}", e),
-            ));
-        }
-    };
+                format!("Camera is required for photo booth operation: {}", e),
+            )
+        })?;
 
-    info!("Starting photo booth server on {}", config.socket_addr());
+    // ========================================
+    // Phase 4: HTTP Server Setup
+    // ========================================
 
-    // Ensure database directory exists
-    if let Some(parent) = config.database.path.parent() {
-        std::fs::create_dir_all(parent).expect("Failed to create database directory");
-    }
-
-    // Connect to database
-    let connection_pool = SqlitePool::connect(&config.database.connection_string())
-        .await
-        .expect("Failed to connect to database");
-
-    // Run database migrations
-    sqlx::migrate!("./migrations")
-        .run(&connection_pool)
-        .await
-        .expect("Failed to run migrations");
-
-    info!("Database connected and migrations completed");
-
-    let printer = match new_printer().await {
-        Ok(p) => Some(p),
-        Err(e) => {
-            warn!("Failed to initialize printer: {}", e);
-            None
-        }
-    };
-
-    let gphoto_camera: Arc<Mutex<Option<Arc<gphoto_camera::GPhotoCamera>>>> =
-        Arc::new(Mutex::new(None));
-
-    let _camera = {
-        info!(
-            "Initializing GPhoto2 camera with config: {:?}",
-            config.camera
-        );
-        Some(spawn_gphoto_camera(
-            config.camera.clone(),
-            gphoto_camera.clone(),
-        ))
-    };
-
-    let server_config = config.clone();
     let socket_addr = config.socket_addr();
-    let gphoto_for_shutdown = gphoto_camera.clone();
+    let app_state_for_server = app_state.clone();
 
     let server = HttpServer::new(move || {
-        let app_config = server_config.clone();
-        let db_pool = connection_pool.clone();
+        let state = app_state_for_server.clone();
         let mut app = App::new()
-            .app_data(web::Data::new(app_config.clone()))
-            .app_data(web::Data::new(db_pool))
-            .app_data(web::Data::new(gphoto_camera.clone()));
+            // Middleware
+            .wrap(middleware::Logger::default())
+            .wrap(middleware::NormalizePath::trim())
+            // Application state
+            .app_data(web::Data::new(state.config.clone()))
+            .app_data(web::Data::new(state.db_pool.clone()))
+            .app_data(web::Data::new(state.camera.clone()));
 
+        // Core routes
         app = app
-            .service(start_page)
-            .service(name_entry_page)
-            .service(email_entry_page)
-            .service(thank_you_page)
-            .service(copies_page)
-            .service(camera_page)
-            .service(preview_stream)
-            .service(capture_image)
-            .service(photo_page)
-            .service(create_session)
-            .service(get_session)
-            .service(update_session)
-            .service(generate_story)
-            .service(save_session_final)
-            .service(class_page)
-            .service(choice_page)
-            .service(test_stream)
-            .service(fs::Files::new("/images", app_config.images_path()).show_files_listing())
+            // Session management
+            .service(routes::create_session)
+            .service(routes::get_session)
+            .service(routes::update_session)
+            .service(routes::save_session_final)
+            // Page routes
+            .service(routes::start_page)
+            .service(routes::name_entry_page)
+            .service(routes::email_entry_page)
+            .service(routes::class_page)
+            .service(routes::choice_page)
+            .service(routes::copies_page)
+            .service(routes::camera_page)
+            .service(routes::photo_page)
+            .service(routes::thank_you_page)
+            // Camera functionality
+            .service(routes::preview_stream)
+            .service(routes::capture_image)
+            .service(routes::test_stream)
+            // Story generation
+            .service(routes::generate_story)
+            // Static file serving
+            .service(fs::Files::new("/images", state.config.images_path()).show_files_listing())
             .service(
-                fs::Files::new("/static", app_config.storage.static_path.clone())
+                fs::Files::new("/static", state.config.storage.static_path.clone())
                     .show_files_listing(),
             );
 
-        if let Some(p) = printer.clone() {
+        // Conditional printer routes
+        if let Some(printer) = state.printer {
             app = app
-                .app_data(web::Data::new(p))
-                .service(print_photo)
-                .service(preview_print);
+                .app_data(web::Data::new(printer))
+                .service(routes::print_photo)
+                .service(routes::preview_print);
         }
 
         app
@@ -210,33 +324,30 @@ async fn main() -> std::io::Result<()> {
     .run();
 
     let server_handle = server.handle();
-
     let server_task = tokio::spawn(async move { server.await });
+
+    info!("Photo booth server started on {}", socket_addr);
+    info!("System ready for operation");
+
+    // ========================================
+    // Phase 5: Run Until Shutdown
+    // ========================================
 
     shutdown_signal().await;
 
+    // ========================================
+    // Phase 6: Graceful Shutdown
+    // ========================================
+
     info!("Initiating graceful shutdown...");
 
+    // Stop accepting new connections and wait for existing ones to complete
     server_handle.stop(true).await;
 
-    if let Some(camera_arc) = gphoto_for_shutdown.lock().unwrap().take() {
-        info!("Cleaning up GPhoto camera...");
-        // Dropping the Arc will trigger the Drop impl
-        drop(camera_arc);
-        // Give it a moment to clean up
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    }
+    // Clean up resources
+    cleanup_resources(app_state).await;
 
-    // Kill any remaining gphoto processes to prevent issues on restart
-    let _ = std::process::Command::new("pkill")
-        .args(&["-f", "gphoto2"])
-        .output();
-    let _ = std::process::Command::new("pkill")
-        .args(&["-f", "ffmpeg.*v4l2"])
-        .output();
-
-    info!("Graceful shutdown complete");
-
+    // Wait for server task to complete
     server_task.await.map_err(|e| {
         std::io::Error::new(
             std::io::ErrorKind::Other,
@@ -244,5 +355,6 @@ async fn main() -> std::io::Result<()> {
         )
     })??;
 
+    info!("Graceful shutdown complete");
     Ok(())
 }
