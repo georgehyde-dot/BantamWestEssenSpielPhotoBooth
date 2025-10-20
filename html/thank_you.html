@@ -492,24 +492,36 @@
 
             // Load and display the final templated image
             async function loadFinalImage() {
+                console.log("=== THANK YOU PAGE - LOADING FINAL IMAGE ===");
+                console.log("Session ID:", sessionId);
+
                 const loadingSpinner =
                     document.getElementById("loadingSpinner");
                 const finalPhoto = document.getElementById("finalPhoto");
 
                 if (!sessionId) {
+                    console.error("No session ID found, redirecting to home");
                     // If no session, go home immediately
                     goHome();
                     return;
                 }
 
+                console.log("Loading session data for ID:", sessionId);
+
                 // Get the session data to load the templated image
                 try {
+                    console.log("Fetching session from: /session/" + sessionId);
                     const sessionResponse = await fetch(
                         `/session/${sessionId}`,
+                    );
+                    console.log(
+                        "Session response status:",
+                        sessionResponse.status,
                     );
 
                     if (sessionResponse.ok) {
                         const sessionData = await sessionResponse.json();
+                        console.log("Session data received:", sessionData);
 
                         if (
                             sessionData.ok &&
@@ -517,18 +529,54 @@
                             sessionData.session.photo_path
                         ) {
                             // Display the templated image from session
+                            console.log("=== TEMPLATED IMAGE FOUND ===");
                             console.log(
-                                "Loading templated image:",
+                                "Photo path from session:",
                                 sessionData.session.photo_path,
                             );
-                            finalPhoto.src = `/images/${sessionData.session.photo_path}`;
+                            console.log("Session details:", {
+                                id: sessionData.session.id,
+                                group_name: sessionData.session.group_name,
+                                email: sessionData.session.email,
+                                photo_path: sessionData.session.photo_path,
+                                story_text:
+                                    sessionData.session.story_text?.substring(
+                                        0,
+                                        50,
+                                    ) + "...",
+                                headline: sessionData.session.headline,
+                            });
+
+                            const imagePath = `/images/${sessionData.session.photo_path}`;
+                            console.log("Full image URL:", imagePath);
+                            console.log("Setting image src and displaying...");
+
+                            finalPhoto.src = imagePath;
                             finalPhoto.style.display = "block";
                             loadingSpinner.style.display = "none";
+
+                            console.log(
+                                "Image element updated, waiting for load...",
+                            );
                         } else {
                             // No templated image available
                             console.error(
-                                "No templated image found in session",
+                                "=== NO TEMPLATED IMAGE IN SESSION ===",
                             );
+                            console.error(
+                                "Session data structure:",
+                                sessionData,
+                            );
+                            console.error("Session OK?", sessionData.ok);
+                            console.error(
+                                "Session exists?",
+                                !!sessionData.session,
+                            );
+                            console.error(
+                                "Photo path exists?",
+                                !!sessionData.session?.photo_path,
+                            );
+
                             loadingSpinner.style.display = "none";
                             const container =
                                 document.querySelector(".photo-container");
@@ -536,7 +584,16 @@
                                 '<p style="color: #d4af37; font-size: 1.2em;">Your adventure is complete!</p>';
                         }
                     } else {
-                        console.error("Failed to load session");
+                        console.error("=== FAILED TO LOAD SESSION ===");
+                        console.error(
+                            "Response status:",
+                            sessionResponse.status,
+                        );
+                        console.error(
+                            "Response text:",
+                            await sessionResponse.text(),
+                        );
+
                         loadingSpinner.style.display = "none";
                         const container =
                             document.querySelector(".photo-container");
@@ -544,7 +601,10 @@
                             '<p style="color: #d4af37; font-size: 1.2em;">Your adventure is complete!</p>';
                     }
                 } catch (error) {
-                    console.error("Error loading session:", error);
+                    console.error("=== EXCEPTION LOADING SESSION ===");
+                    console.error("Error details:", error);
+                    console.error("Stack trace:", error.stack);
+
                     loadingSpinner.style.display = "none";
                     const container =
                         document.querySelector(".photo-container");
@@ -552,9 +612,24 @@
                         '<p style="color: #d4af37; font-size: 1.2em;">Your adventure is complete!</p>';
                 }
 
+                // Handle image load success
+                finalPhoto.onload = function () {
+                    console.log("=== IMAGE LOADED SUCCESSFULLY ===");
+                    console.log(
+                        "Image dimensions:",
+                        this.naturalWidth,
+                        "x",
+                        this.naturalHeight,
+                    );
+                    console.log("Image src:", this.src);
+                };
+
                 // Handle image load error
                 finalPhoto.onerror = function () {
-                    console.error("Failed to load templated image");
+                    console.error("=== FAILED TO LOAD TEMPLATED IMAGE ===");
+                    console.error("Failed image src:", this.src);
+                    console.error("Current session ID:", sessionId);
+
                     loadingSpinner.style.display = "none";
                     const container =
                         document.querySelector(".photo-container");
@@ -577,7 +652,13 @@
             }
 
             // Initialize page
-            window.addEventListener("DOMContentLoaded", () => {
+            // Start loading final image and countdown when page loads
+            window.addEventListener("DOMContentLoaded", function () {
+                console.log("=== THANK YOU PAGE LOADED ===");
+                console.log("URL:", window.location.href);
+                console.log("Session ID from storage:", sessionId);
+                console.log("Starting to load final image...");
+
                 loadFinalImage();
                 startCountdown();
             });

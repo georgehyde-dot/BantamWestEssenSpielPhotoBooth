@@ -16,7 +16,9 @@ pub async fn print_photo(
     config: web::Data<Config>,
     db_pool: web::Data<SqlitePool>,
 ) -> impl Responder {
+    info!("=== PRINT PHOTO STARTED ===");
     info!("Print photo request received with body: {:?}", body);
+    info!("Storage base path: {:?}", config.storage.base_path);
 
     let filename = match body.get("filename").and_then(|v| v.as_str()) {
         Some(f) => {
@@ -51,8 +53,10 @@ pub async fn print_photo(
     }
 
     let file_path = config.storage.base_path.join(filename);
-    info!("Looking for file at: {:?}", file_path);
-    info!("Base path is: {:?}", config.storage.base_path);
+    info!("=== FILE MANAGEMENT - PRINT REQUEST ===");
+    info!("  Raw photo filename: {}", filename);
+    info!("  Raw photo full path: {:?}", file_path);
+    info!("  Base storage path: {:?}", config.storage.base_path);
 
     // Check if file exists
     if !file_path.exists() {
@@ -71,7 +75,7 @@ pub async fn print_photo(
             "error": format!("File not found: {}", filename)
         }));
     }
-    info!("File found successfully at: {:?}", file_path);
+    info!("Photo file found successfully at: {:?}", file_path);
 
     // Get session data if session_id is provided
     let mut story_text = config.template.story_placeholder.clone();
@@ -81,13 +85,17 @@ pub async fn print_photo(
 
     if let Some(session_id) = body.get("session_id").and_then(|v| v.as_str()) {
         info!("Loading session {} for print job", session_id);
+        info!("Session ID provided: {}", session_id);
         match Session::load(session_id, &db_pool).await {
             Ok(Some(mut session)) => {
                 info!("Session loaded successfully");
 
                 // Generate story if missing
                 if session.story_text.is_none() || session.headline.is_none() {
-                    info!("Generating story for session {}", session_id);
+                    info!(
+                        "Story/headline missing, generating for session {}",
+                        session_id
+                    );
                     session.generate_story();
                     // Save the generated story back to the session immediately
                     if let Err(e) = session.update(&db_pool).await {
@@ -139,13 +147,23 @@ pub async fn print_photo(
     }
 
     // Create templated version of the photo
-    let templated_filename_only = format!("print_{}.png", chrono::Utc::now().timestamp());
+    let timestamp = chrono::Utc::now().timestamp();
+    let templated_filename_only = format!("print_{}.png", timestamp);
     let templated_filename = config.storage.base_path.join(&templated_filename_only);
 
-    info!("Creating templated print:");
-    info!("  Source: {:?}", file_path);
-    info!("  Destination: {:?}", templated_filename);
-    info!("  Background: {:?}", config.background_path());
+    info!("=== FILE MANAGEMENT - CREATING TEMPLATE ===");
+    info!("  Raw photo (INPUT): {:?}", file_path);
+    info!("  Template (OUTPUT): {:?}", templated_filename);
+    info!("  Template will be KEPT for display");
+    info!("  Raw photo will be DELETED after 30 seconds");
+
+    info!("=== CREATING TEMPLATED PRINT ===");
+    info!("  Timestamp: {}", timestamp);
+    info!("  Raw photo source: {:?}", file_path);
+    info!("  Template destination: {:?}", templated_filename);
+    info!("  Background image: {:?}", config.background_path());
+    info!("  Group name: '{}'", group_name);
+    info!("  Headline: '{}'", headline);
     info!(
         "  Story text: '{}' (length: {})",
         if story_text.len() > 50 {
@@ -165,27 +183,42 @@ pub async fn print_photo(
         config.background_path().to_str().unwrap(),
     ) {
         Ok(_) => {
-            info!(
-                "Template created successfully at: {}",
-                templated_filename_only
-            );
+            info!("=== TEMPLATE CREATED SUCCESSFULLY ===");
+            info!("  Template filename: {}", templated_filename_only);
+            info!("  Template full path: {:?}", templated_filename);
 
             // IMPORTANT: Update session with templated print path BEFORE printing
             // This ensures the thank you page shows the correct templated image
             if let Some(mut session) = session_to_update {
-                info!(
-                    "Updating session {} with templated photo path: {}",
-                    session.id, templated_filename_only
-                );
+                info!("=== UPDATING SESSION WITH TEMPLATED PATH ===");
+                info!("  Session ID: {}", session.id);
+                info!("  Old photo_path: {:?}", session.photo_path);
+                info!("  New photo_path: {}", templated_filename_only);
                 session.photo_path = Some(templated_filename_only.clone());
 
                 // Save the updated session immediately
                 match session.update(&db_pool).await {
                     Ok(_) => {
-                        info!("Successfully updated session with templated print path");
+                        info!(
+                            "Session {} updated successfully with templated path",
+                            session.id
+                        );
+                        info!(
+                            "Session now has templated photo: {}",
+                            templated_filename_only
+                        );
+                        info!("=== FILE STATUS ===");
+                        info!("  Raw photo: {} (will be deleted after print)", filename);
+                        info!(
+                            "  Template: {} (permanent, for display)",
+                            templated_filename_only
+                        );
                     }
                     Err(e) => {
-                        error!("Failed to update session with templated print path: {}", e);
+                        error!(
+                            "FAILED to update session {} with templated path: {}",
+                            session.id, e
+                        );
                         // Continue with print even if session update fails
                     }
                 }
@@ -205,10 +238,43 @@ pub async fn print_photo(
             match printer.print_photo(print_job).await {
                 Ok(job_id) => {
                     info!("Print job submitted successfully with ID: {}", job_id);
-                    // Clean up templated file after sending to printer
+                    info!("=== FILE MANAGEMENT - POST-PRINT CLEANUP SCHEDULED ===");
+                    info!("  Template file (KEEPING): {:?}", templated_filename);
+                    info!("  Raw file (DELETING in 30s): {:?}", file_path);
+                    // Clean up raw capture file after sending to printer (keep the templated version)
+                    let raw_file_to_delete = file_path.clone();
                     tokio::task::spawn(async move {
                         tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
-                        let _ = std::fs::remove_file(&templated_filename);
+
+                        info!("=== FILE MANAGEMENT - CLEANUP TIMER EXPIRED ===");
+                        // Safety check: only delete raw capture files (cap_*.jpg)
+                        if let Some(file_name) = raw_file_to_delete.file_name() {
+                            let name_str = file_name.to_string_lossy();
+                            if name_str.starts_with("cap_") && name_str.ends_with(".jpg") {
+                                info!("Deleting raw capture file: {:?}", raw_file_to_delete);
+                                match std::fs::remove_file(&raw_file_to_delete) {
+                                    Ok(_) => info!(
+                                        "Successfully deleted raw capture: {:?}",
+                                        raw_file_to_delete
+                                    ),
+                                    Err(e) => warn!(
+                                        "Failed to delete raw capture: {:?}, error: {}",
+                                        raw_file_to_delete, e
+                                    ),
+                                }
+                            } else {
+                                warn!(
+                                    "SAFETY CHECK: Refusing to delete non-capture file: {:?}",
+                                    raw_file_to_delete
+                                );
+                                warn!("Only cap_*.jpg files should be deleted, not: {}", name_str);
+                            }
+                        } else {
+                            warn!(
+                                "Could not determine filename for cleanup: {:?}",
+                                raw_file_to_delete
+                            );
+                        }
                     });
 
                     HttpResponse::Ok().json(serde_json::json!({
@@ -218,9 +284,13 @@ pub async fn print_photo(
                     }))
                 }
                 Err(e) => {
-                    error!("Print job failed: {}", e);
-                    // Clean up on error
-                    let _ = std::fs::remove_file(&templated_filename);
+                    error!("=== PRINT JOB FAILED ===");
+                    error!("Print error: {}", e);
+                    // Keep the templated file even on print failure - it's needed for the thank you page
+                    info!(
+                        "Keeping templated file despite print failure: {:?}",
+                        templated_filename
+                    );
                     HttpResponse::InternalServerError().json(serde_json::json!({
                         "ok": false,
                         "error": format!("Print failed: {}", e)
@@ -229,7 +299,8 @@ pub async fn print_photo(
             }
         }
         Err(e) => {
-            error!("Failed to create template: {}", e);
+            error!("=== TEMPLATE CREATION FAILED ===");
+            error!("Template error: {}", e);
             HttpResponse::InternalServerError().json(serde_json::json!({
                 "ok": false,
                 "error": format!("Failed to create template: {}", e)
@@ -255,9 +326,11 @@ pub async fn preview_print(
     };
 
     let file_path = config.storage.base_path.join(filename);
+    info!("Looking for photo at: {:?}", file_path);
 
     // Check if file exists
     if !file_path.exists() {
+        error!("Photo file not found at: {:?}", file_path);
         return HttpResponse::NotFound().json(serde_json::json!({
             "ok": false,
             "error": "Image file not found"

@@ -420,6 +420,10 @@
             document.head.appendChild(style);
 
             function startCountdown(shouldPrint) {
+                console.log("=== CAPTURE COUNTDOWN STARTED ===");
+                console.log("Should print:", shouldPrint);
+                console.log("Session ID:", sessionId);
+
                 if (countdownRunning) return;
                 countdownRunning = true;
 
@@ -451,6 +455,10 @@
                         previewContainer.classList.add("capturing");
 
                         const sessionId = sessionStorage.getItem("session_id");
+                        console.log("=== SENDING CAPTURE REQUEST ===");
+                        console.log("Session ID:", sessionId);
+                        console.log("Capture endpoint: /capture");
+
                         fetch("/capture", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
@@ -496,7 +504,19 @@
                                         ) === "yes";
 
                                     if (shouldPrint && capturedFile) {
+                                        console.log(
+                                            "=== STARTING PRINT FLOW ===",
+                                        );
+                                        console.log(
+                                            "Should print is true, captured file:",
+                                            capturedFile,
+                                        );
+
                                         // First, generate the story for the template
+                                        console.log(
+                                            "Generating story for session:",
+                                            sessionId,
+                                        );
                                         try {
                                             const storyResponse = await fetch(
                                                 `/session/${sessionId}/generate-story`,
@@ -507,6 +527,11 @@
                                                             "application/json",
                                                     },
                                                 },
+                                            );
+
+                                            console.log(
+                                                "Story generation response status:",
+                                                storyResponse.status,
                                             );
 
                                             if (!storyResponse.ok) {
@@ -522,6 +547,14 @@
                                         }
 
                                         // Trigger print in the background
+                                        console.log(
+                                            "=== SENDING PRINT REQUEST ===",
+                                        );
+                                        console.log("Print data:", {
+                                            filename: capturedFile,
+                                            session_id: sessionId,
+                                        });
+
                                         fetch("/print", {
                                             method: "POST",
                                             headers: {
@@ -534,14 +567,38 @@
                                             }),
                                         })
                                             .then((printResponse) => {
+                                                console.log(
+                                                    "=== PRINT RESPONSE RECEIVED ===",
+                                                );
+                                                console.log(
+                                                    "Print response status:",
+                                                    printResponse.status,
+                                                );
+
                                                 if (printResponse.ok) {
                                                     console.log(
                                                         "Print job started successfully",
                                                     );
+                                                    printResponse
+                                                        .json()
+                                                        .then((data) => {
+                                                            console.log(
+                                                                "Print response data:",
+                                                                data,
+                                                            );
+                                                        });
                                                 } else {
                                                     console.error(
-                                                        "Print job failed",
+                                                        "=== PRINT JOB FAILED ===",
                                                     );
+                                                    printResponse
+                                                        .text()
+                                                        .then((text) => {
+                                                            console.error(
+                                                                "Print error response:",
+                                                                text,
+                                                            );
+                                                        });
                                                 }
                                             })
                                             .catch((printError) => {
@@ -550,11 +607,28 @@
                                                     printError,
                                                 );
                                             });
+                                    } else {
+                                        console.log("=== SKIPPING PRINT ===");
+                                        console.log(
+                                            "shouldPrint:",
+                                            shouldPrint,
+                                        );
+                                        console.log(
+                                            "capturedFile:",
+                                            capturedFile,
+                                        );
                                     }
 
                                     // Navigate to email entry page
                                     console.log(
+                                        "=== NAVIGATING TO EMAIL ENTRY ===",
+                                    );
+                                    console.log(
                                         "Navigating to email entry page",
+                                    );
+                                    console.log(
+                                        "URL:",
+                                        `/email-entry?session_id=${sessionId}`,
                                     );
                                     window.location.href = `/email-entry?session_id=${sessionId}`;
                                 } else {

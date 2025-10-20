@@ -168,7 +168,14 @@ pub async fn capture_image(
     body: Option<web::Json<serde_json::Value>>,
     gphoto_camera: web::Data<Arc<Mutex<Option<Arc<crate::gphoto_camera::GPhotoCamera>>>>>,
 ) -> impl Responder {
+    info!("=== CAPTURE IMAGE STARTED ===");
+    info!("Storage base path: {:?}", config.storage.base_path);
+
     std::fs::create_dir_all(&config.storage.base_path).ok();
+    info!(
+        "Created/verified storage directory: {:?}",
+        config.storage.base_path
+    );
 
     // Set proper permissions on directory
     #[cfg(unix)]
@@ -189,27 +196,43 @@ pub async fn capture_image(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    info!("Capture request with session_id: {:?}", session_id);
+
     // Use GPhoto2 for high-resolution capture
     info!("Using GPhoto2 for high-resolution capture");
 
+    let timestamp = chrono::Utc::now().timestamp();
     let filename = config
         .storage
         .base_path
-        .join(format!("cap_{}.jpg", chrono::Utc::now().timestamp()));
+        .join(format!("cap_{}.jpg", timestamp));
+
+    info!("Will save captured photo to: {:?}", filename);
 
     let save_path = filename.clone();
 
     // Use the shared GPhoto2 camera instance
     let camera_opt = gphoto_camera.lock().unwrap().clone();
+    info!("GPhoto camera available: {}", camera_opt.is_some());
+
     let capture_result = if let Some(camera) = camera_opt.clone() {
+        info!("Starting photo capture via GPhoto2...");
         match camera.capture_photo(save_path.to_str().unwrap_or("")).await {
             Ok(jpeg_data) => {
+                info!(
+                    "Photo captured successfully, size: {} bytes",
+                    jpeg_data.len()
+                );
                 // Save the JPEG directly
+                let save_path_log = save_path.clone();
                 let res = tokio::task::spawn_blocking(move || -> Result<(), String> {
+                    info!("Saving JPEG to disk: {:?}", save_path);
                     std::fs::write(&save_path, &jpeg_data)
                         .map_err(|e| format!("save JPEG: {e}"))?;
+                    info!("JPEG saved successfully");
                     Ok(())
                 });
+                info!("JPEG save task spawned for: {:?}", save_path_log);
 
                 // Restart the preview stream after capture
                 info!("Restarting preview stream after capture");
@@ -225,7 +248,7 @@ pub async fn capture_image(
                 Some((res, filename))
             }
             Err(e) => {
-                warn!("GPhoto2 capture failed: {}", e);
+                error!("GPhoto2 capture failed: {}", e);
 
                 // Try to restart preview even after failure
                 info!("Attempting to restart preview stream after failed capture");
@@ -241,7 +264,7 @@ pub async fn capture_image(
             }
         }
     } else {
-        warn!("GPhoto2 camera not available - camera not initialized");
+        error!("GPhoto2 camera not available - camera not initialized");
         None
     };
 
@@ -255,6 +278,11 @@ pub async fn capture_image(
                     let file_name = filename.file_name().unwrap().to_string_lossy();
                     let file_path = format!("/images/{}", file_name);
 
+                    info!("Photo capture successful!");
+                    info!("  - Filename: {}", file_name);
+                    info!("  - Web path: {}", file_path);
+                    info!("  - Full path: {:?}", filename);
+
                     // Update session if session_id was provided
                     let mut response_json = serde_json::json!({
                         "ok": true,
@@ -266,19 +294,33 @@ pub async fn capture_image(
                     if let Some(session_id) = session_id {
                         // Don't save the raw photo path - we'll save the templated version later
                         response_json["session_id"] = serde_json::json!(&session_id);
+                        info!(
+                            "Session {} will be updated with templated photo later",
+                            session_id
+                        );
                     }
 
+                    info!("=== CAPTURE IMAGE COMPLETED SUCCESSFULLY ===");
                     HttpResponse::Ok().json(response_json)
                 }
-                Ok(Err(e)) => HttpResponse::InternalServerError()
-                    .json(serde_json::json!({ "ok": false, "error": e })),
-                Err(_e) => HttpResponse::InternalServerError()
-                    .json(serde_json::json!({ "ok": false, "error": "join error" })),
+                Ok(Err(e)) => {
+                    error!("Failed to save captured photo: {}", e);
+                    HttpResponse::InternalServerError()
+                        .json(serde_json::json!({ "ok": false, "error": e }))
+                }
+                Err(_e) => {
+                    error!("Task join error while saving photo");
+                    HttpResponse::InternalServerError()
+                        .json(serde_json::json!({ "ok": false, "error": "join error" }))
+                }
             }
         }
-        None => HttpResponse::InternalServerError().json(serde_json::json!({
-            "ok": false,
-            "error": "camera capture failed"
-        })),
+        None => {
+            error!("=== CAPTURE IMAGE FAILED ===");
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "ok": false,
+                "error": "camera capture failed"
+            }))
+        }
     }
 }
