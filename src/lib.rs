@@ -24,7 +24,7 @@ pub use printers::{
 };
 
 #[cfg(feature = "printer-cups")]
-pub use printers::EpsonPrinter;
+pub use printers::CupsPrinter;
 
 // Session exports
 pub use session::Session;

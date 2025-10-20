@@ -9,6 +9,7 @@ set -euo pipefail
 
 # Get the environment argument (default to "dev" if not provided)
 env=${1:-dev}
+deploy_all=${2:-false}
 
 if [ "$env" == "prod" ]; then
     PI_HOST="${PI_HOST:-100.95.14.25}"
@@ -81,96 +82,166 @@ scp "${LOCAL_BIN}" "${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
 echo ">> Marking remote binary as executable..."
 ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DEST_PATH}'"
 
-# Copy test scripts if they exist
-if [ -f "${SCRIPT_DIR}/test_endpoints.sh" ]; then
-    echo ">> Copying test_endpoints.sh..."
-    scp "${SCRIPT_DIR}/test_endpoints.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_endpoints.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
-fi
+# Function to check if a file/directory has changes
+has_git_changes() {
+    local path="$1"
+    # Check if path exists
+    [ -e "$path" ] || return 1
 
-# Copy setup script if it exists
-if [ -f "${SCRIPT_DIR}/setup_packages.sh" ]; then
-    echo ">> Copying setup_packages.sh..."
-    scp "${SCRIPT_DIR}/setup_packages.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/setup_packages.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/setup_packages.sh'"
-fi
+    # Check for uncommitted changes or untracked files
+    if git diff HEAD --name-only | grep -q "^$(basename "$path")$"; then
+        return 0
+    fi
+    if git status --porcelain | grep -q "$(basename "$path")"; then
+        return 0
+    fi
 
-# Copy diagnostic script if it exists
-if [ -f "${SCRIPT_DIR}/check_setup.sh" ]; then
-    echo ">> Copying check_setup.sh..."
-    scp "${SCRIPT_DIR}/check_setup.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/check_setup.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/check_setup.sh'"
-fi
-
-# Copy database permissions fix script if it exists
-if [ -f "${SCRIPT_DIR}/fix_db_permissions.sh" ]; then
-    echo ">> Copying fix_db_permissions.sh..."
-    scp "${SCRIPT_DIR}/fix_db_permissions.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/fix_db_permissions.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/fix_db_permissions.sh'"
-fi
-
-# Copy v4l2 loopback test script if it exists
-if [ -f "${SCRIPT_DIR}/test_v4l2_loopback.sh" ]; then
-    echo ">> Copying test_v4l2_loopback.sh..."
-    scp "${SCRIPT_DIR}/test_v4l2_loopback.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_v4l2_loopback.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_v4l2_loopback.sh'"
-fi
-
-# Copy v4l2 device fix script if it exists
-if [ -f "${SCRIPT_DIR}/fix_v4l2_device.sh" ]; then
-    echo ">> Copying fix_v4l2_device.sh..."
-    scp "${SCRIPT_DIR}/fix_v4l2_device.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/fix_v4l2_device.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/fix_v4l2_device.sh'"
-fi
-
-# Copy scripts directory if it exists
-if [ -d "${SCRIPT_DIR}/scripts" ]; then
-    echo ">> Copying scripts directory..."
-    scp -r "${SCRIPT_DIR}/scripts" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/scripts/'*.sh 2>/dev/null || true"
-fi
-
-# Copy operations directory if it exists
-if [ -d "${SCRIPT_DIR}/operations" ]; then
-    echo ">> Copying operations directory..."
-    scp -r "${SCRIPT_DIR}/operations" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/operations/'*.sh 2>/dev/null || true"
-fi
-
-# Copy static directory if it exists (contains background images, etc.)
-if [ -d "${SCRIPT_DIR}/static" ]; then
-    echo ">> Ensuring remote assets directory exists: ${REMOTE_ASSETS_DIR}"
-    ssh "${PI_USER}@${PI_HOST}" "sudo mkdir -p '${REMOTE_ASSETS_DIR}'"
-    echo ">> Copying static directory..."
-    scp -r "${SCRIPT_DIR}/static" "${PI_USER}@${PI_HOST}:/tmp/"
-    ssh "${PI_USER}@${PI_HOST}" "sudo rm -rf '${REMOTE_ASSETS_DIR}/static' && sudo mv /tmp/static '${REMOTE_ASSETS_DIR}/' && sudo chown -R ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/static'"
-
-    # Copy font files to system fonts directory
-    echo ">> Installing font files..."
-    ssh "${PI_USER}@${PI_HOST}" "
-        sudo mkdir -p /usr/local/share/fonts
-        if ls '${REMOTE_ASSETS_DIR}/static/'*.ttf 1> /dev/null 2>&1; then
-            sudo cp '${REMOTE_ASSETS_DIR}/static/'*.ttf /usr/local/share/fonts/
-            sudo fc-cache -f -v /usr/local/share/fonts/
-            echo 'Fonts installed successfully'
-        else
-            echo 'No font files found in static directory'
+    # For directories, check if any file inside has changes
+    if [ -d "$path" ]; then
+        local rel_path=$(realpath --relative-to="$PROJECT_ROOT" "$path" 2>/dev/null || basename "$path")
+        if git diff HEAD --name-only | grep -q "^$rel_path/"; then
+            return 0
         fi
-    "
+        if git status --porcelain | grep -q " $rel_path/"; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+# Determine if we should copy setup files
+if [ "$deploy_all" == "true" ]; then
+    echo ">> Deploy all flag is set - copying all setup files"
+    should_copy_setup=true
+else
+    echo ">> Checking for changes in setup files..."
+    should_copy_setup=false
 fi
 
-# Copy printer configuration script if it exists
+# Copy test scripts if they exist and have changes or deploy_all is true
+if [ -f "${SCRIPT_DIR}/test_endpoints.sh" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/test_endpoints.sh"; then
+        echo ">> Copying test_endpoints.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/test_endpoints.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_endpoints.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
+    else
+        echo ">> Skipping test_endpoints.sh (no changes)"
+    fi
+fi
+
+# Copy printer setup script if it exists and has changes or deploy_all is true
+if [ -f "${SCRIPT_DIR}/setup_printer.sh" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/setup_printer.sh"; then
+        echo ">> Copying setup_printer.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/setup_printer.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/setup_printer.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/setup_printer.sh'"
+    else
+        echo ">> Skipping setup_printer.sh (no changes)"
+    fi
+fi
+
+# Copy setup script if it exists and has changes or deploy_all is true
+if [ -f "${SCRIPT_DIR}/setup_packages.sh" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/setup_packages.sh"; then
+        echo ">> Copying setup_packages.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/setup_packages.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/setup_packages.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/setup_packages.sh'"
+    else
+        echo ">> Skipping setup_packages.sh (no changes)"
+    fi
+fi
+
+# Copy diagnostic script if it exists and has changes or deploy_all is true
+if [ -f "${SCRIPT_DIR}/check_setup.sh" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/check_setup.sh"; then
+        echo ">> Copying check_setup.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/check_setup.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/check_setup.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/check_setup.sh'"
+    else
+        echo ">> Skipping check_setup.sh (no changes)"
+    fi
+fi
+
+# Copy troubleshooting directory if it exists and has changes or deploy_all is true
+if [ -d "${SCRIPT_DIR}/troubleshooting" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/troubleshooting"; then
+        echo ">> Copying troubleshooting directory (changes detected or deploy_all)"
+        scp -r "${SCRIPT_DIR}/troubleshooting" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/troubleshooting/'*.sh 2>/dev/null || true"
+    else
+        echo ">> Skipping troubleshooting directory (no changes)"
+    fi
+fi
+
+# Copy scripts directory if it exists and has changes or deploy_all is true
+if [ -d "${SCRIPT_DIR}/scripts" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/scripts"; then
+        echo ">> Copying scripts directory (changes detected or deploy_all)"
+        scp -r "${SCRIPT_DIR}/scripts" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/scripts/'*.sh 2>/dev/null || true"
+    else
+        echo ">> Skipping scripts directory (no changes)"
+    fi
+fi
+
+# Copy operations directory if it exists and has changes or deploy_all is true
+if [ -d "${SCRIPT_DIR}/operations" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/operations"; then
+        echo ">> Copying operations directory (changes detected or deploy_all)"
+        scp -r "${SCRIPT_DIR}/operations" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/operations/'*.sh 2>/dev/null || true"
+    else
+        echo ">> Skipping operations directory (no changes)"
+    fi
+fi
+
+# Copy static directory if it exists and has changes or deploy_all is true
+if [ -d "${SCRIPT_DIR}/static" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/static"; then
+        echo ">> Ensuring remote assets directory exists: ${REMOTE_ASSETS_DIR}"
+        ssh "${PI_USER}@${PI_HOST}" "sudo mkdir -p '${REMOTE_ASSETS_DIR}'"
+        echo ">> Copying static directory (changes detected or deploy_all)"
+        scp -r "${SCRIPT_DIR}/static" "${PI_USER}@${PI_HOST}:/tmp/"
+        ssh "${PI_USER}@${PI_HOST}" "sudo rm -rf '${REMOTE_ASSETS_DIR}/static' && sudo mv /tmp/static '${REMOTE_ASSETS_DIR}/' && sudo chown -R ${PI_USER}:${PI_USER} '${REMOTE_ASSETS_DIR}/static'"
+
+        # Copy font files to system fonts directory
+        echo ">> Installing font files..."
+        ssh "${PI_USER}@${PI_HOST}" "
+            sudo mkdir -p /usr/local/share/fonts
+            if ls '${REMOTE_ASSETS_DIR}/static/'*.ttf 1> /dev/null 2>&1; then
+                sudo cp '${REMOTE_ASSETS_DIR}/static/'*.ttf /usr/local/share/fonts/
+                sudo fc-cache -f -v /usr/local/share/fonts/
+                echo 'Fonts installed successfully'
+            else
+                echo 'No font files found in static directory'
+            fi
+        "
+    else
+        echo ">> Skipping static directory (no changes)"
+    fi
+fi
+
+# Copy printer configuration script if it exists and has changes or deploy_all is true
 if [ -f "${SCRIPT_DIR}/configure_printer_4x6.sh" ]; then
-    echo ">> Copying configure_printer_4x6.sh..."
-    scp "${SCRIPT_DIR}/configure_printer_4x6.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/configure_printer_4x6.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/configure_printer_4x6.sh'"
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/configure_printer_4x6.sh"; then
+        echo ">> Copying configure_printer_4x6.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/configure_printer_4x6.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/configure_printer_4x6.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/configure_printer_4x6.sh'"
+    else
+        echo ">> Skipping configure_printer_4x6.sh (no changes)"
+    fi
 fi
 
-# Copy font installation script if it exists
+# Copy font installation script if it exists and has changes or deploy_all is true
 if [ -f "${SCRIPT_DIR}/install_fonts.sh" ]; then
-    echo ">> Copying install_fonts.sh..."
-    scp "${SCRIPT_DIR}/install_fonts.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/install_fonts.sh"
-    ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/install_fonts.sh'"
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/install_fonts.sh"; then
+        echo ">> Copying install_fonts.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/install_fonts.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/install_fonts.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/install_fonts.sh'"
+    else
+        echo ">> Skipping install_fonts.sh (no changes)"
+    fi
 fi
 
 # Create database file with proper permissions
@@ -190,17 +261,23 @@ echo "------------------------------------------------------------------"
 echo "Deploy complete."
 echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
 echo
-echo "Initial setup (first deployment only):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/setup_packages.sh\""
+echo "Initial system setup (first deployment only):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo ${REMOTE_DIR}/setup_packages.sh\""
+echo
+echo "DNP DS620 printer setup (run with sudo):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo ${REMOTE_DIR}/setup_printer.sh\""
 echo
 echo "Check system setup and connected devices:"
 echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/check_setup.sh\""
 echo
 echo "Fix v4l2 loopback device (if preview not working):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/fix_v4l2_device.sh\""
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/troubleshooting/fix_v4l2_device.sh\""
 echo
-echo "Configure printer for 4x6 photos:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/configure_printer_4x6.sh\""
+echo "Fix database permissions (if database errors occur):"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/troubleshooting/fix_db_permissions.sh\""
+echo
+echo "Test v4l2 loopback device:"
+echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/troubleshooting/test_v4l2_loopback.sh\""
 echo
 echo "Install fonts (if using custom fonts):"
 echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/install_fonts.sh\""
