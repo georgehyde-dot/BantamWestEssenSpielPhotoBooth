@@ -283,24 +283,10 @@ if [ -d "$ASSETS_DIR" ]; then
     print_success "Static assets directory exists"
     print_info "Contents: $(ls -1 $ASSETS_DIR 2>/dev/null | wc -l) items"
 
-    # Check for background image
-    if [ -f "$ASSETS_DIR/background.png" ]; then
-        print_success "Template background image exists"
-    else
-        print_warning "Template background image missing"
-    fi
+
 
     # Check for selection images
-    if [ -d "$ASSETS_DIR/resized_output" ]; then
-        image_count=$(ls -1 $ASSETS_DIR/resized_output/*.jpg 2>/dev/null | wc -l)
-        if [ "$image_count" -eq 12 ]; then
-            print_success "All 12 selection images present"
-        else
-            print_warning "Selection images: $image_count/12 found"
-        fi
-    else
-        print_warning "Selection images directory missing"
-    fi
+
 else
     print_warning "Static assets directory does NOT exist"
 fi

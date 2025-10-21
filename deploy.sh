@@ -119,14 +119,15 @@ else
     should_copy_setup=false
 fi
 
-# Copy test scripts if they exist and have changes or deploy_all is true
-if [ -f "${SCRIPT_DIR}/test_endpoints.sh" ]; then
-    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/test_endpoints.sh"; then
-        echo ">> Copying test_endpoints.sh (changes detected or deploy_all)"
-        scp "${SCRIPT_DIR}/test_endpoints.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_endpoints.sh"
-        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_endpoints.sh'"
+
+# Copy camera print test script if it exists and has changes or deploy_all is true
+if [ -f "${SCRIPT_DIR}/test_camera_print.sh" ]; then
+    if [ "$should_copy_setup" == "true" ] || has_git_changes "${SCRIPT_DIR}/test_camera_print.sh"; then
+        echo ">> Copying test_camera_print.sh (changes detected or deploy_all)"
+        scp "${SCRIPT_DIR}/test_camera_print.sh" "${PI_USER}@${PI_HOST}:${REMOTE_DIR}/test_camera_print.sh"
+        ssh "${PI_USER}@${PI_HOST}" "chmod +x '${REMOTE_DIR}/test_camera_print.sh'"
     else
-        echo ">> Skipping test_endpoints.sh (no changes)"
+        echo ">> Skipping test_camera_print.sh (no changes)"
     fi
 fi
 
@@ -259,47 +260,3 @@ ssh "${PI_USER}@${PI_HOST}" "
 
 echo "------------------------------------------------------------------"
 echo "Deploy complete."
-echo "Remote binary: ${PI_USER}@${PI_HOST}:${REMOTE_DEST_PATH}"
-echo
-echo "Initial system setup (first deployment only):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo ${REMOTE_DIR}/setup_packages.sh\""
-echo
-echo "DNP DS620 printer setup (run with sudo):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo ${REMOTE_DIR}/setup_printer.sh\""
-echo
-echo "Check system setup and connected devices:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/check_setup.sh\""
-echo
-echo "Fix v4l2 loopback device (if preview not working):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/troubleshooting/fix_v4l2_device.sh\""
-echo
-echo "Fix database permissions (if database errors occur):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/troubleshooting/fix_db_permissions.sh\""
-echo
-echo "Test v4l2 loopback device:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/troubleshooting/test_v4l2_loopback.sh\""
-echo
-echo "Install fonts (if using custom fonts):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"${REMOTE_DIR}/install_fonts.sh\""
-echo
-echo "Run on the Pi with Canon EOS camera:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/run.sh\""
-echo
-echo "Test GPhoto2 functionality:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"cd ${REMOTE_DIR} && ./scripts/test_gphoto.sh\""
-echo
-echo "Run directly (without startup script):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"'${REMOTE_DEST_PATH}'\""
-echo
-echo "Setup kiosk mode (first time only):"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo /home/${PI_USER}/operations/setup-kiosk.sh\""
-echo
-echo "Start kiosk mode:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo systemctl start photobooth-kiosk.service\""
-echo
-echo "Stop kiosk mode:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo systemctl stop photobooth-kiosk.service\""
-echo
-echo "Check kiosk status:"
-echo "  ssh  ${PI_USER}@${PI_HOST} \"sudo systemctl status photobooth-kiosk.service\""
-echo
