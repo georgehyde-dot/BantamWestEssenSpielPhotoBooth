@@ -240,6 +240,9 @@
                     padding: 30px 90px;
                     font-size: 3.6em;
                 }
+                .flash-text {
+                    font-size: 6em;
+                }
             }
 
             @media (max-height: 600px) {
@@ -267,6 +270,9 @@
                     gap: 15px;
                     margin-top: 15px;
                 }
+                .flash-text {
+                    font-size: 4.5em;
+                }
             }
 
             @media (min-width: 1024px) {
@@ -278,6 +284,102 @@
                     max-height: 85vh;
                 }
             }
+
+            /* Camera flash effect */
+            .camera-flash {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: radial-gradient(
+                    circle at center,
+                    rgba(255, 255, 255, 1) 0%,
+                    rgba(255, 255, 255, 0.95) 20%,
+                    rgba(255, 251, 235, 0.9) 40%,
+                    rgba(255, 248, 220, 0.85) 60%,
+                    rgba(255, 245, 200, 0.7) 100%
+                );
+                pointer-events: none;
+                opacity: 0;
+                z-index: 9999;
+                transform: scale(1);
+                transition:
+                    opacity 0.15s ease-out,
+                    transform 0.3s ease-out;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .flash-text {
+                font-size: 8em;
+                font-weight: bold;
+                color: #2c1810;
+                text-shadow:
+                    3px 3px 0px rgba(255, 255, 255, 0.8),
+                    5px 5px 10px rgba(0, 0, 0, 0.3),
+                    0 0 20px rgba(255, 255, 255, 0.5);
+                font-family: "Rye", cursive;
+                text-transform: uppercase;
+                letter-spacing: 4px;
+                opacity: 0;
+                transform: scale(0.5);
+                transition: all 0.3s ease-out;
+            }
+
+            .camera-flash.active .flash-text {
+                opacity: 1;
+                transform: scale(1);
+                animation: textPop 2s ease-out;
+            }
+
+            @keyframes textPop {
+                0% {
+                    transform: scale(0.8);
+                    opacity: 0;
+                }
+                20% {
+                    transform: scale(1.1);
+                    opacity: 1;
+                }
+                80% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                100% {
+                    transform: scale(0.95);
+                    opacity: 0.8;
+                }
+            }
+
+            .camera-flash.active {
+                opacity: 1;
+                transform: scale(1.1);
+                transition:
+                    opacity 0s,
+                    transform 0s;
+                animation: flashPulse 2s ease-out;
+            }
+
+            @keyframes flashPulse {
+                0% {
+                    opacity: 1;
+                    transform: scale(1.2);
+                }
+                20% {
+                    opacity: 0.95;
+                    transform: scale(1.05);
+                }
+                80% {
+                    opacity: 0.9;
+                    transform: scale(1.02);
+                }
+                100% {
+                    opacity: 0;
+                    transform: scale(1);
+                }
+            }
         </style>
         <link
             href="https://fonts.googleapis.com/css2?family=Rye&display=swap"
@@ -285,6 +387,9 @@
         />
     </head>
     <body>
+        <div class="camera-flash" id="cameraFlash">
+            <div class="flash-text">PHOTO CAPTURED!</div>
+        </div>
         <div id="wrap">
             <h1>Take Your MugShot Picture</h1>
             <div class="preview-container">
@@ -437,13 +542,13 @@
                 const buttons = document.querySelectorAll(".countdown-btn");
                 buttons.forEach((btn) => (btn.disabled = true));
 
-                let t = 3;
+                let t = 5;
                 const countdown = document.getElementById("countdown");
                 countdown.textContent = t;
 
                 const interval = setInterval(() => {
                     t--;
-                    if (t > 0) {
+                    if (t > 2) {
                         countdown.textContent = t;
                     } else {
                         clearInterval(interval);
@@ -497,140 +602,149 @@
                                         );
                                     }
 
-                                    // Check if we should print
-                                    const shouldPrint =
-                                        sessionStorage.getItem(
-                                            "should_print",
-                                        ) === "yes";
+                                    // Show camera flash effect with enhanced timing
+                                    const flash =
+                                        document.getElementById("cameraFlash");
+                                    flash.classList.add("active");
 
-                                    if (shouldPrint && capturedFile) {
-                                        console.log(
-                                            "=== STARTING PRINT FLOW ===",
-                                        );
-                                        console.log(
-                                            "Should print is true, captured file:",
-                                            capturedFile,
-                                        );
+                                    // Wait for flash to complete before continuing
+                                    setTimeout(async () => {
+                                        flash.classList.remove("active");
 
-                                        // First, generate the story for the template
-                                        console.log(
-                                            "Generating story for session:",
-                                            sessionId,
-                                        );
-                                        try {
-                                            const storyResponse = await fetch(
-                                                `/session/${sessionId}/generate-story`,
-                                                {
-                                                    method: "POST",
-                                                    headers: {
-                                                        "Content-Type":
-                                                            "application/json",
-                                                    },
-                                                },
-                                            );
+                                        // Check if we should print
+                                        const shouldPrint =
+                                            sessionStorage.getItem(
+                                                "should_print",
+                                            ) === "yes";
 
+                                        if (shouldPrint && capturedFile) {
                                             console.log(
-                                                "Story generation response status:",
-                                                storyResponse.status,
+                                                "=== STARTING PRINT FLOW ===",
+                                            );
+                                            console.log(
+                                                "Should print is true, captured file:",
+                                                capturedFile,
                                             );
 
-                                            if (!storyResponse.ok) {
+                                            // First, generate the story for the template
+                                            console.log(
+                                                "Generating story for session:",
+                                                sessionId,
+                                            );
+                                            try {
+                                                const storyResponse =
+                                                    await fetch(
+                                                        `/session/${sessionId}/generate-story`,
+                                                        {
+                                                            method: "POST",
+                                                            headers: {
+                                                                "Content-Type":
+                                                                    "application/json",
+                                                            },
+                                                        },
+                                                    );
+
+                                                console.log(
+                                                    "Story generation response status:",
+                                                    storyResponse.status,
+                                                );
+
+                                                if (!storyResponse.ok) {
+                                                    console.warn(
+                                                        "Story generation failed, continuing anyway",
+                                                    );
+                                                }
+                                            } catch (error) {
                                                 console.warn(
-                                                    "Story generation failed, continuing anyway",
+                                                    "Story generation error:",
+                                                    error,
                                                 );
                                             }
-                                        } catch (error) {
-                                            console.warn(
-                                                "Story generation error:",
-                                                error,
+
+                                            // Trigger print in the background
+                                            console.log(
+                                                "=== SENDING PRINT REQUEST ===",
+                                            );
+                                            console.log("Print data:", {
+                                                filename: capturedFile,
+                                                session_id: sessionId,
+                                            });
+
+                                            fetch("/print", {
+                                                method: "POST",
+                                                headers: {
+                                                    "Content-Type":
+                                                        "application/json",
+                                                },
+                                                body: JSON.stringify({
+                                                    filename: capturedFile,
+                                                    session_id: sessionId,
+                                                }),
+                                            })
+                                                .then((printResponse) => {
+                                                    console.log(
+                                                        "=== PRINT RESPONSE RECEIVED ===",
+                                                    );
+                                                    console.log(
+                                                        "Print response status:",
+                                                        printResponse.status,
+                                                    );
+
+                                                    if (printResponse.ok) {
+                                                        console.log(
+                                                            "Print job started successfully",
+                                                        );
+                                                        printResponse
+                                                            .json()
+                                                            .then((data) => {
+                                                                console.log(
+                                                                    "Print response data:",
+                                                                    data,
+                                                                );
+                                                            });
+                                                    } else {
+                                                        console.error(
+                                                            "=== PRINT JOB FAILED ===",
+                                                        );
+                                                        printResponse
+                                                            .text()
+                                                            .then((text) => {
+                                                                console.error(
+                                                                    "Print error response:",
+                                                                    text,
+                                                                );
+                                                            });
+                                                    }
+                                                })
+                                                .catch((printError) => {
+                                                    console.error(
+                                                        "Error starting print:",
+                                                        printError,
+                                                    );
+                                                });
+                                        } else {
+                                            console.log(
+                                                "=== SKIPPING PRINT ===",
+                                            );
+                                            console.log(
+                                                "shouldPrint:",
+                                                shouldPrint,
+                                            );
+                                            console.log(
+                                                "capturedFile:",
+                                                capturedFile,
                                             );
                                         }
 
-                                        // Trigger print in the background
+                                        // Navigate to email entry page
                                         console.log(
-                                            "=== SENDING PRINT REQUEST ===",
-                                        );
-                                        console.log("Print data:", {
-                                            filename: capturedFile,
-                                            session_id: sessionId,
-                                        });
-
-                                        fetch("/print", {
-                                            method: "POST",
-                                            headers: {
-                                                "Content-Type":
-                                                    "application/json",
-                                            },
-                                            body: JSON.stringify({
-                                                filename: capturedFile,
-                                                session_id: sessionId,
-                                            }),
-                                        })
-                                            .then((printResponse) => {
-                                                console.log(
-                                                    "=== PRINT RESPONSE RECEIVED ===",
-                                                );
-                                                console.log(
-                                                    "Print response status:",
-                                                    printResponse.status,
-                                                );
-
-                                                if (printResponse.ok) {
-                                                    console.log(
-                                                        "Print job started successfully",
-                                                    );
-                                                    printResponse
-                                                        .json()
-                                                        .then((data) => {
-                                                            console.log(
-                                                                "Print response data:",
-                                                                data,
-                                                            );
-                                                        });
-                                                } else {
-                                                    console.error(
-                                                        "=== PRINT JOB FAILED ===",
-                                                    );
-                                                    printResponse
-                                                        .text()
-                                                        .then((text) => {
-                                                            console.error(
-                                                                "Print error response:",
-                                                                text,
-                                                            );
-                                                        });
-                                                }
-                                            })
-                                            .catch((printError) => {
-                                                console.error(
-                                                    "Error starting print:",
-                                                    printError,
-                                                );
-                                            });
-                                    } else {
-                                        console.log("=== SKIPPING PRINT ===");
-                                        console.log(
-                                            "shouldPrint:",
-                                            shouldPrint,
+                                            "=== NAVIGATING TO EMAIL ENTRY ===",
                                         );
                                         console.log(
-                                            "capturedFile:",
-                                            capturedFile,
+                                            "Navigating to email entry page",
                                         );
-                                    }
-
-                                    // Navigate to email entry page
-                                    console.log(
-                                        "=== NAVIGATING TO EMAIL ENTRY ===",
-                                    );
-                                    console.log(
-                                        "Navigating to email entry page",
-                                    );
-                                    console.log(
-                                        "URL:",
-                                        `/email-entry?session_id=${sessionId}`,
-                                    );
-                                    window.location.href = `/email-entry?session_id=${sessionId}`;
+                                        window.location.href = `/email-entry?session_id=${sessionId}`;
+                                    }, 2000); // Wait 2 seconds for flash to be visible
                                 } else {
                                     // Only show error if capture actually failed
                                     console.error(

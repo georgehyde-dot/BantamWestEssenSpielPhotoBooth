@@ -41,7 +41,8 @@
             }
 
             .main-content.keyboard-active {
-                padding-bottom: 10px;
+                padding-bottom: 580px; /* Account for keyboard height - increased to show full text box */
+                padding-top: 10px;
             }
 
             .header {
@@ -65,7 +66,8 @@
             }
 
             .main-content.keyboard-active .header h1 {
-                font-size: 78px;
+                font-size: 48px;
+                margin-bottom: 5px;
             }
 
             .header p {
@@ -91,28 +93,40 @@
                 flex-direction: column;
                 justify-content: flex-start;
                 align-items: center;
-                max-width: 600px;
+                max-width: 900px; /* Increased to use more horizontal space */
                 width: 100%;
                 margin: 0 auto;
                 padding-top: 40px;
                 animation: fadeIn 0.8s ease-out 0.2s both;
+                transition: all 0.3s ease;
+            }
+
+            .main-content.keyboard-active .input-container {
+                padding-top: 10px;
+                justify-content: flex-start;
             }
 
             .input-wrapper {
                 width: 100%;
                 margin-bottom: 40px;
+                transition: all 0.3s ease;
+            }
+
+            .main-content.keyboard-active .input-wrapper {
+                margin-bottom: 20px;
             }
 
             .input-label {
                 display: block;
-                font-size: 54px;
+                font-size: 42px;
                 font-weight: 500;
                 color: #2c1810;
-                margin-bottom: 12px;
+                margin-bottom: 20px;
                 text-align: center;
                 text-shadow:
                     1px 1px 0px rgba(255, 255, 255, 0.3),
                     2px 2px 3px rgba(0, 0, 0, 0.2);
+                line-height: 1.2;
             }
 
             .group-name-input {
@@ -145,6 +159,7 @@
                 width: 100%;
                 padding: 50px;
                 font-size: 58px;
+                transition: all 0.3s ease;
                 font-weight: bold;
                 font-family: "Rye", cursive;
                 background: linear-gradient(
@@ -167,6 +182,11 @@
                 animation: fadeInUp 0.8s ease-out 0.3s both;
                 position: relative;
                 overflow: hidden;
+            }
+
+            .main-content.keyboard-active .submit-btn {
+                padding: 30px;
+                font-size: 42px;
             }
 
             .submit-btn:hover:not(:disabled) {
@@ -360,6 +380,14 @@
                 .keyboard-row {
                     gap: 10px;
                 }
+
+                .main-content.keyboard-active {
+                    padding-bottom: 500px;
+                }
+
+                .main-content.keyboard-active .header h1 {
+                    font-size: 40px;
+                }
             }
 
             @media (max-width: 480px) {
@@ -368,12 +396,31 @@
                 }
 
                 .main-content.keyboard-active .header h1 {
-                    font-size: 42px;
+                    font-size: 32px;
+                }
+
+                .main-content.keyboard-active {
+                    padding-bottom: 420px;
+                    padding-top: 5px;
+                }
+
+                .main-content.keyboard-active .input-container {
+                    padding-top: 5px;
+                }
+
+                .main-content.keyboard-active .submit-btn {
+                    padding: 20px;
+                    font-size: 32px;
                 }
 
                 .group-name-input {
                     font-size: 30px;
                     padding: 30px;
+                }
+
+                .main-content.keyboard-active .group-name-input {
+                    padding: 25px;
+                    font-size: 28px;
                 }
 
                 .key {
@@ -412,10 +459,10 @@
 
             <div class="input-container">
                 <div class="input-wrapper">
-                    <label class="input-label" for="groupName"
-                        >Make up a Wild West name, like 'Cactus Jack' or
-                        'Moonlight Rose'</label
-                    >
+                    <label class="input-label" for="groupName">
+                        Create a Wild West name like 'Cactus Jack' or 'Moonlight
+                        Rose'
+                    </label>
                     <input
                         type="text"
                         id="groupName"
@@ -695,9 +742,16 @@
                 // Show keyboard
                 keyboard.classList.add("active");
                 mainContent.classList.add("keyboard-active");
-
-                // Ensure input is visible by scrolling to top
-                window.scrollTo(0, 0);
+                // Scroll input into view with better positioning
+                setTimeout(() => {
+                    groupNameInput.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                        inline: "nearest",
+                    });
+                    // Additional offset to ensure full visibility
+                    window.scrollBy(0, -50);
+                }, 150);
             });
 
             // Handle keyboard tab switching

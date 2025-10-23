@@ -711,18 +711,70 @@
             const keyboard = document.getElementById("customKeyboard");
             const mainContent = document.getElementById("mainContent");
 
-            // Add 3-second countdown on skip button
-            let skipCountdown = 3;
+            // 5 second countdown on skip button
+            let skipCountdown = 5;
             const skipButtonOriginalText = "Skip Email (No Digital Copy)";
 
             const countdownInterval = setInterval(() => {
                 if (skipCountdown > 0) {
-                    skipBtn.textContent = `Skip Email (${skipCountdown}s)`;
+                    skipBtn.textContent = `${skipButtonOriginalText} (${skipCountdown})`;
                     skipCountdown--;
                 } else {
-                    clearInterval(countdownInterval);
                     skipBtn.textContent = skipButtonOriginalText;
                     skipBtn.disabled = false;
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+
+            // 60 second auto-redirect timer (acts like skip)
+            let autoRedirectTime = 60;
+            let autoRedirectInterval;
+
+            // Function to handle auto-skip
+            async function autoSkip() {
+                // Clear any existing intervals
+                if (autoRedirectInterval) {
+                    clearInterval(autoRedirectInterval);
+                }
+
+                try {
+                    // Update session with default email and no mailing list
+                    const response = await fetch(`/session/${sessionId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: "noemail@noemail.com",
+                            mailing_list: 0,
+                        }),
+                    });
+
+                    if (response.ok) {
+                        // Save session to database
+                        await fetch(`/session/${sessionId}/save`, {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                        });
+
+                        // Navigate to thank you page
+                        window.location.href = `/thank-you?session_id=${sessionId}`;
+                    }
+                } catch (error) {
+                    console.error("Auto-skip error:", error);
+                }
+            }
+
+            // Start auto-redirect timer
+            autoRedirectInterval = setInterval(() => {
+                autoRedirectTime--;
+
+                // Optional: Update UI to show countdown (you can add a visible counter if desired)
+                // console.log(`Auto-redirect in ${autoRedirectTime} seconds`);
+
+                if (autoRedirectTime <= 0) {
+                    clearInterval(autoRedirectInterval);
+                    autoSkip();
                 }
             }, 1000);
 
@@ -821,6 +873,11 @@
 
             // Handle submit
             submitBtn.addEventListener("click", async function () {
+                // Clear auto-redirect timer when user submits
+                if (autoRedirectInterval) {
+                    clearInterval(autoRedirectInterval);
+                }
+
                 const email = emailInput.value.trim();
                 const mailingListCheckbox = document.getElementById(
                     "mailingListCheckbox",
@@ -873,6 +930,11 @@
             skipBtn.addEventListener("click", async function () {
                 // Only proceed if button is enabled (after countdown)
                 if (this.disabled) return;
+
+                // Clear auto-redirect timer when user manually skips
+                if (autoRedirectInterval) {
+                    clearInterval(autoRedirectInterval);
+                }
 
                 this.disabled = true;
                 this.textContent = "Processing...";
