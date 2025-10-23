@@ -143,7 +143,7 @@ impl Session {
                 [
                     "WANTED: DEAD OR ALIVE\nFor settling disputes the old-fashioned way.\nLast seen at high noon near {land}.\nAnswers only to their own code.",
                     "WANTED FOR DUELING\nThis gunslinger's draw is faster than a lightning strike.\nLeft a rival staring at the sun near {land}.\nDo not challenge.",
-                    "REWARD OFFERED\nFor the figure known only as 'High Noon'.\nTheir legend was forged in the dust near {land}.\nApproach only to pay respects, or a price.",
+                    "REWARD OFFERED\nFor the duelist who settles all disputes at high noon.\nTheir legend was forged in the dust near {land}.\nApproach only to pay respects, or a price.",
                     "BE ADVISED\nThis individual solves all arguments with cold steel.\nAnother notch was added to their pistol near {land}.\nNegotiation is not an option."
                 ],
                 // 1: Gunslinger - Protector
@@ -160,12 +160,12 @@ impl Session {
                     "REWARD FOR INFORMATION\nLeading to the arrest of a known instigator.\nTheir temper is shorter than a watered-down drink.\nLast known disturbance was near {land}.",
                     "PUBLIC NUISANCE\nThis individual's arguments end in broken bottles.\nTheir knuckles are registered as lethal weapons.\nLast seen starting trouble near {land}."
                 ],
-                // 3: Gunslinger - Sharpshooter
+                // 3: Gunslinger - Ruthless
                 [
-                    "WANTED: SHARPSHOOTER\nFor relieving folks of their money and their pride.\nNever misses a shot, or a wager.\nLast seen showing off their aim near {land}.",
-                    "BEWARE THE MARKSMAN\nCan shoot the wings off a fly at a hundred paces.\nWon a legendary shooting contest near {land}.\nDon't bet against them.",
-                    "REWARD: FOR THE BEST SHOT\nThis gunslinger's pride is as dangerous as their pistol.\nTheir reputation was earned near {land}.\nLikely to be found wherever egos are wagered.",
-                    "SOUGHT: FOR TRICK SHOOTING\nWanted for acts of impossible accuracy.\nLeaves behind spent cartridges and stunned silence.\nLast seen performing feats near {land}."
+                    "WANTED: RUTHLESS KILLER\nFor crimes against humanity and common decency.\nNo one is safe from their bloodlust.\nLast seen leaving bodies near {land}.",
+                    "BEWARE THE EXECUTIONER\nThis gunslinger believes in only one verdict: guilty.\nLeft no survivors to tell the tale near {land}.\nShows no mercy, expects none.",
+                    "REWARD: DEAD OR ALIVE\nThis individual's justice is swift and final.\nTheir reputation for brutality was earned near {land}.\nInnocence is not a concept they recognize.",
+                    "SOUGHT: FOR MASS MURDER\nWanted for indiscriminate killing.\nLeaves behind only silence and sorrow.\nLast seen dispensing death near {land}."
                 ],
                 // 4: Merchant - Poker
                 [
@@ -239,17 +239,17 @@ impl Session {
                 ],
                 // 14: Arsonist - Factory
                 [
-                    "EXTREME DANGER\nWanted for reckless endangerment on a massive scale.\nTheir last act involved a gunpowder factory near {land}.\nDO NOT ENGAGE.",
-                    "BE ON HIGHEST ALERT\nThis individual is armed, dangerous, and explosive.\nResponsible for the loudest boom ever heard near {land}.\nTheir definition of 'mischief' is terrifying.",
-                    "REWARD FOR CAPTURE\nOf the saboteur who destroyed the {land} powder mill.\nThis was not an accident.\nConsidered a threat to the entire territory.",
-                    "SOUGHT: TERRORIST\nThis arsonist has graduated to domestic terrorism.\nThe explosion was heard for miles.\nLast seen walking away from the fireball near {land}."
+                    "WANTED: GANG WARFARE\nThis pyromaniac escalated a feud to devastating levels.\nBurned a rival gang's hideout to the ground near {land}.\nConsidered extremely dangerous.",
+                    "SOUGHT FOR MASS ARSON\nSettled old scores with fire and vengeance.\nLeft nothing but ashes of their enemies near {land}.\nThis individual takes no prisoners.",
+                    "REWARD FOR CAPTURE\nOf the firebrand who eliminated an entire gang.\nTheir rivals' screams were heard throughout {land}.\nJustice or murder? The jury's still out.",
+                    "BEWARE: GANG ELIMINATOR\nThis arsonist doesn't believe in second chances.\nTurned a turf war into a funeral pyre near {land}.\nTheir definition of 'victory' is total annihilation."
                 ],
-                // 15: Arsonist - Gambling Hall
+                // 15: Arsonist - Christmas Tree
                 [
-                    "WANTED FOR PROPERTY DESTRUCTION\nThis firebrand 'cleanses' corruption with flame.\nBurned down a crooked gambling hall near {land}.\nBelieved to be targeting cheats.",
-                    "NOTICE: THE HOUSE LOST\nA gambling den known for rigged games has been closed.\nPermanently. By fire.\nThe blaze was spotted near {land}.",
-                    "SOUGHT: FOR ENFORCING ODDS\nThis arsonist deals their own brand of justice to cheaters.\nThey raised the stakes at a game near {land}.\nThe entire hall went up in smoke.",
-                    "REWARD FOR INFORMATION\nOn the firebug who cashed out a gambling hall's chips.\nLeft nothing but ash and a warning.\nLast seen near {land}."
+                    "WANTED FOR HOLIDAY HOOLIGANISM\nThis yuletide troublemaker lit up the season a bit too literally.\nTurned the town Christmas tree into the world's largest candle near {land}.\nSuspect may be a Grinch in disguise.",
+                    "NOTICE: CHRISTMAS CANCELLED\nDue to one individual's overzealous interpretation of 'holiday lights'.\nThe town tree became a festive inferno near {land}.\nSanta has been notified and is NOT pleased.",
+                    "SOUGHT: THE HOLIDAY ARSONIST\nRuined Christmas faster than finding coal in your stocking.\nWitnesses report cackling and possible eggnog involvement near {land}.\nMay have been singing carols while fleeing.",
+                    "REWARD FOR THE SCROOGE\nWho confused 'deck the halls' with 'burn them all'.\nThe great Christmas tree disaster of {land} will go down in infamy.\nChildren are crying. The mayor is crying. Even the ornaments are crying."
                 ],
             ];
 
@@ -279,7 +279,7 @@ impl Session {
                 0 => "High Noon Reckoning",
                 1 => "The Town's Shield",
                 2 => "Whiskey & Bruised Knuckles",
-                3 => "The Sharpshooter's Challenge",
+                3 => "No Mercy, No Innocents",
                 4 => "The Mayor's Losing Hand",
                 5 => "A Fortune for the Folk",
                 6 => "The Serpent's Swindle",
@@ -290,8 +290,8 @@ impl Session {
                 11 => "The Great Candy Caper",
                 12 => "Mansion in Flames",
                 13 => "A Fiery Tune",
-                14 => "The Factory's Final Boom",
-                15 => "Luck Runs Out",
+                14 => "Ashes for my Enemies",
+                15 => "Christmas Inferno",
                 _ => "A Legend is Born",
             };
 

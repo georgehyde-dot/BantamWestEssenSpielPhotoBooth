@@ -10,16 +10,16 @@ I created this photo booth as a project for friends who run a board game company
 
 After experimenting with several languages and approaches:
 
-- **Python**: Initial prototype was too slow for real-time camera preview and had reliability issues with long-running processes
-- **C++**: Better performance but memory management complexity and dependency hell made it difficult to maintain
-- **Go**: Good middle ground but lacked mature libraries for camera control and image processing at the time
+- **Python**: [Python Repo](https://github.com/georgehyde-dot/PiPhotoBooth) This was my initial prototype to get something on a screen using all Raspberry Pi built in utilities and a simple frontend. I started here becasue I found a lot of photobooths built in python, and it seemed like an easy way to go from 0 to 1, and get a general feel for what the project would require. The initial prototype was too slow for real-time camera preview and had reliability issues with long-running processes. The first issue I ran into (due to some Python skill issues on my part) was that objects were getting cleaned up by the GC when I didn't want them to be. I reworked the structure to create an initial set up that lived for the life of the program, and then an object per iteration of a user going through the photobooth. Also, at this point, I was using a Raspberry Pi camera V2, which had a package I could use for easy set up. As I started to look more into how it worked, I knew I would want some lower level control, and that led to me going to my next choice of C++.
+- **C++**: [C++ Repo](https://github.com/georgehyde-dot/BantamPhotoBoothQtVersion) Initially here I looked at doing Rust of C++, but the initial set up to start working on the Pi was very simple with C++, and I made a poor attempt at cross compiling my Rust, that led to me shelving Rust. I was also interested in doing a larger project in C++, and I thought it would be easy to do my dev directly on the Pi in C/C++. I got neovim set up, and started doing research on how to display the frontend. I think my choice of display was really my downfall here. I chose QT, initially not thinking much of the GPL license requirement. I also didn't think about how I would eventually shift to working with a group of people on the designs, none of whom had much coding experience, let alone familiarity with QT frontends. In general I liked my structure for the flow of screens, but I wasn't quite able to meet my goal of having a simple initial memory allocation, and then a single allocation per iteration, due to the built in QT memory model. I ended up spending a large chunk of time looking into memory issues related to how I was using the QT objects, and I began to regret my choices. Also, I was talking with my friends about the frontend, and it quickly became obvious that I needed to use a more web based frontend to integrate their designs. Of all of my options, this is the one that I want to go back to the most, because I think the control over the camera would have been the most straightforward with the best libraries (gphoto2). At this point I started looking at Rust and Go
+- **Go**: For a brief moment I looked at using Go for the project. I use it constantly as an SRE in my day job, and I am much more proficient in it than my other options. That being said, I didn't like the existing Go packages for CUPS and Gphoto that I found. They were very old, and I expected I would end up doing a lot of the work myself, or relying on CLI calls, which, at this point, I wanted to avoid. That left me with Rust.
 
 I settled on Rust for several key reasons:
-- **Memory Safety**: No memory leaks or segfaults during long convention days
-- **Performance**: Native performance for real-time camera streaming and image processing
-- **Reliability**: The type system catches many issues at compile time
-- **Cross-compilation**: Easy to build for ARM targets from my development machine
-- **Ecosystem**: Great libraries for web servers (actix-web), image processing, and async operations
+- **Memory Safety**: I could avoid the issues I ran into with C++ and Python, while having access to C projects if necessary (I ended up scrapping that due to time constraints, but its in the plan for the future)
+- **Performance**: I knew if I dug deep enough I could control the camera stream cleanly and efficiently
+- **Reliability**: The type system catches many issues at compile time, so I could rely on fewer backwards breaking changes(This ended up not being true, but I was optimistic to start)
+- **Cross-compilation**: Once I set up the docker build pipeline for the target aarch64 system, I had no issues building and deploying.
+- **Ecosystem**: Lots of resources for web servers (I initially started with axum, then switched to actix-web), and the templating system was very easy for the final image as well.
 
 ## Development
 
