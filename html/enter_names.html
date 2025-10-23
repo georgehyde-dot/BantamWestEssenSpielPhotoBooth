@@ -52,7 +52,7 @@
 
             .header h1 {
                 color: #2c1810;
-                font-size: 32px;
+                font-size: 72px;
                 font-weight: bold;
                 margin-bottom: 8px;
                 text-shadow:
@@ -65,11 +65,11 @@
             }
 
             .main-content.keyboard-active .header h1 {
-                font-size: 36px;
+                font-size: 78px;
             }
 
             .header p {
-                font-size: 28px;
+                font-size: 54px;
                 color: #2c1810;
                 font-weight: 500;
                 text-shadow:
@@ -105,7 +105,7 @@
 
             .input-label {
                 display: block;
-                font-size: 28px;
+                font-size: 54px;
                 font-weight: 500;
                 color: #2c1810;
                 margin-bottom: 12px;
@@ -117,8 +117,8 @@
 
             .group-name-input {
                 width: 100%;
-                padding: 25px;
-                font-size: 24px;
+                padding: 50px;
+                font-size: 54px;
                 border: 3px solid rgba(255, 255, 255, 0.3);
                 border-radius: 20px;
                 text-align: center;
@@ -143,8 +143,8 @@
 
             .submit-btn {
                 width: 100%;
-                padding: 25px;
-                font-size: 28px;
+                padding: 50px;
+                font-size: 58px;
                 font-weight: bold;
                 font-family: "Rye", cursive;
                 background: linear-gradient(
@@ -209,7 +209,7 @@
                 background: rgba(245, 245, 245, 0.98);
                 backdrop-filter: blur(10px);
                 border-top: 2px solid rgba(0, 0, 0, 0.1);
-                padding: 15px 10px 20px;
+                padding: 30px 25px 35px;
                 z-index: 1000;
                 box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.2);
                 transition: bottom 0.3s ease-out;
@@ -222,8 +222,8 @@
             .keyboard-row {
                 display: flex;
                 justify-content: center;
-                margin: 6px 0;
-                gap: 6px;
+                margin: 12px 0;
+                gap: 12px;
             }
 
             .key {
@@ -231,10 +231,10 @@
                 border: 1px solid #ddd;
                 border-radius: 10px;
                 padding: 0;
-                font-size: 20px;
+                font-size: 42px;
                 font-weight: 500;
-                width: 52px;
-                height: 52px;
+                width: 110px;
+                height: 110px;
                 cursor: pointer;
                 user-select: none;
                 display: flex;
@@ -269,32 +269,31 @@
             }
 
             .key.wide {
-                width: 80px;
+                width: 170px;
             }
 
             .key.wider {
-                width: 100px;
+                width: 215px;
             }
 
             .key.space {
-                width: 250px;
+                width: 530px;
             }
 
             /* Keyboard tabs for language switching */
             .keyboard-tabs {
                 display: flex;
                 justify-content: center;
-                margin-bottom: 10px;
-                gap: 8px;
+                margin-bottom: 15px;
+                gap: 12px;
             }
 
             .keyboard-tab {
-                padding: 8px 16px;
+                padding: 18px 30px;
                 background: white;
-                border: 1px solid #ddd;
+                border: 2px solid #ddd;
                 border-radius: 8px;
-                cursor: pointer;
-                font-size: 14px;
+                font-size: 30px;
                 font-weight: 600;
                 color: #666;
                 transition: all 0.2s ease;
@@ -349,54 +348,54 @@
             /* Responsive adjustments */
             @media (max-width: 768px) {
                 .key {
-                    width: 45px;
-                    height: 45px;
-                    font-size: 18px;
+                    width: 95px;
+                    height: 95px;
+                    font-size: 36px;
                 }
 
                 .key.space {
-                    width: 200px;
+                    width: 440px;
                 }
 
                 .keyboard-row {
-                    gap: 5px;
+                    gap: 10px;
                 }
             }
 
             @media (max-width: 480px) {
                 .header h1 {
-                    font-size: 34px;
+                    font-size: 50px;
                 }
 
                 .main-content.keyboard-active .header h1 {
-                    font-size: 28px;
+                    font-size: 42px;
                 }
 
                 .group-name-input {
-                    font-size: 20px;
-                    padding: 20px;
+                    font-size: 30px;
+                    padding: 30px;
                 }
 
                 .key {
-                    width: 38px;
-                    height: 38px;
-                    font-size: 16px;
+                    width: 80px;
+                    height: 85px;
+                    font-size: 30px;
                 }
 
                 .key.wide {
-                    width: 65px;
+                    width: 140px;
                 }
 
                 .key.wider {
-                    width: 85px;
+                    width: 170px;
                 }
 
                 .key.space {
-                    width: 160px;
+                    width: 360px;
                 }
 
                 .keyboard-row {
-                    gap: 4px;
+                    gap: 9px;
                 }
 
                 .custom-keyboard {

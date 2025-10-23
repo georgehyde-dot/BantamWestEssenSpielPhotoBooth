@@ -26,8 +26,8 @@
             }
 
             h1 {
-                font-size: 3.2em;
-                margin: 20px 0;
+                font-size: 7em;
+                margin: 45px 0;
                 text-align: center;
                 color: #2c1810;
                 text-shadow:
@@ -40,9 +40,9 @@
 
             .grid-container {
                 display: grid;
-                grid-template-columns: repeat(4, min(400px, 24vw));
-                gap: 20px;
-                padding: 10px;
+                grid-template-columns: repeat(4, min(700px, 22vw));
+                gap: 45px;
+                padding: 35px;
                 justify-content: center;
             }
 
@@ -97,8 +97,8 @@
                     rgba(26, 14, 5, 0.7) 100%
                 );
                 color: #f4e4c1;
-                padding: 12px 10px;
-                font-size: 1.8em;
+                padding: 18px 15px;
+                font-size: 2.8em;
                 font-weight: bold;
                 text-align: center;
                 text-shadow:
@@ -185,49 +185,49 @@
             /* Responsive adjustments for smaller screens */
             @media (max-height: 600px) {
                 h1 {
-                    font-size: 2em;
-                    margin: 10px 0;
+                    font-size: 4.5em;
+                    margin: 25px 0;
                 }
                 .grid-container {
-                    grid-template-columns: repeat(4, min(250px, 22vw));
-                    gap: 10px;
+                    grid-template-columns: repeat(4, min(500px, 22vw));
+                    gap: 35px;
                 }
                 .class-button {
-                    width: min(180px, 20vw);
-                    height: min(180px, 20vw);
+                    width: min(400px, 20vw);
+                    height: min(400px, 20vw);
                 }
                 .class-label {
-                    font-size: 1.1em;
-                    padding: 8px 6px;
+                    font-size: 2em;
+                    padding: 14px 12px;
                 }
             }
 
             @media (max-width: 768px) {
                 h1 {
-                    font-size: 2.2em;
+                    font-size: 5.5em;
                 }
                 .grid-container {
-                    grid-template-columns: repeat(4, min(280px, 22vw));
+                    grid-template-columns: repeat(4, min(550px, 22vw));
                 }
                 .class-label {
-                    font-size: 1.1em;
+                    font-size: 2.3em;
                     letter-spacing: 1px;
                 }
             }
 
             @media (max-width: 600px) {
                 h1 {
-                    font-size: 1.8em;
+                    font-size: 4.2em;
                     letter-spacing: 1px;
                 }
                 .class-label {
-                    font-size: 1em;
-                    padding: 8px 5px;
+                    font-size: 2em;
+                    padding: 14px 10px;
                 }
                 .class-button::before {
-                    font-size: 1.5em;
-                    top: 5px;
-                    right: 5px;
+                    font-size: 3em;
+                    top: 12px;
+                    right: 12px;
                 }
             }
         </style>
