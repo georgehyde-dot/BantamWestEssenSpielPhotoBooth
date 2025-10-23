@@ -548,9 +548,12 @@
 
                 const interval = setInterval(() => {
                     t--;
-                    if (t > 2) {
+
+                    // Show countdown numbers 4, 3, 2, 1
+                    if (t > 0) {
                         countdown.textContent = t;
-                    } else {
+                    } else if (t === 0) {
+                        // When countdown reaches 0, clear number and show SCOWL
                         clearInterval(interval);
                         countdown.textContent = "";
 
@@ -558,7 +561,10 @@
                         const previewContainer =
                             document.querySelector(".preview-container");
                         previewContainer.classList.add("capturing");
+                    }
 
+                    // Trigger capture at 1 to give time for processing
+                    if (t === 1) {
                         const sessionId = sessionStorage.getItem("session_id");
                         console.log("=== SENDING CAPTURE REQUEST ===");
                         console.log("Session ID:", sessionId);
@@ -601,6 +607,15 @@
                                             file,
                                         );
                                     }
+
+                                    // Remove capturing state (removes SCOWL and restores preview)
+                                    const previewContainer =
+                                        document.querySelector(
+                                            ".preview-container",
+                                        );
+                                    previewContainer.classList.remove(
+                                        "capturing",
+                                    );
 
                                     // Show camera flash effect with enhanced timing
                                     const flash =
