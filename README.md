@@ -5,97 +5,63 @@ A production-ready photo booth application built in Rust for Raspberry Pi, featu
 ## Background
 
 I created this photo booth as a project for friends who run a board game company and needed an interactive booth for conventions. The goal was to build a reliable, self-contained system that could capture high-quality photos, add custom branding/templates, and print on-site without requiring constant supervision.
+I was partly successful, but had a few issues that showed up on the days of the event.
+The main issue was the camera interation, I have too much going on in the capture/ path, and on top of that the camera used at the event was different enough from my setup I was building with that the timing was really off on the camera capture.
+The second issue was most likely with the printer setup. We used a new type of printer, but for some reason it didn't show errors on it's screen and I had to check it with the lp commands for cups to find the error and relay that to the team, during the event. Also I had to manually re-enable the printer in cups after the errors, which I never had to do before the event with other types of printers. 
+All of that being said I think it was generally successful, and people had fun with it, so that's a win.
+
+### Disclaimer
+There's a good bit of AI slop in here, I really tried to find a workflow where I passed the agent a task while I worked on other parts, but it always ended up leaving things I didn't want or didn't like around, and the only reason there are still traces of that, is I haven't gone through and cleaned it up yet. Also pretty much all of the frontend was initially AI and then I adjusted, it's definitely a weakness of mine, so I'm sure the flat html files with js and css in them isn't ideal, but it works and actually looks pretty nice. The major issue I have is I had to manually tweak the sizing to get it to work on the screen at the coference, because for some reason (even though we explicitely planned for this and got screens with matching resolutions and quality) the sizing was totally different on mine at home, than on the one they had at the conference, so I just had to send it and fiddle with sizing with a healthy dose of hoping AI could actually "make the buttons fit better, they look weird". 
 
 ### Why I Chose Rust
 
 After experimenting with several languages and approaches:
 
 - **Python**: [Python Repo](https://github.com/georgehyde-dot/PiPhotoBooth) This was my initial prototype to get something on a screen using all Raspberry Pi built in utilities and a simple frontend. I started here becasue I found a lot of photobooths built in python, and it seemed like an easy way to go from 0 to 1, and get a general feel for what the project would require. The initial prototype was too slow for real-time camera preview and had reliability issues with long-running processes. The first issue I ran into (due to some Python skill issues on my part) was that objects were getting cleaned up by the GC when I didn't want them to be. I reworked the structure to create an initial set up that lived for the life of the program, and then an object per iteration of a user going through the photobooth. Also, at this point, I was using a Raspberry Pi camera V2, which had a package I could use for easy set up. As I started to look more into how it worked, I knew I would want some lower level control, and that led to me going to my next choice of C++.
-- **C++**: [C++ Repo](https://github.com/georgehyde-dot/BantamPhotoBoothQtVersion) Initially here I looked at doing Rust of C++, but the initial set up to start working on the Pi was very simple with C++, and I made a poor attempt at cross compiling my Rust, that led to me shelving Rust. I was also interested in doing a larger project in C++, and I thought it would be easy to do my dev directly on the Pi in C/C++. I got neovim set up, and started doing research on how to display the frontend. I think my choice of display was really my downfall here. I chose QT, initially not thinking much of the GPL license requirement. I also didn't think about how I would eventually shift to working with a group of people on the designs, none of whom had much coding experience, let alone familiarity with QT frontends. In general I liked my structure for the flow of screens, but I wasn't quite able to meet my goal of having a simple initial memory allocation, and then a single allocation per iteration, due to the built in QT memory model. I ended up spending a large chunk of time looking into memory issues related to how I was using the QT objects, and I began to regret my choices. Also, I was talking with my friends about the frontend, and it quickly became obvious that I needed to use a more web based frontend to integrate their designs. Of all of my options, this is the one that I want to go back to the most, because I think the control over the camera would have been the most straightforward with the best libraries (gphoto2). At this point I started looking at Rust and Go
+- **C++**: [C++ Repo](https://github.com/georgehyde-dot/BantamPhotoBoothQtVersion) Initially here I looked at doing Rust or C++, but the initial set up to start working on the Pi was very simple with C++, and I made a poor attempt at cross compiling my Rust, that led to me shelving Rust. I was also interested in doing a larger project in C++, and I thought it would be easy to do my dev directly on the Pi in C/C++. I got neovim set up, and started doing research on how to display the frontend. I think my choice of display was really my downfall here. I chose QT, initially not thinking much of the GPL license requirement. I also didn't think about how I would eventually shift to working with a group of people on the designs, none of whom had much coding experience, let alone familiarity with QT frontends. In general I liked my structure for the flow of screens, but I wasn't quite able to meet my goal of having a simple initial memory allocation, and then a single allocation per iteration, due to the built in QT memory model. I ended up spending a large chunk of time looking into memory issues related to how I was using the QT objects, and I began to regret my choices. Also, I was talking with my friends about the frontend, and it quickly became obvious that I needed to use a more web based frontend to integrate their designs. Of all of my options, this is the one that I want to go back to the most, because I think the control over the camera would have been the most straightforward with the best libraries (gphoto2). At this point I started looking at Rust and Go
 - **Go**: For a brief moment I looked at using Go for the project. I use it constantly as an SRE in my day job, and I am much more proficient in it than my other options. That being said, I didn't like the existing Go packages for CUPS and Gphoto that I found. They were very old, and I expected I would end up doing a lot of the work myself, or relying on CLI calls, which, at this point, I wanted to avoid. That left me with Rust.
 
 I settled on Rust for several key reasons:
-- **Memory Safety**: I could avoid the issues I ran into with C++ and Python, while having access to C projects if necessary (I ended up scrapping that due to time constraints, but its in the plan for the future)
-- **Performance**: I knew if I dug deep enough I could control the camera stream cleanly and efficiently
+- **Memory Management**: I could avoid the issues I ran into with C++ and Python, while having access to C projects if necessary (I ended up scrapping that due to time constraints, but its in the plan for the future)
+- **Systems control**: I knew if I dug deep enough I could control the camera stream cleanly and efficiently
 - **Reliability**: The type system catches many issues at compile time, so I could rely on fewer backwards breaking changes(This ended up not being true, but I was optimistic to start)
-- **Cross-compilation**: Once I set up the docker build pipeline for the target aarch64 system, I had no issues building and deploying.
-- **Ecosystem**: Lots of resources for web servers (I initially started with axum, then switched to actix-web), and the templating system was very easy for the final image as well.
+- **Cross-compilation**: Once I set up the docker build pipeline for the target aarch64 system, I had no issues building and deploying. Realistically this wasn't a bonus over the other options, because for C++ I was working directly on the pi, and the Go build for different targets is incredibly easy, but it's a decent bullet point I guess. 
+- **Ecosystem**: Lots of resources for web servers (I initially started with axum, then switched to actix-web), and the templating system was very easy for the final image as well. The templating was the easiest of the languages I tried, and initially I was looking to, From Zero to Production in Rust a bit, but as time got more tight I moved away from that rigor.
 
 ## Development
 
 ### Development Journey
 
-The project evolved through several phases to reach production readiness:
 
-#### Phase 1: Camera Control
-Started with basic USB camera support, then moved to Canon DSLR control via gphoto2 for professional image quality. The Canon EOS Rebel T7 was chosen for its:
-- Excellent image quality at a reasonable price point
-- Reliable USB tethering support
-- Fast autofocus and capture times
-- Good low-light performance for indoor venues
-
-#### Phase 2: Preview System
-Implementing real-time preview was challenging. The solution uses:
+#### Coordination:
+Really the longest chunk of time was going back and forth figuring out what was needed for the project and what the actual flow through the screens would be. 
+#### Preview System
+Implementing real-time preview was challenging. This is one of the major issues still.
 - **v4l2loopback**: Virtual video device for streaming
 - **gphoto2**: Captures live view from Canon camera
 - **FFmpeg**: Pipes the stream to the loopback device
 - **MJPEG streaming**: Serves preview to web browsers
 
-Key timing considerations:
-- Stop preview → Wait 500ms → Capture → Resume preview
-- Process cleanup between operations to prevent "device busy" errors
-- Careful process group management to ensure child processes are properly terminated
-
-#### Phase 3: Printer Integration
-Selected the EPSON XP-8700 printer with TurboPrint driver for:
-- Borderless 4x6" photo printing
-- Fast print speeds (under 30 seconds per photo)
-- Reliable CUPS integration
-- Good color reproduction
-
-#### Phase 4: Remote Deployment
-Implemented Tailscale-based deployment for:
-- Secure remote access to production devices
-- Easy updates without physical access
-- Remote troubleshooting during events
-- Network-independent connectivity
-
-#### Phase 5: Frontend Evolution
-The web interface went through multiple iterations:
-1. Basic HTML forms → Interactive wizard flow
-2. Added session management for multi-step process
-3. Integrated AI story generation for personalized prints
-4. Responsive design for tablet/phone operation
-
+#### Printer Integration
+Really just relying on CUPs and the packages that exist for that.
+#### Remote Deployment
+After I got tailscale set up on the devices it became trivial to scp files and manually fiddle with things over ssh.
+#### Frontend Evolution
+This went through a lot of phases, and I really like what we ended up with. Getting the text just right for each of the options was something I spent a lot of time with, and I think it fit in the world of Bantam pretty well.
 ### Technical Highlights
 
-#### Camera Timing & Reliability
-The most critical aspect was getting camera timing right:
-```rust
-// Stop preview before capture
-self.stop_preview().await?;
-// Critical delay for camera state transition
-tokio::time::sleep(Duration::from_millis(500)).await;
-// Capture photo
-let jpeg_data = self.capture_photo(output_path).await?;
-// Resume preview after capture
-self.start_preview_stream().await?;
-```
-
 #### v4l2loopback Setup
-The system uses a virtual video device for preview:
+I realized that I couldn't stream from the camera and capture images as the same timeout without making one of a few compromises:
+- Just streaming the data from the screen and doing a capture of a still image from the stream
+   -- This had an added issue of the capture showing the focus window, and I built a pretty neat algorithm to remove the box as a post process on the capture, but I had issues with the screen timing out, so this one was a bust.
+- Buying a new camera, realistically and for future attempts this is exactly what I'll do, but I was already a few hundred dollars in on the camera, and I wanted to make it work.
+- Get lucky and find a stack overflow comment describing how to create a loopback device and pass it the camera stream through ffmpeg.
+   -- This turned out being what I went with, and then I would cancel the stream, and use gphoto2 to perform the actual capture, then on the start of the next iteration, start the stream back.
 ```bash
-# Load v4l2loopback module
 sudo modprobe v4l2loopback devices=1 video_nr=10 card_label="Photo Booth" exclusive_caps=1
-# Stream from camera to loopback
+
 gphoto2 --stdout --capture-movie | ffmpeg -i - -vcodec rawvideo -pix_fmt yuv420p -f v4l2 /dev/video10
 ```
-
-#### Process Management
-Robust process cleanup prevents camera lockups:
-- Uses process groups for managing child processes
-- SIGTERM followed by SIGKILL for graceful shutdown
-- Explicit cleanup in Drop implementations
 
 ## Deployment
 
@@ -106,7 +72,7 @@ The deployment system uses Docker for cross-compilation and SSH for distribution
 1. **Build Phase**: Docker container cross-compiles for ARM64
 2. **Distribution**: Binary and assets deployed via SCP
 3. **Configuration**: Environment-based configuration for different venues
-4. **Monitoring**: Tailscale for remote access and troubleshooting
+4. **Monitoring**: Tailscale for remote access and troubleshooting. I just used tail on the log file since it was just me monitoring it and I was pretty familiar with all the logs. 
 
 ### Docker Build System
 
@@ -118,12 +84,6 @@ FROM debian:bookworm AS builder
 # Build for aarch64-unknown-linux-gnu target
 # Output minimal binary artifact
 ```
-
-Key features:
-- Debian Bookworm base for compatibility with Raspberry Pi OS
-- Cross-compilation from x86_64 to ARM64
-- Dependency caching for fast rebuilds
-- Minimal final artifact size
 
 ### Deployment Script
 
@@ -138,16 +98,13 @@ The `deploy.sh` script handles the complete deployment:
 ```
 
 Features:
-- Environment-specific deployment (dev/prod)
-- Intelligent file change detection (only copies modified files)
-- Setup script distribution
-- Database initialization
-- Font installation
-- Permission management
+- Environment-specific deployment (dev/prod) This split between deploying to the actual pi in use at the conference or the one sitting next to me in my office. Just an IP switch.
+- Intelligent file change detection (only copies modified files) The wifi was bad at the conference so I needed to keep my push size down.
 
 ### Setup Scripts
 
 The deployment includes several setup scripts:
+Each of these was a response to some specific issue I ran into while I was setting everything up and testing it locally. I think by the end they weren't actually needed, but I'm glad that I have them as a check on how I got things done and some of the issues I ran into.
 
 - **setup_packages.sh**: Installs system dependencies (gphoto2, ffmpeg, CUPS, etc.)
 - **setup_printer.sh**: Configures CUPS and TurboPrint driver
@@ -155,47 +112,20 @@ The deployment includes several setup scripts:
 - **check_setup.sh**: Diagnostic script for troubleshooting
 - **install_fonts.sh**: Installs custom fonts for template rendering
 
-### Production Configuration
-
-Environment variables for production:
-```bash
-# Server
-HOST=0.0.0.0
-PORT=8080
-
-# Camera
-V4L2_LOOPBACK_DEVICE=/dev/video10
-
-# Storage
-STORAGE_PATH=/usr/local/share/photo_booth
-DATABASE_URL=sqlite:///usr/local/share/photo_booth/photo_booth.db
-
-# Printer
-PRINTER_NAME=XP8700series-TurboPrint
-PRINTER_FALLBACK=EPSON_XP_8700_Series_USB,XP-8700
-
-# Logging
-RUST_LOG=info
-```
-
 ### Troubleshooting
 
-Common issues and solutions:
+Here are some things I ran into pretty often/during the event
 
 #### Camera Issues
-- **Device Busy**: Increase delay after stopping preview
-- **No Camera Found**: Check USB connection and `gphoto2 --auto-detect`
-- **Preview Frozen**: Restart v4l2loopback module
+- **Device Busy**: Increase delay after stopping preview, I never really got this fixed. Major issues
+- **Preview Frozen**: Restart v4l2loopback module. This was generally only an issue while I was trying to fix the timing and I caused some side issues with the stream.
 
 #### Printer Issues
 - **Jobs Stuck**: Check CUPS queue with `lpstat -o`
-- **Wrong Size**: Verify media settings in CUPS
-- **No Borderless**: Ensure TurboPrint driver is active
+- **Wrong Size/Wrong printing settings**: I ran into a conflict between what I sent to the printer and its default settings a few times and got the wrong paper size out. The fix was to stick with one driver from the start and set the printers default to match what I was sending in the request to cups.
 
 #### Deployment Issues
-- **Permission Denied**: Check SSH key permissions
-- **Build Fails**: Ensure Docker has enough memory
-- **Binary Won't Run**: Verify ARM64 architecture match
+- The main issue I ran into was that my deployment required that the service be turned off during the deploy. This was a rookie mistake on my part, but other issues kept me from fixing this one. 
 
 ### Monitoring & Maintenance
 
@@ -203,7 +133,7 @@ Production monitoring setup:
 - Tailscale for secure remote access
 - SystemD service for automatic startup
 - Log rotation for long-running deployments
-- Database backups before events
+- I should have set up data backups to run regularly during the event, and to compress the images, but it fell out as I had other more pressing priorities. 
 
 ## Project Structure
 
@@ -226,33 +156,10 @@ canon_test_cam/
 ## Acknowledgments
 
 Special thanks to:
-- The Bantam team for trusting me with their convention booth needs
-- The Rust community for excellent libraries and documentation
-- The gphoto2 project for reliable camera control
-- Everyone who tested the booth at conventions and provided feedback
-
-## Online Demo
-
-An online version (without camera/printer functionality) is available for testing the user flow and template system. This helped iterate on the UI before deploying to hardware.
-
-## Future Improvements
-
-- [ ] Multiple camera support for different angles
-- [ ] Cloud backup of photos
-- [ ] QR code for digital photo delivery
-- [ ] More template customization options
-- [ ] Analytics dashboard for event organizers
+- The Bantam team for trusting me with their convention booth needs, their product is vastly superior to what I created, so don't hold my mediocre code and project against their amazing company. 
+Really go check them out [Bantam Planet](https://www.visitbantam.com/)
 
 ## License
 
 MIT License - See LICENSE file for details
 
-## Contributing
-
-Contributions are welcome! The project follows Rust best practices as outlined in "Zero to Production in Rust". Please ensure:
-- All tests pass
-- Code follows Rust idioms
-- Changes are tested on actual hardware
-- Documentation is updated
-
-For questions or issues, please open a GitHub issue or reach out via the project repository.

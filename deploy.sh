@@ -24,7 +24,6 @@ PI_USER="${PI_USER:-prospero}"
 BINARY_NAME="${BINARY_NAME:-cam_test}"
 REMOTE_DEST_PATH="${REMOTE_DEST_PATH:-/home/${PI_USER}/cam_test}"
 DOCKER_IMAGE_NAME="${DOCKER_IMAGE_NAME:-cam-test-pi-builder}"
-SSH_KEY_PATH="${SSH_KEY_PATH:-$HOME/.ssh/id_bantatam_pi}"
 
 # Resolve important paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -41,7 +40,6 @@ echo "  PI_HOST          = ${PI_HOST}"
 echo "  BINARY_NAME      = ${BINARY_NAME}"
 echo "  REMOTE_DEST_PATH = ${REMOTE_DEST_PATH}"
 echo "  DOCKER_IMAGE_NAME= ${DOCKER_IMAGE_NAME}"
-echo "  SSH_KEY_PATH     = ${SSH_KEY_PATH}"
 echo "  PROJECT_ROOT     = ${PROJECT_ROOT}"
 echo "  DOCKERFILE_PATH  = ${DOCKERFILE_PATH}"
 echo "  LOCAL_BIN        = ${LOCAL_BIN}"
@@ -50,7 +48,6 @@ echo "------------------------------------------------------------------"
 # Basic checks
 command -v docker >/dev/null 2>&1 || { echo "ERROR: docker not found in PATH"; exit 1; }
 [ -f "${DOCKERFILE_PATH}" ] || { echo "ERROR: Dockerfile not found at ${DOCKERFILE_PATH}"; exit 1; }
-[ -f "${SSH_KEY_PATH}" ] || { echo "ERROR: SSH key not found at ${SSH_KEY_PATH}"; exit 1; }
 
 mkdir -p "${OUT_DIR}"
 
