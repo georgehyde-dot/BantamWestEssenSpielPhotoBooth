@@ -163,3 +163,21 @@ Really go check them out [Bantam Planet](https://www.visitbantam.com/)
 
 MIT License - See LICENSE file for details
 
+## Some pictures from the development
+A view of one of the earlier development setups I had
+![photo_2025-10-29 19 06 16](https://github.com/user-attachments/assets/559c0a70-13d8-4b18-a7d2-bcebaa4c6da8)
+
+A quick design diagram of the system
+![photo_2025-10-29 19 06 36](https://github.com/user-attachments/assets/f0b8f535-4e93-46af-89c4-7b3cec714d91)
+
+I moved halfway through development and this was my setup for a week or so in the middle of an empty room
+![photo_2025-10-29 19 07 37](https://github.com/user-attachments/assets/510be12f-6bc9-48ec-a865-a51e21459e0c)
+
+One of the earlier captures before I switched from the picam to a DSLR
+![photo_2025-10-29 19 12 06](https://github.com/user-attachments/assets/23f9d56c-32d1-4b0b-9bb6-9f7805d3f813)
+
+Image-ception
+![20250917_122245](https://github.com/user-attachments/assets/d64b49a0-5268-4263-a3ab-35d9d466f2bc)
+
+One of the first wanted posters
+![20250819_124323](https://github.com/user-attachments/assets/149a194a-a422-4086-bea8-f27d5c471153)
