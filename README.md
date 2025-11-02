@@ -181,3 +181,7 @@ Image-ception
 
 One of the first wanted posters
 ![20250819_124323](https://github.com/user-attachments/assets/149a194a-a422-4086-bea8-f27d5c471153)
+
+The final product at the convention printed out
+![final_photo](https://github.com/user-attachments/assets/940d3723-e611-4929-b048-b64685198d9a)
+
